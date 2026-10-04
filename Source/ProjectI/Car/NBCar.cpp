@@ -38,6 +38,12 @@ void ANBCar::BeginPlay()
 	Super::BeginPlay();
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	// Only the server consumes raw inputs. Clients, still requiring a controller they
+	// don't have, fall back to Chaos's ReplicatedState (the server's live steering,
+	// throttle, brake and gear), so their wheels steer/spin in step with the
+	// interpolated body instead of fighting it with zero input.
+	Movement->SetRequiresControllerForInputs(!HasAuthority());
+
 	BaseMaxEngineTorque = Movement->EngineSetup.MaxTorque;
 	BaseBrakeTorque.Reset();
 	BaseFriction.Reset();
