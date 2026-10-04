@@ -25,3 +25,6 @@ Plugins/**/Intermediate/
 *.exe
 *.log
 .DS_Store
+
+# mcp-unreal generated docs search index
+docs/index.bleve/
