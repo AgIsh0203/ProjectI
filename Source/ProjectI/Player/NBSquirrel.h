@@ -31,6 +31,11 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PawnClientRestart() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PossessedBy(AController* NewController) override;
+
+	/** Which entry of FurColors this squirrel wears; unique per player. */
+	UFUNCTION(BlueprintPure, Category = "Squirrel")
+	int32 GetColorIndex() const { return ColorIndex; }
 
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	UNBSeatComponent* GetCurrentSeat() const { return CurrentSeat; }
@@ -45,6 +50,10 @@ public:
 	/** Server only. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
 	void LeaveSeat();
+
+	/** Server only. Seated: jump straight to the next free seat on the same car. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
+	void HopToNextSeat();
 
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -69,6 +78,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float SeatedArmLength = 1100.f;
 
+	/** Bright, distinct colors so viewers can tell the tiny squirrels apart. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	TArray<FLinearColor> FurColors;
+
 	UPROPERTY(EditAnywhere, Category = "Interaction")
 	float InteractRange = 300.f;
 
@@ -80,12 +93,17 @@ private:
 	void Move(const FInputActionValue& Value);
 	void MoveCompleted(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+	void JumpPressed();
 	void Interact();
 	void SendSeatInput(float Value);
 	void ApplySeatedState(bool bSeated);
 
+	/** On foot: take the nearest free seat. Seated: hop to the next free seat. */
 	UFUNCTION(Server, Reliable)
 	void Server_Interact();
+
+	UFUNCTION(Server, Reliable)
+	void Server_LeaveSeat();
 
 	UFUNCTION(Server, Unreliable)
 	void Server_SetSeatInput(float Value);
@@ -93,10 +111,19 @@ private:
 	UFUNCTION()
 	void OnRep_CurrentSeat();
 
+	UFUNCTION()
+	void OnRep_ColorIndex();
+
+	void ApplyFurColor();
+
 	ANBCar* GetSeatCar() const;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentSeat)
 	TObjectPtr<UNBSeatComponent> CurrentSeat;
+
+	/** INDEX_NONE until the server assigns one on possession. */
+	UPROPERTY(ReplicatedUsing = OnRep_ColorIndex)
+	int32 ColorIndex = INDEX_NONE;
 
 	// Input assets are built in code so the prototype needs no input .uassets.
 	UPROPERTY(Transient)

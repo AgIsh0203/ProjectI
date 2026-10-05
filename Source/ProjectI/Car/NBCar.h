@@ -34,6 +34,9 @@ public:
 	/** Closest unoccupied seat within MaxDistance of Location, or nullptr. */
 	UNBSeatComponent* FindNearestFreeSeat(const FVector& Location, float MaxDistance) const;
 
+	/** The next free seat after From in hop order (wrapping), or nullptr if every other seat is taken. */
+	UNBSeatComponent* FindNextFreeSeat(const UNBSeatComponent* From) const;
+
 	/** cm/s along the car's forward axis. */
 	UFUNCTION(BlueprintPure, Category = "Car")
 	float GetForwardSpeed() const;
@@ -63,6 +66,17 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> PedalSeat;
+
+	/** Rider spots for squirrels who aren't driving. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
+	TObjectPtr<UNBSeatComponent> PassengerSeat;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
+	TObjectPtr<UNBSeatComponent> DeckSeat;
+
+	/** Every seat, in hop order. Filled in BeginPlay. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNBSeatComponent>> Seats;
 
 private:
 	void ApplyInputsToVehicle();

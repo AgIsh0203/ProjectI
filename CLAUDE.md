@@ -2,12 +2,12 @@
 
 20-day UE 5.7.1 co-op "friend slop" **prototype**: 2–4 tiny squirrels drive ONE human-sized, open-top, falling-apart car. Guiding principle: **viewer fun first, player fun second**, so the game spreads through streams and clips. Full design: `Docs/GDD.md`. Approved plan: `C:\Users\ishan\.claude\plans\for-the-first-project-woolly-wozniak.md`.
 
-## Status (last updated 2026-10-05, end of Day 1)
+## Status (last updated 2026-10-05, Day 1 evening)
 - **M0 Foundations: mostly done.**
   - Chaos car driven by 2 players (Wheel seat steers, Pedals seat does gas/brake), verified in 2-client PIE.
   - Remaining for M0: package a build, then do the Steam + VOIP test on the user's 2 PCs (host / invite / join / voice).
 - **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
-  1. Seat placement on the buggy, plus hopping between stations.
+  1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
   2. `UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.
   3. 4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.
   4. Ejection ragdoll and respawn (8 s).
@@ -36,9 +36,13 @@
   - `SetRequiresControllerForInputs(!HasAuthority())`, so clients use Chaos's `ReplicatedState`. This fixed client wheel jitter.
   - Template auto-flip-reset is disabled (`FlipCheckMinDot = -2`).
   - Damage hooks: `SetEnginePowerScale`, `SetBrakePowerScale`, `SetWheelGripScale` (scale the base values cached in BeginPlay).
-- `Car/NBSeatComponent` — replicated Wheel/Pedals seat; the squirrel attaches to it.
+- `Car/NBSeatComponent` — replicated seat (Wheel / Pedals / Rider); the squirrel attaches to it, so its location is the capsule centre.
+  - The car has 4: WheelSeat (perched on the steering wheel), PedalSeat (footwell), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
+  - Hop order is the car's `Seats` array (filled in BeginPlay).
 - `Player/NBSquirrel` — character.
   - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact.
+  - On foot, E takes the nearest free seat. Seated, E hops to the next free seat (`HopToNextSeat`) and Space jumps out on the seat's side of the car.
+  - Each player gets a unique, replicated fur color (`ColorIndex` → `FurColors`, applied via the BasicShapeMaterial `Color` param).
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
 - `TP_VehicleAdv/` — imported C++ Vehicle template, compiled inside the ProjectI module. Its duplicate `IMPLEMENT_PRIMARY_GAME_MODULE` was removed; `Build.cs` adds its folders to the include path.
@@ -62,6 +66,8 @@
   - Get the server world with `[w for w in unreal.EditorLevelLibrary.get_pie_worlds(False) if unreal.GameplayStatics.get_game_mode(w)]`.
   - `LevelEditorPlaySettings` isn't exposed to Python; edit the ini instead.
   - The editor throttles to a few fps when unfocused, so per-frame samplers run slowly.
+  - If the MCP server fails to connect (e.g. the editor wasn't running at session start), POST JSON straight to the plugin: `localhost:8090/api/editor/execute_script` `{"script": ...}`, then `/api/editor/output_log` `{"pattern": ..., "max_lines": N}` (or `{"category":"LogPython","verbosity":"error"}` for tracebacks). There's no jq; use node for JSON.
+  - `capture_viewport` returns a stale frame while the editor is unfocused. For screenshots, spawn a `SceneCapture2D` in the editor world, `capture_scene()`, then `RenderingLibrary.export_render_target`. Python can't spawn actors into PIE worlds.
 - **Machine:** memory is tight when Rider and the editor are both open (32 GB, commit limit ~47 GB). Build Go with `-p 1`.
 - **Git** (repo `AgIsh0203/ProjectI`, public, branch `main`, LFS for `.uasset`/`.umap`/media):
   - Commit **as AgIsh0203** (local user config is already set). Never change the global git identity.
@@ -73,7 +79,7 @@
   - Claude: code, config, Blueprints/levels via MCP, builds, tests, commits.
 
 ## Open items / ideas parked
-- Seat positions on the buggy are rough guesses; the squirrels are tiny and grey, so they're hard to see. Fix in M1.
+- The pedal squirrel sits low in the footwell and may be hidden behind the steering wheel from the chase camera. Check this in play.
 - The client shows gear 0 / idle RPM (Chaos doesn't replicate engine state to an unpossessed car). Replicate RPM before adding engine audio.
 - The seated camera doesn't auto-follow the car's heading yet (feel tweak).
 - Possible remaining TSR shimmer on the tires; tune only if the user still sees it.

@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -67,12 +68,65 @@ ANBSquirrel::ANBSquirrel()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	FurColors = {
+		FLinearColor(1.f, 0.35f, 0.02f),  // orange
+		FLinearColor(0.05f, 0.55f, 1.f),  // blue
+		FLinearColor(0.95f, 0.05f, 0.6f), // pink
+		FLinearColor(0.3f, 0.9f, 0.05f),  // lime
+	};
 }
 
 void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANBSquirrel, CurrentSeat);
+	DOREPLIFETIME(ANBSquirrel, ColorIndex);
+}
+
+void ANBSquirrel::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (ColorIndex != INDEX_NONE || FurColors.IsEmpty())
+	{
+		return;
+	}
+	// Lowest color no other squirrel is wearing.
+	TSet<int32> Taken;
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		if (*It != this)
+		{
+			Taken.Add(It->ColorIndex);
+		}
+	}
+	ColorIndex = 0;
+	while (Taken.Contains(ColorIndex) && ColorIndex < FurColors.Num() - 1)
+	{
+		++ColorIndex;
+	}
+	ApplyFurColor();
+}
+
+void ANBSquirrel::OnRep_ColorIndex()
+{
+	ApplyFurColor();
+}
+
+void ANBSquirrel::ApplyFurColor()
+{
+	if (!FurColors.IsValidIndex(ColorIndex))
+	{
+		return;
+	}
+	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get()})
+	{
+		if (UMaterialInstanceDynamic* Material = Part->CreateAndSetMaterialInstanceDynamic(0))
+		{
+			Material->SetVectorParameterValue(TEXT("Color"), FurColors[ColorIndex]);
+		}
+	}
 }
 
 void ANBSquirrel::BuildInputAssets()
@@ -145,7 +199,7 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ANBSquirrel::Move);
 	Input->BindAction(MoveAction, ETriggerEvent::Completed, this, &ANBSquirrel::MoveCompleted);
 	Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &ANBSquirrel::Look);
-	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ANBSquirrel::JumpPressed);
 	Input->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &ANBSquirrel::Interact);
 }
@@ -179,6 +233,16 @@ void ANBSquirrel::Look(const FInputActionValue& Value)
 	AddControllerPitchInput(Axis.Y);
 }
 
+void ANBSquirrel::JumpPressed()
+{
+	if (CurrentSeat)
+	{
+		Server_LeaveSeat();
+		return;
+	}
+	Jump();
+}
+
 void ANBSquirrel::Interact()
 {
 	Server_Interact();
@@ -199,7 +263,7 @@ void ANBSquirrel::Server_Interact_Implementation()
 {
 	if (CurrentSeat)
 	{
-		LeaveSeat();
+		HopToNextSeat();
 		return;
 	}
 
@@ -224,6 +288,11 @@ void ANBSquirrel::Server_Interact_Implementation()
 	}
 }
 
+void ANBSquirrel::Server_LeaveSeat_Implementation()
+{
+	LeaveSeat();
+}
+
 void ANBSquirrel::Server_SetSeatInput_Implementation(float Value)
 {
 	if (ANBCar* Car = GetSeatCar())
@@ -246,6 +315,23 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 	AttachToComponent(Seat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 }
 
+void ANBSquirrel::HopToNextSeat()
+{
+	check(HasAuthority());
+	ANBCar* Car = GetSeatCar();
+	UNBSeatComponent* NewSeat = Car ? Car->FindNextFreeSeat(CurrentSeat) : nullptr;
+	if (!NewSeat)
+	{
+		return;
+	}
+
+	Car->SetSeatInput(CurrentSeat->Role, 0.f);
+	CurrentSeat->SetOccupant(nullptr);
+	NewSeat->SetOccupant(this);
+	CurrentSeat = NewSeat;
+	AttachToComponent(NewSeat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+}
+
 void ANBSquirrel::LeaveSeat()
 {
 	check(HasAuthority());
@@ -258,7 +344,10 @@ void ANBSquirrel::LeaveSeat()
 	if (ANBCar* Car = GetSeatCar())
 	{
 		Car->SetSeatInput(OldSeat->Role, 0.f);
-		const FVector ExitLocation = OldSeat->GetComponentLocation() - Car->GetActorRightVector() * ExitSideOffset + FVector(0.f, 0.f, 60.f);
+		// Hop out on the side of the car the seat is on.
+		const FVector Right = Car->GetActorRightVector();
+		const float Side = FVector::DotProduct(OldSeat->GetComponentLocation() - Car->GetActorLocation(), Right) >= 0.f ? 1.f : -1.f;
+		const FVector ExitLocation = OldSeat->GetComponentLocation() + Right * Side * ExitSideOffset + FVector(0.f, 0.f, 60.f);
 		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		SetActorLocationAndRotation(ExitLocation, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
 	}

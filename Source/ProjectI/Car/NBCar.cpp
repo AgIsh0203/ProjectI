@@ -22,20 +22,40 @@ ANBCar::ANBCar()
 	// Flipping back is a 2-squirrel job in this game, so disable the template's auto-reset.
 	FlipCheckMinDot = -2.f;
 
+	// Seat locations are the squirrel's capsule centre (half-height 22), measured off
+	// SM_Offroad_Body: steering wheel ring ~(105, -37, 90..122), pedals ~(115, -37, 60),
+	// seat cushions ~(30, +-35, 74), engine deck top ~z 148 over x -60..-110.
+
+	// Perched on top of the steering wheel rim.
 	WheelSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("WheelSeat"));
 	WheelSeat->SetupAttachment(GetMesh());
 	WheelSeat->Role = ENBSeatRole::Wheel;
-	WheelSeat->SetRelativeLocation(FVector(10.f, -38.f, 150.f));
+	WheelSeat->SetRelativeLocation(FVector(98.f, -37.f, 142.f));
 
+	// Down in the driver's footwell, on the pedals.
 	PedalSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("PedalSeat"));
 	PedalSeat->SetupAttachment(GetMesh());
 	PedalSeat->Role = ENBSeatRole::Pedals;
-	PedalSeat->SetRelativeLocation(FVector(45.f, -38.f, 95.f));
+	PedalSeat->SetRelativeLocation(FVector(114.f, -37.f, 84.f));
+
+	PassengerSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("PassengerSeat"));
+	PassengerSeat->SetupAttachment(GetMesh());
+	PassengerSeat->Role = ENBSeatRole::Rider;
+	PassengerSeat->SetRelativeLocation(FVector(28.f, 35.f, 96.f));
+
+	// On the engine deck behind the seats.
+	DeckSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("DeckSeat"));
+	DeckSeat->SetupAttachment(GetMesh());
+	DeckSeat->Role = ENBSeatRole::Rider;
+	DeckSeat->SetRelativeLocation(FVector(-85.f, 0.f, 172.f));
 }
 
 void ANBCar::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Hop order goes round the car: wheel -> pedals -> passenger seat -> engine deck.
+	Seats = {WheelSeat, PedalSeat, PassengerSeat, DeckSeat};
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
 	// Only the server consumes raw inputs. Clients, still requiring a controller they
@@ -73,6 +93,8 @@ void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
 	case ENBSeatRole::Pedals:
 		ThrottleInput = Value;
 		break;
+	case ENBSeatRole::Rider:
+		return;
 	}
 	ApplyInputsToVehicle();
 }
@@ -89,7 +111,7 @@ UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float Max
 {
 	UNBSeatComponent* Best = nullptr;
 	float BestDistSq = FMath::Square(MaxDistance);
-	for (UNBSeatComponent* Seat : {WheelSeat.Get(), PedalSeat.Get()})
+	for (UNBSeatComponent* Seat : Seats)
 	{
 		if (!Seat || !Seat->IsFree())
 		{
@@ -103,6 +125,20 @@ UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float Max
 		}
 	}
 	return Best;
+}
+
+UNBSeatComponent* ANBCar::FindNextFreeSeat(const UNBSeatComponent* From) const
+{
+	const int32 Start = Seats.IndexOfByKey(From);
+	for (int32 Step = 1; Step < Seats.Num(); ++Step)
+	{
+		UNBSeatComponent* Seat = Seats[(Start + Step + Seats.Num()) % Seats.Num()];
+		if (Seat && Seat->IsFree())
+		{
+			return Seat;
+		}
+	}
+	return nullptr;
 }
 
 float ANBCar::GetForwardSpeed() const

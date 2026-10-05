@@ -14,6 +14,7 @@ enum class ENBSeatRole : uint8
 {
 	Wheel  UMETA(DisplayName = "Wheel (steer)"),
 	Pedals UMETA(DisplayName = "Pedals (gas/brake)"),
+	Rider  UMETA(DisplayName = "Rider (no control)"),
 };
 
 /**
