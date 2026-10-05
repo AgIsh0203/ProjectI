@@ -47,6 +47,17 @@ void ANBHUD::DrawHUD()
 
 	DrawCarStatus();
 
+	if (Squirrel->IsRagdolled())
+	{
+		DrawCenteredText(TEXT("WHEEEEE!"), Canvas->ClipY * 0.3f, ProgressColor, 3.f);
+	}
+	const float RespawnLeft = Squirrel->GetRespawnSecondsLeft();
+	if (RespawnLeft >= 0.f)
+	{
+		const FString Countdown = FString::Printf(TEXT("Get back in the car!  %d"), FMath::CeilToInt(RespawnLeft));
+		DrawCenteredText(Countdown, Canvas->ClipY * 0.3f + 70.f, BadColor, 1.8f);
+	}
+
 	if (const UNBInteractableComponent* Interactable = Squirrel->GetFocusedInteractable())
 	{
 		DrawInteractable(*Interactable, Interactable->IsUsedBy(Squirrel));

@@ -16,6 +16,21 @@ class USpringArmComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
 
+USTRUCT()
+struct FNBRagdollState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bActive = false;
+
+	UPROPERTY()
+	FVector_NetQuantize Start;
+
+	UPROPERTY()
+	FVector_NetQuantize Velocity;
+};
+
 /**
  * A tiny squirrel. On foot it is a normal character; when seated it is attached to a
  * car seat with movement and collision off, and its move input is sent to the server
@@ -70,6 +85,32 @@ public:
 	/** Server only. Called by an interactable when it drops this squirrel as a user. */
 	void HandleInteractionEnded(UNBInteractableComponent* Interactable);
 
+	/**
+	 * Server only. Throw the squirrel out: it leaves its seat, tumbles as a physics body
+	 * launched at LaunchVelocity, gets up after RagdollSeconds, and is respawned at the car
+	 * if it isn't back in a seat RespawnDelay seconds after the fall.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
+	void Eject(FVector LaunchVelocity);
+
+	/** Server only. Eject with the car's momentum plus a kick out of the seat's side. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
+	void EjectFromCar();
+
+	/** Server only. Put the squirrel back at the car now (a free seat, else beside it). */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
+	void RespawnAtCar();
+
+	UFUNCTION(BlueprintPure, Category = "Squirrel")
+	bool IsRagdolled() const { return Ragdoll.bActive; }
+
+	/** Seconds until the automatic respawn after a fall, or a negative number if none is pending. */
+	UFUNCTION(BlueprintPure, Category = "Squirrel")
+	float GetRespawnSecondsLeft() const;
+
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void FellOutOfWorld(const UDamageType& DamageType) override;
+
 	/** Dev: fail a car part. Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random) or All. */
 	UFUNCTION(Exec)
 	void NBFail(const FString& PartName);
@@ -79,6 +120,7 @@ public:
 	void NBChaos();
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -111,6 +153,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Interaction")
 	float ExitSideOffset = 190.f;
 
+	/** How long a thrown-out squirrel tumbles before getting up. */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float RagdollSeconds = 2.5f;
+
+	/** Seconds after a fall to get back in a seat before being respawned (with a penalty). */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float RespawnDelay = 8.f;
+
+	/** Jumping out of a car going faster than this (cm/s) throws you out instead of hopping. */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float BailSpeed = 600.f;
+
+	/** Extra kick on top of the car's velocity when thrown out: sideways and up (cm/s). */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	FVector2D EjectKick = FVector2D(350.f, 450.f);
+
 private:
 	void BuildInputAssets();
 	void Move(const FInputActionValue& Value);
@@ -134,7 +192,17 @@ private:
 	UFUNCTION()
 	void OnRep_ClingTarget();
 	void SendSeatInput(float Value);
-	void ApplySeatedState(bool bSeated);
+	void StartLocalRagdoll();
+	void StopLocalRagdoll();
+	void Recover();
+	void ClearRespawn();
+	void SnapTo(const FVector& Location, const FRotator& Rotation);
+
+	UFUNCTION(Client, Reliable)
+	void Client_SnapTo(FVector_NetQuantize Location, FRotator Rotation);
+
+	UFUNCTION()
+	void OnRep_Ragdoll();
 
 	/** On foot: take the nearest free seat. Seated: hop to the next free seat. */
 	UFUNCTION(Server, Reliable)
@@ -165,6 +233,22 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentSeat)
 	TObjectPtr<UNBSeatComponent> CurrentSeat;
+
+	/** Replicated launch so every machine tumbles the same body from the same start. */
+	UPROPERTY(ReplicatedUsing = OnRep_Ragdoll)
+	FNBRagdollState Ragdoll;
+
+	/** Server world time of the pending respawn; 0 when none. */
+	UPROPERTY(Replicated)
+	double RespawnServerTime = 0.0;
+
+	/** Whether this machine is currently simulating the tumbling body. */
+	bool bLocalRagdoll = false;
+
+	FTransform DefaultBodyTransform;
+	FTransform DefaultTailTransform;
+	FTimerHandle RecoverTimer;
+	FTimerHandle RespawnTimer;
 
 	/** What the squirrel is clinging to, if anything. Replicated so clients stop simulating movement. */
 	UPROPERTY(ReplicatedUsing = OnRep_ClingTarget)

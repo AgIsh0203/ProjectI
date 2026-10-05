@@ -131,8 +131,7 @@ void UNBDoorPart::EjectSquirrelOnDoorSide()
 		// Only seats clearly on the door's side; the deck seat sits on the centre line.
 		if (Occupant && SeatSide * DoorSide > 10.f)
 		{
-			// TODO(M1 step 4): ragdoll ejection instead of a plain hop-out.
-			Occupant->LeaveSeat();
+			Occupant->EjectFromCar();
 			return;
 		}
 	}

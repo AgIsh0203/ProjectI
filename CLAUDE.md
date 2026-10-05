@@ -10,7 +10,7 @@
   1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
   2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
   3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
-  4. Ejection ragdoll and respawn (8 s).
+  4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
   5. Two-squirrel flip-up.
 - **Schedule:**
   - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
@@ -43,6 +43,13 @@
   - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact.
   - On foot, E takes the nearest free seat. Seated, E hops to the next free seat (`HopToNextSeat`) and Space jumps out on the seat's side of the car.
   - Each player gets a unique, replicated fur color (`ColorIndex` → `FurColors`, applied via the BasicShapeMaterial `Color` param).
+  - Falling: `Eject(velocity)` / `EjectFromCar()` (the car's velocity plus `EjectKick` out of the seat's side and up).
+    - The "ragdoll" detaches `BodyVisual` (the tail rides on it) as a physics ball. Each machine simulates it from the replicated `FNBRagdollState` (start + velocity), and the capsule follows it in Tick.
+    - After `RagdollSeconds` (2.5) the server gets the squirrel up where its body landed (`SnapTo` + `Client_SnapTo`, since the owning client runs its own movement).
+    - If it isn't seated `RespawnDelay` (8 s) after the fall, `RespawnAtCar` puts it in the first free seat (else beside the car). Entering any seat cancels that.
+    - Space in a car going ≥ `BailSpeed` (600 cm/s) ejects instead of hopping out. `FellOutOfWorld` respawns instead of destroying.
+    - `RefreshAttachedState` is the single place that sets collision, movement mode and the camera for the riding / tumbling / on-foot states.
+- `Player/NBPlayerState` — replicated `Falls` and `Respawns` (M2 turns respawns into a score penalty; the end screen shows falls). Set as `PlayerStateClass`.
   - LMB / gamepad B = action. Press and release go to the server (`Server_ActionPressed` carries the client's server-time estimate), which uses `UNBInteractableComponent::FindBestFor`.
 - `Interaction/NBInteractableComponent` — the shared "work on this" spot (repairs, door, flip-up).
   - Modes: Hold, Mash, TimingRing, Push2. Server-authoritative; progress, users, enabled and the sweet spot replicate.
@@ -57,7 +64,7 @@
     - Engine (deck, Mash): power fades to 35 % over 10 s, stalls at 16 s.
     - Brakes (hood, TimingRing): 25 %, down to 0 over 12 s.
     - Tire ×4 (outside each wheel, Hold 3 s, `bRequiresOnFoot` + `bAttachUser`, so the squirrel clings and gets dragged): that wheel's grip drops to 30 %.
-    - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (plain `LeaveSeat` until step 4's ragdoll).
+    - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (`EjectFromCar`).
   - Part ranges are tuned so the wheel/pedal seats reach nothing; each rider seat reaches exactly one part.
   - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, and `NBChaos` toggles a random failure every 12 s. These stand in until M2's failure director.
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.

@@ -11,7 +11,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/CollisionProfile.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Player/NBPlayerState.h"
+#include "TimerManager.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -94,6 +97,8 @@ void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ANBSquirrel, CurrentSeat);
 	DOREPLIFETIME(ANBSquirrel, ColorIndex);
 	DOREPLIFETIME(ANBSquirrel, ClingTarget);
+	DOREPLIFETIME(ANBSquirrel, Ragdoll);
+	DOREPLIFETIME(ANBSquirrel, RespawnServerTime);
 }
 
 void ANBSquirrel::PossessedBy(AController* NewController)
@@ -312,6 +317,10 @@ bool ANBSquirrel::GetLastRingPress(bool& bOutHit, double& OutWorldTime) const
 void ANBSquirrel::Server_ActionPressed_Implementation(double PressServerTime)
 {
 	ReleaseActiveInteractable();
+	if (Ragdoll.bActive)
+	{
+		return;
+	}
 	if (UNBInteractableComponent* Target = UNBInteractableComponent::FindBestFor(this))
 	{
 		ActiveInteractable = Target;
@@ -379,10 +388,6 @@ void ANBSquirrel::OnRep_ClingTarget()
 	RefreshAttachedState();
 }
 
-void ANBSquirrel::RefreshAttachedState()
-{
-	ApplySeatedState(CurrentSeat != nullptr || ClingTarget != nullptr);
-}
 
 void ANBSquirrel::NBFail(const FString& PartName)
 {
@@ -428,7 +433,7 @@ void ANBSquirrel::Server_Interact_Implementation()
 		HopToNextSeat();
 		return;
 	}
-	if (ClingTarget)
+	if (ClingTarget || Ragdoll.bActive)
 	{
 		return;
 	}
@@ -456,6 +461,13 @@ void ANBSquirrel::Server_Interact_Implementation()
 
 void ANBSquirrel::Server_LeaveSeat_Implementation()
 {
+	// Bailing out of a fast car throws you, it doesn't let you step out.
+	const ANBCar* Car = GetSeatCar();
+	if (Car && FMath::Abs(Car->GetForwardSpeed()) >= BailSpeed)
+	{
+		EjectFromCar();
+		return;
+	}
 	LeaveSeat();
 }
 
@@ -475,10 +487,27 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 		return;
 	}
 
+	// Made it back in: no respawn penalty.
+	ClearRespawn();
 	Seat->SetOccupant(this);
 	CurrentSeat = Seat;
-	ApplySeatedState(true);
+	RefreshAttachedState();
 	AttachToComponent(Seat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+}
+
+void ANBSquirrel::EjectFromCar()
+{
+	check(HasAuthority());
+	const ANBCar* Car = GetSeatCar();
+	if (!Car)
+	{
+		Eject(GetVelocity() + FVector(0.f, 0.f, EjectKick.Y));
+		return;
+	}
+	// Keep the car's momentum, plus a kick out of the seat's side of the car and up.
+	const FVector Right = Car->GetActorRightVector();
+	const float Side = FVector::DotProduct(CurrentSeat->GetComponentLocation() - Car->GetActorLocation(), Right) >= 0.f ? 1.f : -1.f;
+	Eject(Car->GetVelocity() + Right * Side * EjectKick.X + FVector(0.f, 0.f, EjectKick.Y));
 }
 
 void ANBSquirrel::HopToNextSeat()
@@ -524,7 +553,7 @@ void ANBSquirrel::LeaveSeat()
 
 	OldSeat->SetOccupant(nullptr);
 	CurrentSeat = nullptr;
-	ApplySeatedState(false);
+	RefreshAttachedState();
 }
 
 void ANBSquirrel::OnRep_CurrentSeat()
@@ -533,21 +562,213 @@ void ANBSquirrel::OnRep_CurrentSeat()
 	LastSentSeatInput = 0.f;
 }
 
-void ANBSquirrel::ApplySeatedState(bool bSeated)
+void ANBSquirrel::RefreshAttachedState()
 {
-	SetActorEnableCollision(!bSeated);
-	if (bSeated)
-	{
-		GetCharacterMovement()->DisableMovement();
-	}
-	else
+	// Three states: riding the car (seat or tire), tumbling, or free on foot.
+	const bool bRiding = CurrentSeat != nullptr || ClingTarget != nullptr;
+	const bool bFree = !bRiding && !bLocalRagdoll;
+
+	SetActorEnableCollision(bFree);
+	if (bFree)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
-	// Seated, the boom starts inside the car; probing would snap the camera onto the squirrel.
-	CameraBoom->bDoCollisionTest = !bSeated;
-	CameraBoom->TargetArmLength = bSeated ? SeatedArmLength : OnFootArmLength;
-	CameraBoom->SocketOffset = FVector(0.f, 0.f, bSeated ? 420.f : 60.f);
+	else
+	{
+		GetCharacterMovement()->DisableMovement();
+	}
+	// Riding, the boom starts inside the car; probing would snap the camera onto the squirrel.
+	CameraBoom->bDoCollisionTest = !bRiding;
+	CameraBoom->TargetArmLength = bRiding ? SeatedArmLength : OnFootArmLength;
+	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? 420.f : 60.f);
+}
+
+void ANBSquirrel::BeginPlay()
+{
+	Super::BeginPlay();
+	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
+	DefaultTailTransform = TailVisual->GetRelativeTransform();
+}
+
+void ANBSquirrel::Eject(FVector LaunchVelocity)
+{
+	check(HasAuthority());
+	if (Ragdoll.bActive)
+	{
+		return;
+	}
+
+	ReleaseActiveInteractable();
+	// LeaveSeat drops us just outside the car on the seat's side, clear of its hull.
+	LeaveSeat();
+
+	Ragdoll.bActive = true;
+	Ragdoll.Start = GetActorLocation();
+	Ragdoll.Velocity = LaunchVelocity;
+	StartLocalRagdoll();
+
+	GetWorldTimerManager().SetTimer(RecoverTimer, this, &ANBSquirrel::Recover, RagdollSeconds);
+	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ANBSquirrel::RespawnAtCar, RespawnDelay);
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	RespawnServerTime = (GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds()) + RespawnDelay;
+
+	if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+	{
+		Stats->AddFall();
+	}
+}
+
+void ANBSquirrel::OnRep_Ragdoll()
+{
+	if (Ragdoll.bActive)
+	{
+		StartLocalRagdoll();
+	}
+	else
+	{
+		StopLocalRagdoll();
+	}
+}
+
+void ANBSquirrel::StartLocalRagdoll()
+{
+	if (bLocalRagdoll)
+	{
+		return;
+	}
+	bLocalRagdoll = true;
+
+	// The tail rides along on the body; the body becomes a free physics ball.
+	TailVisual->AttachToComponent(BodyVisual, FAttachmentTransformRules::KeepWorldTransform);
+	BodyVisual->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	BodyVisual->SetWorldLocation(Ragdoll.Start, false, nullptr, ETeleportType::TeleportPhysics);
+	BodyVisual->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
+	BodyVisual->SetSimulatePhysics(true);
+	BodyVisual->SetPhysicsLinearVelocity(Ragdoll.Velocity);
+	BodyVisual->SetPhysicsAngularVelocityInDegrees(FVector(720.f, 540.f, 360.f));
+
+	RefreshAttachedState();
+}
+
+void ANBSquirrel::StopLocalRagdoll()
+{
+	if (!bLocalRagdoll)
+	{
+		return;
+	}
+	bLocalRagdoll = false;
+
+	BodyVisual->SetSimulatePhysics(false);
+	BodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BodyVisual->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	BodyVisual->SetRelativeTransform(DefaultBodyTransform);
+	TailVisual->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	TailVisual->SetRelativeTransform(DefaultTailTransform);
+
+	RefreshAttachedState();
+}
+
+void ANBSquirrel::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (bLocalRagdoll)
+	{
+		// The capsule (and camera) follow the tumbling body.
+		SetActorLocation(BodyVisual->GetComponentLocation());
+	}
+}
+
+void ANBSquirrel::Recover()
+{
+	check(HasAuthority());
+	if (!Ragdoll.bActive)
+	{
+		return;
+	}
+	const FVector GetUpLocation = BodyVisual->GetComponentLocation() + FVector(0.f, 0.f, 40.f);
+	Ragdoll.bActive = false;
+	StopLocalRagdoll();
+	SnapTo(GetUpLocation, FRotator(0.f, GetActorRotation().Yaw, 0.f));
+}
+
+void ANBSquirrel::RespawnAtCar()
+{
+	check(HasAuthority());
+	ClearRespawn();
+	if (Ragdoll.bActive)
+	{
+		GetWorldTimerManager().ClearTimer(RecoverTimer);
+		Ragdoll.bActive = false;
+		StopLocalRagdoll();
+	}
+	ReleaseActiveInteractable();
+
+	ANBCar* Car = nullptr;
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		Car = *It;
+		break;
+	}
+	if (!Car)
+	{
+		return;
+	}
+
+	if (CurrentSeat)
+	{
+		return;
+	}
+	if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+	{
+		Stats->AddRespawn();
+	}
+	if (UNBSeatComponent* Seat = Car->FindNextFreeSeat(nullptr))
+	{
+		EnterSeat(Seat);
+		return;
+	}
+	const FVector Beside = Car->GetActorLocation() + Car->GetActorRightVector() * 250.f + FVector(0.f, 0.f, 120.f);
+	SnapTo(Beside, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f));
+}
+
+void ANBSquirrel::ClearRespawn()
+{
+	GetWorldTimerManager().ClearTimer(RespawnTimer);
+	RespawnServerTime = 0.0;
+}
+
+float ANBSquirrel::GetRespawnSecondsLeft() const
+{
+	if (RespawnServerTime <= 0.0)
+	{
+		return -1.f;
+	}
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	const double Now = GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds();
+	return static_cast<float>(FMath::Max(RespawnServerTime - Now, 0.0));
+}
+
+void ANBSquirrel::SnapTo(const FVector& Location, const FRotator& Rotation)
+{
+	check(HasAuthority());
+	SetActorLocationAndRotation(Location, Rotation, false, nullptr, ETeleportType::TeleportPhysics);
+	// The owning client runs its own movement, so tell it directly.
+	Client_SnapTo(Location, Rotation);
+}
+
+void ANBSquirrel::Client_SnapTo_Implementation(FVector_NetQuantize Location, FRotator Rotation)
+{
+	StopLocalRagdoll();
+	SetActorLocationAndRotation(Location, Rotation, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void ANBSquirrel::FellOutOfWorld(const UDamageType& DamageType)
+{
+	// Don't destroy the pawn: off the map just means "back to the car".
+	if (HasAuthority())
+	{
+		RespawnAtCar();
+	}
 }
 
 ANBCar* ANBSquirrel::GetSeatCar() const

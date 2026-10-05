@@ -197,8 +197,9 @@ UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float Max
 
 UNBSeatComponent* ANBCar::FindNextFreeSeat(const UNBSeatComponent* From) const
 {
-	const int32 Start = Seats.IndexOfByKey(From);
-	for (int32 Step = 1; Step < Seats.Num(); ++Step)
+	// Without a From seat, scan every seat starting at the first (the wheel).
+	const int32 Start = From ? Seats.IndexOfByKey(From) : INDEX_NONE;
+	for (int32 Step = 1; Step <= Seats.Num(); ++Step)
 	{
 		UNBSeatComponent* Seat = Seats[(Start + Step + Seats.Num()) % Seats.Num()];
 		if (Seat && Seat->IsFree())
