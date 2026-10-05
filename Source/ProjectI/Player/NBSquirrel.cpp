@@ -57,6 +57,15 @@ ANBSquirrel::ANBSquirrel()
 		TailVisual->SetStaticMesh(CylinderMesh.Object);
 	}
 
+	// The basic-shape meshes default to the grey checker DefaultMaterial, which has no
+	// "Color" parameter; ApplyFurColor tints this one instead.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FurMaterial(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	if (FurMaterial.Succeeded())
+	{
+		BodyVisual->SetMaterial(0, FurMaterial.Object);
+		TailVisual->SetMaterial(0, FurMaterial.Object);
+	}
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = OnFootArmLength;
