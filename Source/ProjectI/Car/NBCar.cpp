@@ -5,7 +5,13 @@
 #include "ChaosVehicleWheel.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
+#include "Parts/NBCarParts.h"
+#include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 ANBCar::ANBCar()
 {
@@ -48,14 +54,76 @@ ANBCar::ANBCar()
 	DeckSeat->SetupAttachment(GetMesh());
 	DeckSeat->Role = ENBSeatRole::Rider;
 	DeckSeat->SetRelativeLocation(FVector(-85.f, 0.f, 172.f));
+
+	// On the front hood (surface ~z 110 at x 160).
+	HoodSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("HoodSeat"));
+	HoodSeat->SetupAttachment(GetMesh());
+	HoodSeat->Role = ENBSeatRole::Rider;
+	HoodSeat->SetRelativeLocation(FVector(160.f, 0.f, 132.f));
+
+	// Parts sit where they're repaired from. Ranges are chosen so each in-car part is
+	// reachable from one rider seat only (engine: deck, brakes: hood, door: passenger),
+	// never from the wheel or pedals: fixing things means leaving the controls.
+	EnginePart = CreateDefaultSubobject<UNBEnginePart>(TEXT("EnginePart"));
+	EnginePart->SetupAttachment(GetMesh());
+	EnginePart->SetRelativeLocation(FVector(-100.f, 0.f, 150.f));
+
+	BrakePart = CreateDefaultSubobject<UNBBrakePart>(TEXT("BrakePart"));
+	BrakePart->SetupAttachment(GetMesh());
+	BrakePart->SetRelativeLocation(FVector(180.f, 0.f, 112.f));
+	BrakePart->Range = 60.f;
+
+	// Tire spots hang just outside each wheel; the squirrel clings there while patching.
+	TireFL = CreateTire(TEXT("TireFL"), TEXT("PhysWheel_FL"), FVector(168.f, -175.f, 51.f), NSLOCTEXT("NB", "TireFL", "TIRE FL"));
+	TireFR = CreateTire(TEXT("TireFR"), TEXT("PhysWheel_FR"), FVector(168.f, 175.f, 51.f), NSLOCTEXT("NB", "TireFR", "TIRE FR"));
+	TireBL = CreateTire(TEXT("TireBL"), TEXT("PhysWheel_BL"), FVector(-135.f, -190.f, 51.f), NSLOCTEXT("NB", "TireBL", "TIRE BL"));
+	TireBR = CreateTire(TEXT("TireBR"), TEXT("PhysWheel_BR"), FVector(-135.f, 190.f, 51.f), NSLOCTEXT("NB", "TireBR", "TIRE BR"));
+
+	// Greybox door over the passenger-side opening (x 0..60). The hinge is its front edge.
+	DoorHinge = CreateDefaultSubobject<USceneComponent>(TEXT("DoorHinge"));
+	DoorHinge->SetupAttachment(GetMesh());
+	DoorHinge->SetRelativeLocation(FVector(60.f, 90.f, 100.f));
+
+	DoorPanel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DoorPanel"));
+	DoorPanel->SetupAttachment(DoorHinge);
+	DoorPanel->SetRelativeLocation(FVector(-30.f, 0.f, 0.f));
+	DoorPanel->SetRelativeScale3D(FVector(0.6f, 0.04f, 0.5f));
+	DoorPanel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> ShapeMaterial(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	if (CubeMesh.Succeeded())
+	{
+		DoorPanel->SetStaticMesh(CubeMesh.Object);
+	}
+	if (ShapeMaterial.Succeeded())
+	{
+		DoorPanel->SetMaterial(0, ShapeMaterial.Object);
+	}
+
+	DoorPart = CreateDefaultSubobject<UNBDoorPart>(TEXT("DoorPart"));
+	DoorPart->SetupAttachment(GetMesh());
+	DoorPart->SetRelativeLocation(FVector(30.f, 95.f, 100.f));
+	DoorPart->Range = 130.f;
+}
+
+UNBTirePart* ANBCar::CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName)
+{
+	UNBTirePart* Tire = CreateDefaultSubobject<UNBTirePart>(Name);
+	Tire->SetupAttachment(GetMesh());
+	Tire->SetRelativeLocation(Location);
+	Tire->WheelBone = WheelBone;
+	Tire->PartName = PartName;
+	return Tire;
 }
 
 void ANBCar::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Hop order goes round the car: wheel -> pedals -> passenger seat -> engine deck.
-	Seats = {WheelSeat, PedalSeat, PassengerSeat, DeckSeat};
+	// Hop order goes round the car: wheel -> pedals -> hood -> passenger seat -> engine deck.
+	Seats = {WheelSeat, PedalSeat, HoodSeat, PassengerSeat, DeckSeat};
+	Parts = {EnginePart, BrakePart, TireFL, TireFR, TireBL, TireBR, DoorPart};
+	DoorPart->Hinge = DoorHinge;
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
 	// Only the server consumes raw inputs. Clients, still requiring a controller they
@@ -139,6 +207,64 @@ UNBSeatComponent* ANBCar::FindNextFreeSeat(const UNBSeatComponent* From) const
 		}
 	}
 	return nullptr;
+}
+
+void ANBCar::DevFail(const FString& PartName)
+{
+	check(HasAuthority());
+	if (PartName.Equals(TEXT("All"), ESearchCase::IgnoreCase))
+	{
+		for (UNBCarPartComponent* Part : Parts)
+		{
+			Part->Fail();
+		}
+		return;
+	}
+	if (PartName.Equals(TEXT("Tire"), ESearchCase::IgnoreCase))
+	{
+		UNBTirePart* Tires[] = {TireFL, TireFR, TireBL, TireBR};
+		Tires[FMath::RandRange(0, 3)]->Fail();
+		return;
+	}
+	for (UNBCarPartComponent* Part : Parts)
+	{
+		// Component names are EnginePart, BrakePart, TireFL, ..., DoorPart.
+		const FString Name = Part->GetName();
+		if (Name.Equals(PartName, ESearchCase::IgnoreCase) || Name.Equals(PartName + TEXT("Part"), ESearchCase::IgnoreCase)
+			|| (PartName.Equals(TEXT("Brakes"), ESearchCase::IgnoreCase) && Part == BrakePart))
+		{
+			Part->Fail();
+			return;
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("NBFail: unknown part '%s'"), *PartName);
+}
+
+void ANBCar::SetDevChaos(bool bEnable)
+{
+	check(HasAuthority());
+	GetWorldTimerManager().ClearTimer(DevChaosTimer);
+	if (bEnable)
+	{
+		GetWorldTimerManager().SetTimer(DevChaosTimer, this, &ANBCar::DevFailRandomPart, DevChaosInterval, true);
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBChaos %s"), bEnable ? TEXT("on") : TEXT("off"));
+}
+
+void ANBCar::DevFailRandomPart()
+{
+	TArray<UNBCarPartComponent*> Healthy;
+	for (UNBCarPartComponent* Part : Parts)
+	{
+		if (!Part->IsFailed())
+		{
+			Healthy.Add(Part);
+		}
+	}
+	if (Healthy.Num() > 0)
+	{
+		Healthy[FMath::RandRange(0, Healthy.Num() - 1)]->Fail();
+	}
 }
 
 float ANBCar::GetForwardSpeed() const

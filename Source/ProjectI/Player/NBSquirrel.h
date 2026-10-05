@@ -63,6 +63,21 @@ public:
 	/** Local feedback for the HUD: did this player's last timing-ring press land, and when. */
 	bool GetLastRingPress(bool& bOutHit, double& OutWorldTime) const;
 
+	/** Holding on to an interactable that carries the squirrel (e.g. a tire). */
+	UFUNCTION(BlueprintPure, Category = "Squirrel")
+	bool IsClinging() const { return ClingTarget != nullptr; }
+
+	/** Server only. Called by an interactable when it drops this squirrel as a user. */
+	void HandleInteractionEnded(UNBInteractableComponent* Interactable);
+
+	/** Dev: fail a car part. Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random) or All. */
+	UFUNCTION(Exec)
+	void NBFail(const FString& PartName);
+
+	/** Dev: toggle random part failures every few seconds. */
+	UFUNCTION(Exec)
+	void NBChaos();
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -106,6 +121,18 @@ private:
 	void ActionPressed();
 	void ActionReleased();
 	void ReleaseActiveInteractable();
+	void StartClinging(UNBInteractableComponent* Target);
+	void StopClinging();
+	void RefreshAttachedState();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevFail(const FString& PartName);
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevChaos();
+
+	UFUNCTION()
+	void OnRep_ClingTarget();
 	void SendSeatInput(float Value);
 	void ApplySeatedState(bool bSeated);
 
@@ -138,6 +165,10 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentSeat)
 	TObjectPtr<UNBSeatComponent> CurrentSeat;
+
+	/** What the squirrel is clinging to, if anything. Replicated so clients stop simulating movement. */
+	UPROPERTY(ReplicatedUsing = OnRep_ClingTarget)
+	TObjectPtr<UNBInteractableComponent> ClingTarget;
 
 	/** INDEX_NONE until the server assigns one on possession. */
 	UPROPERTY(ReplicatedUsing = OnRep_ColorIndex)

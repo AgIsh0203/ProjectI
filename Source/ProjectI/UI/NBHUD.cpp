@@ -2,7 +2,11 @@
 
 #include "UI/NBHUD.h"
 
+#include "Car/NBCar.h"
 #include "Engine/Canvas.h"
+#include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
+#include "Parts/NBCarPartComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Interaction/NBInteractableComponent.h"
@@ -41,15 +45,48 @@ void ANBHUD::DrawHUD()
 		return;
 	}
 
+	DrawCarStatus();
+
 	if (const UNBInteractableComponent* Interactable = Squirrel->GetFocusedInteractable())
 	{
 		DrawInteractable(*Interactable, Interactable->IsUsedBy(Squirrel));
 	}
 
-	const FString Hint = Squirrel->IsSeated()
-		? TEXT("E: hop seat    Space: jump out    LMB: work")
+	const FString Hint = Squirrel->IsClinging() ? TEXT("Keep holding LMB    Space: let go")
+		: Squirrel->IsSeated() ? TEXT("E: hop seat    Space: jump out    LMB: work")
 		: TEXT("E: get in    Space: jump    LMB: work");
 	DrawCenteredText(Hint, Canvas->ClipY - 36.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 1.f);
+}
+
+void ANBHUD::DrawCarStatus()
+{
+	// Pulse so failures catch the eye on stream.
+	const float Pulse = 0.65f + 0.35f * FMath::Sin(GetWorld()->GetTimeSeconds() * 8.f);
+	const FLinearColor Alarm(BadColor.R, BadColor.G * Pulse, BadColor.B * Pulse, 1.f);
+
+	float ListY = 20.f;
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		for (const UNBCarPartComponent* Part : It->GetParts())
+		{
+			if (!Part || !Part->IsFailed())
+			{
+				continue;
+			}
+			const FString Line = FString::Printf(TEXT("%s %s!"), *Part->PartName.ToString(), *Part->FailureText.ToString());
+			DrawCenteredText(Line, ListY, Alarm, 1.4f);
+			ListY += 30.f;
+
+			FVector2D Screen;
+			if (PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(Part->GetComponentLocation(), Screen))
+			{
+				const float Size = 26.f;
+				DrawRect(Alarm, Screen.X - Size * 0.5f, Screen.Y - Size * 0.5f, Size, Size);
+				DrawText(TEXT("!"), FLinearColor::White, Screen.X - 4.f, Screen.Y - 12.f, GEngine->GetMediumFont(), 1.3f);
+				DrawText(Part->PartName.ToString(), Alarm, Screen.X + Size * 0.7f, Screen.Y - 10.f, GEngine->GetMediumFont(), 1.f);
+			}
+		}
+	}
 }
 
 void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool bUsing)

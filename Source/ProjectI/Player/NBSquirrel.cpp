@@ -93,6 +93,7 @@ void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANBSquirrel, CurrentSeat);
 	DOREPLIFETIME(ANBSquirrel, ColorIndex);
+	DOREPLIFETIME(ANBSquirrel, ClingTarget);
 }
 
 void ANBSquirrel::PossessedBy(AController* NewController)
@@ -229,6 +230,10 @@ void ANBSquirrel::Move(const FInputActionValue& Value)
 		SendSeatInput(CurrentSeat->Role == ENBSeatRole::Wheel ? Axis.X : Axis.Y);
 		return;
 	}
+	if (ClingTarget)
+	{
+		return;
+	}
 
 	const FRotator YawRotation(0.f, GetControlRotation().Yaw, 0.f);
 	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Axis.Y);
@@ -255,6 +260,11 @@ void ANBSquirrel::JumpPressed()
 	if (CurrentSeat)
 	{
 		Server_LeaveSeat();
+		return;
+	}
+	if (ClingTarget)
+	{
+		Server_ActionReleased();
 		return;
 	}
 	Jump();
@@ -304,8 +314,12 @@ void ANBSquirrel::Server_ActionPressed_Implementation(double PressServerTime)
 	ReleaseActiveInteractable();
 	if (UNBInteractableComponent* Target = UNBInteractableComponent::FindBestFor(this))
 	{
-		Target->PressBy(this, PressServerTime);
 		ActiveInteractable = Target;
+		Target->PressBy(this, PressServerTime);
+		if (Target->bAttachUser && Target->IsUsedBy(this))
+		{
+			StartClinging(Target);
+		}
 	}
 }
 
@@ -316,10 +330,83 @@ void ANBSquirrel::Server_ActionReleased_Implementation()
 
 void ANBSquirrel::ReleaseActiveInteractable()
 {
-	if (ActiveInteractable)
+	if (UNBInteractableComponent* Old = ActiveInteractable)
 	{
-		ActiveInteractable->ReleaseBy(this);
 		ActiveInteractable = nullptr;
+		Old->ReleaseBy(this);
+	}
+	// ReleaseBy only reports back if we were still a user; let go regardless.
+	StopClinging();
+}
+
+void ANBSquirrel::HandleInteractionEnded(UNBInteractableComponent* Interactable)
+{
+	check(HasAuthority());
+	if (ActiveInteractable == Interactable)
+	{
+		ActiveInteractable = nullptr;
+	}
+	if (ClingTarget == Interactable)
+	{
+		StopClinging();
+	}
+}
+
+void ANBSquirrel::StartClinging(UNBInteractableComponent* Target)
+{
+	check(HasAuthority());
+	ClingTarget = Target;
+	RefreshAttachedState();
+	AttachToComponent(Target, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+}
+
+void ANBSquirrel::StopClinging()
+{
+	check(HasAuthority());
+	if (!ClingTarget)
+	{
+		return;
+	}
+	ClingTarget = nullptr;
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	// Let go upright and a little higher so we don't spawn inside the tire.
+	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, 30.f), FRotator(0.f, GetActorRotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+	RefreshAttachedState();
+}
+
+void ANBSquirrel::OnRep_ClingTarget()
+{
+	RefreshAttachedState();
+}
+
+void ANBSquirrel::RefreshAttachedState()
+{
+	ApplySeatedState(CurrentSeat != nullptr || ClingTarget != nullptr);
+}
+
+void ANBSquirrel::NBFail(const FString& PartName)
+{
+	Server_DevFail(PartName);
+}
+
+void ANBSquirrel::NBChaos()
+{
+	Server_DevChaos();
+}
+
+void ANBSquirrel::Server_DevFail_Implementation(const FString& PartName)
+{
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		It->DevFail(PartName);
+	}
+}
+
+void ANBSquirrel::Server_DevChaos_Implementation()
+{
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		It->SetDevChaos(!It->IsDevChaos());
 	}
 }
 
@@ -339,6 +426,10 @@ void ANBSquirrel::Server_Interact_Implementation()
 	if (CurrentSeat)
 	{
 		HopToNextSeat();
+		return;
+	}
+	if (ClingTarget)
+	{
 		return;
 	}
 
@@ -438,7 +529,7 @@ void ANBSquirrel::LeaveSeat()
 
 void ANBSquirrel::OnRep_CurrentSeat()
 {
-	ApplySeatedState(CurrentSeat != nullptr);
+	RefreshAttachedState();
 	LastSentSeatInput = 0.f;
 }
 

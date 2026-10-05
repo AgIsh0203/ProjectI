@@ -59,6 +59,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact")
 	bool bDisableOnComplete = true;
 
+	/** Seated squirrels can't use it; they have to get out (e.g. tires). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact")
+	bool bRequiresOnFoot = false;
+
+	/** Hold / Push2: users cling to this component while holding, and get carried with it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact")
+	bool bAttachUser = false;
+
 	// --- Hold / Push2 ---
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact|Hold", meta = (ClampMin = "0.1"))
@@ -120,6 +128,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool IsInRangeOf(const ANBSquirrel* Squirrel) const;
 
+	/** Enabled, in range, and the squirrel is in a state that may use it. */
+	UFUNCTION(BlueprintPure, Category = "Interact")
+	bool CanBeUsedBy(const ANBSquirrel* Squirrel) const;
+
 	/** Where the ring marker is now, 0..1. */
 	UFUNCTION(BlueprintPure, Category = "Interact|TimingRing")
 	float GetRingPhase() const;
@@ -149,6 +161,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	/** Server. Drops a holder and tells it so (e.g. to let go of a tire). */
+	void RemoveUser(ANBSquirrel* Squirrel);
+	void RemoveAllUsers();
 	void AddProgress(float Delta);
 	void Complete();
 	void PickNewSweetSpot();

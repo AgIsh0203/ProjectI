@@ -55,7 +55,7 @@ UNBInteractableComponent* UNBInteractableComponent::FindBestFor(const ANBSquirre
 	float BestDistSq = TNumericLimits<float>::Max();
 	for (UNBInteractableComponent* Interactable : Subsystem->GetInteractables())
 	{
-		if (!Interactable || !Interactable->IsInteractEnabled() || !Interactable->IsInRangeOf(Squirrel))
+		if (!Interactable || !Interactable->CanBeUsedBy(Squirrel))
 		{
 			continue;
 		}
@@ -74,14 +74,40 @@ bool UNBInteractableComponent::IsInRangeOf(const ANBSquirrel* Squirrel) const
 	return Squirrel && FVector::DistSquared(GetComponentLocation(), Squirrel->GetActorLocation()) <= FMath::Square(Range);
 }
 
+bool UNBInteractableComponent::CanBeUsedBy(const ANBSquirrel* Squirrel) const
+{
+	return bInteractEnabled && IsInRangeOf(Squirrel) && !(bRequiresOnFoot && Squirrel->IsSeated());
+}
+
 void UNBInteractableComponent::SetInteractEnabled(bool bEnabled)
 {
 	check(GetOwner()->HasAuthority());
 	bInteractEnabled = bEnabled;
 	if (!bEnabled)
 	{
-		Users.Reset();
+		RemoveAllUsers();
 		Progress = 0.f;
+	}
+}
+
+void UNBInteractableComponent::RemoveUser(ANBSquirrel* Squirrel)
+{
+	if (Users.Remove(Squirrel) > 0 && IsValid(Squirrel))
+	{
+		Squirrel->HandleInteractionEnded(this);
+	}
+}
+
+void UNBInteractableComponent::RemoveAllUsers()
+{
+	const TArray<TObjectPtr<ANBSquirrel>> OldUsers = MoveTemp(Users);
+	Users.Reset();
+	for (ANBSquirrel* User : OldUsers)
+	{
+		if (IsValid(User))
+		{
+			User->HandleInteractionEnded(this);
+		}
 	}
 }
 
@@ -111,7 +137,7 @@ bool UNBInteractableComponent::IsInSweetSpot(float Phase) const
 void UNBInteractableComponent::PressBy(ANBSquirrel* Squirrel, double PressServerTime)
 {
 	check(GetOwner()->HasAuthority());
-	if (!bInteractEnabled || !IsInRangeOf(Squirrel))
+	if (!CanBeUsedBy(Squirrel))
 	{
 		return;
 	}
@@ -151,19 +177,31 @@ void UNBInteractableComponent::PressBy(ANBSquirrel* Squirrel, double PressServer
 void UNBInteractableComponent::ReleaseBy(ANBSquirrel* Squirrel)
 {
 	check(GetOwner()->HasAuthority());
-	Users.Remove(Squirrel);
+	RemoveUser(Squirrel);
 }
 
 void UNBInteractableComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	if (!bInteractEnabled)
+	// Subclasses may tick on clients for cosmetics; progress is server-only.
+	if (!bInteractEnabled || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
 
-	// Drop holders who left, died or wandered off.
-	Users.RemoveAll([this](const TObjectPtr<ANBSquirrel>& User) { return !IsValid(User) || !IsInRangeOf(User); });
+	// Drop holders who left, died, sat down somewhere or wandered off.
+	for (int32 i = Users.Num() - 1; i >= 0; --i)
+	{
+		ANBSquirrel* User = Users[i];
+		if (!IsValid(User))
+		{
+			Users.RemoveAt(i);
+		}
+		else if (!CanBeUsedBy(User))
+		{
+			RemoveUser(User);
+		}
+	}
 
 	switch (Mode)
 	{
@@ -206,7 +244,7 @@ void UNBInteractableComponent::AddProgress(float Delta)
 void UNBInteractableComponent::Complete()
 {
 	Progress = 0.f;
-	Users.Reset();
+	RemoveAllUsers();
 	if (bDisableOnComplete)
 	{
 		bInteractEnabled = false;

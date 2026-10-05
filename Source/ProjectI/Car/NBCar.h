@@ -7,6 +7,13 @@
 #include "TP_VehicleAdvOffroadCar.h"
 #include "NBCar.generated.h"
 
+class UNBBrakePart;
+class UNBCarPartComponent;
+class UNBDoorPart;
+class UNBEnginePart;
+class UNBTirePart;
+class UStaticMeshComponent;
+
 /**
  * The one car everyone shares: a Chaos wheeled vehicle built on the template offroad car.
  * Mesh, tire sockets and curves come from the Blueprint child (BP_OffroadCar_Pawn).
@@ -36,6 +43,21 @@ public:
 
 	/** The next free seat after From in hop order (wrapping), or nullptr if every other seat is taken. */
 	UNBSeatComponent* FindNextFreeSeat(const UNBSeatComponent* From) const;
+
+	/** Every seat, in hop order. */
+	const TArray<TObjectPtr<UNBSeatComponent>>& GetSeats() const { return Seats; }
+
+	/** Every breakable part. */
+	const TArray<TObjectPtr<UNBCarPartComponent>>& GetParts() const { return Parts; }
+
+	// --- Dev failure triggers, until the failure director (M2) exists. Server only. ---
+
+	/** Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random tire) or All. */
+	void DevFail(const FString& PartName);
+
+	/** Random failures every DevChaosInterval seconds. */
+	void SetDevChaos(bool bEnable);
+	bool IsDevChaos() const { return DevChaosTimer.IsValid(); }
 
 	/** cm/s along the car's forward axis. */
 	UFUNCTION(BlueprintPure, Category = "Car")
@@ -74,12 +96,57 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> DeckSeat;
 
+	/** On the front hood, next to the brakes. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
+	TObjectPtr<UNBSeatComponent> HoodSeat;
+
 	/** Every seat, in hop order. Filled in BeginPlay. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNBSeatComponent>> Seats;
 
+	// --- Parts. Each is also the spot you repair it from. ---
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBEnginePart> EnginePart;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBBrakePart> BrakePart;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBTirePart> TireFL;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBTirePart> TireFR;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBTirePart> TireBL;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBTirePart> TireBR;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Parts")
+	TObjectPtr<UNBDoorPart> DoorPart;
+
+	/** Greybox door on the passenger side: the hinge swings, the panel hangs off it. */
+	UPROPERTY(VisibleAnywhere, Category = "Car|Parts")
+	TObjectPtr<USceneComponent> DoorHinge;
+
+	UPROPERTY(VisibleAnywhere, Category = "Car|Parts")
+	TObjectPtr<UStaticMeshComponent> DoorPanel;
+
+	/** Every part. Filled in BeginPlay. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNBCarPartComponent>> Parts;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Dev")
+	float DevChaosInterval = 12.f;
+
 private:
 	void ApplyInputsToVehicle();
+	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
+	void DevFailRandomPart();
+
+	FTimerHandle DevChaosTimer;
 
 	UPROPERTY(Replicated)
 	float SteerInput = 0.f;

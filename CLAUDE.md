@@ -9,7 +9,7 @@
 - **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
   1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
   2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
-  3. 4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.
+  3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
   4. Ejection ragdoll and respawn (8 s).
   5. Two-squirrel flip-up.
 - **Schedule:**
@@ -37,7 +37,7 @@
   - Template auto-flip-reset is disabled (`FlipCheckMinDot = -2`).
   - Damage hooks: `SetEnginePowerScale`, `SetBrakePowerScale`, `SetWheelGripScale` (scale the base values cached in BeginPlay).
 - `Car/NBSeatComponent` — replicated seat (Wheel / Pedals / Rider); the squirrel attaches to it, so its location is the capsule centre.
-  - The car has 4: WheelSeat (perched on the steering wheel), PedalSeat (footwell), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
+  - The car has 5: WheelSeat (perched on the steering wheel), PedalSeat (footwell), HoodSeat (front hood), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
   - Hop order is the car's `Seats` array (filled in BeginPlay).
 - `Player/NBSquirrel` — character.
   - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact.
@@ -50,7 +50,16 @@
   - The timing ring's phase is `frac(ServerTime / RingPeriod)`. Presses are judged at the client timestamp, clamped to the last 0.3 s.
   - `OnCompleted` fires on the server. With `bDisableOnComplete`, the owner re-enables it.
   - `NBInteractionSubsystem` (a world subsystem) is the registry.
-- `UI/NBHUD` — greybox canvas HUD: prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
+- `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
+- `Parts/NBCarPartComponent` — derives from the interactable: a part is its own repair spot.
+  - Replicated `bFailed`. While failed, the interactable is on and the subclass's `ApplyFailedEffect(seconds since failure)` escalates every tick. Completing the interaction repairs it.
+  - `Parts/NBCarParts`:
+    - Engine (deck, Mash): power fades to 35 % over 10 s, stalls at 16 s.
+    - Brakes (hood, TimingRing): 25 %, down to 0 over 12 s.
+    - Tire ×4 (outside each wheel, Hold 3 s, `bRequiresOnFoot` + `bAttachUser`, so the squirrel clings and gets dragged): that wheel's grip drops to 30 %.
+    - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (plain `LeaveSeat` until step 4's ragdoll).
+  - Part ranges are tuned so the wheel/pedal seats reach nothing; each rider seat reaches exactly one part.
+  - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, and `NBChaos` toggles a random failure every 12 s. These stand in until M2's failure director.
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
