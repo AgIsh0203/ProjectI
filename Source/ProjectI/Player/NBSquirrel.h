@@ -10,6 +10,7 @@ class ANBCar;
 class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
+class UNBInteractableComponent;
 class UNBSeatComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
@@ -55,6 +56,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
 	void HopToNextSeat();
 
+	/** What the action button would work on right now (nearest usable interactable). */
+	UFUNCTION(BlueprintPure, Category = "Squirrel")
+	UNBInteractableComponent* GetFocusedInteractable() const;
+
+	/** Local feedback for the HUD: did this player's last timing-ring press land, and when. */
+	bool GetLastRingPress(bool& bOutHit, double& OutWorldTime) const;
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -95,6 +103,9 @@ private:
 	void Look(const FInputActionValue& Value);
 	void JumpPressed();
 	void Interact();
+	void ActionPressed();
+	void ActionReleased();
+	void ReleaseActiveInteractable();
 	void SendSeatInput(float Value);
 	void ApplySeatedState(bool bSeated);
 
@@ -107,6 +118,13 @@ private:
 
 	UFUNCTION(Server, Unreliable)
 	void Server_SetSeatInput(float Value);
+
+	/** PressServerTime: the client's estimate of server world time at the press. */
+	UFUNCTION(Server, Reliable)
+	void Server_ActionPressed(double PressServerTime);
+
+	UFUNCTION(Server, Reliable)
+	void Server_ActionReleased();
 
 	UFUNCTION()
 	void OnRep_CurrentSeat();
@@ -141,5 +159,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> InteractAction;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ActionAction;
+
+	/** Server only. The interactable this squirrel is holding the action button on. */
+	UPROPERTY(Transient)
+	TObjectPtr<UNBInteractableComponent> ActiveInteractable;
+
 	float LastSentSeatInput = 0.f;
+
+	bool bHasRingPress = false;
+	bool bLastRingPressHit = false;
+	double LastRingPressTime = 0.0;
 };

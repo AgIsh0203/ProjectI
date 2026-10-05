@@ -5,11 +5,13 @@
 #include "Car/NBCar.h"
 #include "EngineUtils.h"
 #include "Player/NBSquirrel.h"
+#include "UI/NBHUD.h"
 #include "UObject/ConstructorHelpers.h"
 
 ANBRunGameMode::ANBRunGameMode()
 {
 	DefaultPawnClass = ANBSquirrel::StaticClass();
+	HUDClass = ANBHUD::StaticClass();
 
 	// The Blueprint child carries the mesh, tire sockets and torque/steering curves.
 	static ConstructorHelpers::FClassFinder<ANBCar> CarBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"));

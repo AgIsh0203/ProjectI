@@ -8,7 +8,7 @@
   - Remaining for M0: package a build, then do the Steam + VOIP test on the user's 2 PCs (host / invite / join / voice).
 - **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
   1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
-  2. `UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.
+  2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
   3. 4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.
   4. Ejection ragdoll and respawn (8 s).
   5. Two-squirrel flip-up.
@@ -43,6 +43,15 @@
   - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact.
   - On foot, E takes the nearest free seat. Seated, E hops to the next free seat (`HopToNextSeat`) and Space jumps out on the seat's side of the car.
   - Each player gets a unique, replicated fur color (`ColorIndex` → `FurColors`, applied via the BasicShapeMaterial `Color` param).
+  - LMB / gamepad B = action. Press and release go to the server (`Server_ActionPressed` carries the client's server-time estimate), which uses `UNBInteractableComponent::FindBestFor`.
+- `Interaction/NBInteractableComponent` — the shared "work on this" spot (repairs, door, flip-up).
+  - Modes: Hold, Mash, TimingRing, Push2. Server-authoritative; progress, users, enabled and the sweet spot replicate.
+  - A squirrel uses the nearest enabled one within `Range` of its actor location, so seated squirrels reach parts near their seat.
+  - The timing ring's phase is `frac(ServerTime / RingPeriod)`. Presses are judged at the client timestamp, clamped to the last 0.3 s.
+  - `OnCompleted` fires on the server. With `bDisableOnComplete`, the owner re-enables it.
+  - `NBInteractionSubsystem` (a world subsystem) is the registry.
+- `UI/NBHUD` — greybox canvas HUD: prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
+- `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
 - `TP_VehicleAdv/` — imported C++ Vehicle template, compiled inside the ProjectI module. Its duplicate `IMPLEMENT_PRIMARY_GAME_MODULE` was removed; `Build.cs` adds its folders to the include path.

@@ -14,6 +14,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
+#include "Interaction/NBInteractableComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputAction.h"
@@ -151,6 +153,7 @@ void ANBSquirrel::BuildInputAssets()
 	LookAction->ValueType = EInputActionValueType::Axis2D;
 	JumpAction = NewObject<UInputAction>(this, TEXT("IA_Jump"));
 	InteractAction = NewObject<UInputAction>(this, TEXT("IA_Interact"));
+	ActionAction = NewObject<UInputAction>(this, TEXT("IA_Action"));
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
 
@@ -184,6 +187,9 @@ void ANBSquirrel::BuildInputAssets()
 	InputContext->MapKey(JumpAction, EKeys::Gamepad_FaceButton_Bottom);
 	InputContext->MapKey(InteractAction, EKeys::E);
 	InputContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Left);
+	// The repair/work button: hold, mash or time it depending on the interactable.
+	InputContext->MapKey(ActionAction, EKeys::LeftMouseButton);
+	InputContext->MapKey(ActionAction, EKeys::Gamepad_FaceButton_Right);
 }
 
 void ANBSquirrel::PawnClientRestart()
@@ -211,6 +217,8 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ANBSquirrel::JumpPressed);
 	Input->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &ANBSquirrel::Interact);
+	Input->BindAction(ActionAction, ETriggerEvent::Started, this, &ANBSquirrel::ActionPressed);
+	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
 }
 
 void ANBSquirrel::Move(const FInputActionValue& Value)
@@ -255,6 +263,64 @@ void ANBSquirrel::JumpPressed()
 void ANBSquirrel::Interact()
 {
 	Server_Interact();
+}
+
+void ANBSquirrel::ActionPressed()
+{
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	const double ServerTime = GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds();
+
+	// Judge timing-ring presses locally too, so the HUD reacts instantly.
+	const UNBInteractableComponent* Target = GetFocusedInteractable();
+	if (Target && Target->Mode == ENBInteractMode::TimingRing)
+	{
+		bHasRingPress = true;
+		bLastRingPressHit = Target->IsInSweetSpot(Target->GetRingPhaseAt(ServerTime));
+		LastRingPressTime = GetWorld()->GetTimeSeconds();
+	}
+
+	Server_ActionPressed(ServerTime);
+}
+
+void ANBSquirrel::ActionReleased()
+{
+	Server_ActionReleased();
+}
+
+UNBInteractableComponent* ANBSquirrel::GetFocusedInteractable() const
+{
+	return UNBInteractableComponent::FindBestFor(this);
+}
+
+bool ANBSquirrel::GetLastRingPress(bool& bOutHit, double& OutWorldTime) const
+{
+	bOutHit = bLastRingPressHit;
+	OutWorldTime = LastRingPressTime;
+	return bHasRingPress;
+}
+
+void ANBSquirrel::Server_ActionPressed_Implementation(double PressServerTime)
+{
+	ReleaseActiveInteractable();
+	if (UNBInteractableComponent* Target = UNBInteractableComponent::FindBestFor(this))
+	{
+		Target->PressBy(this, PressServerTime);
+		ActiveInteractable = Target;
+	}
+}
+
+void ANBSquirrel::Server_ActionReleased_Implementation()
+{
+	ReleaseActiveInteractable();
+}
+
+void ANBSquirrel::ReleaseActiveInteractable()
+{
+	if (ActiveInteractable)
+	{
+		ActiveInteractable->ReleaseBy(this);
+		ActiveInteractable = nullptr;
+	}
 }
 
 void ANBSquirrel::SendSeatInput(float Value)
