@@ -592,7 +592,8 @@ void ANBSquirrel::RefreshAttachedState()
 	const bool bRiding = CurrentSeat != nullptr || ClingTarget != nullptr;
 	const bool bFree = !bRiding && !bLocalRagdoll;
 
-	SetActorEnableCollision(bFree);
+	// Only the capsule: actor-level collision off would also switch off the tumbling body.
+	GetCapsuleComponent()->SetCollisionEnabled(bFree ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	if (bFree)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -667,6 +668,8 @@ void ANBSquirrel::StartLocalRagdoll()
 	BodyVisual->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	BodyVisual->SetWorldLocation(Ragdoll.Start, false, nullptr, ETeleportType::TeleportPhysics);
 	BodyVisual->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
+	// It leaves a fast car at driving speed; a body this small can skip through the floor.
+	BodyVisual->BodyInstance.bUseCCD = true;
 	BodyVisual->SetSimulatePhysics(true);
 	BodyVisual->SetPhysicsLinearVelocity(Ragdoll.Velocity);
 	BodyVisual->SetPhysicsAngularVelocityInDegrees(FVector(720.f, 540.f, 360.f));
