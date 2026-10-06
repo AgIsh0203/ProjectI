@@ -119,6 +119,14 @@ public:
 	UFUNCTION(Exec)
 	void NBChaos();
 
+	/** Host a lobby friends can join (H). */
+	UFUNCTION(Exec)
+	void NBHost();
+
+	/** Find and join a lobby (J). Steam invites join automatically. */
+	UFUNCTION(Exec)
+	void NBJoin();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -276,6 +284,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> ActionAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> HostAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> JoinAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)

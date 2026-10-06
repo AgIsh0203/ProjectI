@@ -16,6 +16,7 @@
 #include "Player/NBPlayerState.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+#include "Game/NBSessionSubsystem.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
@@ -160,6 +161,8 @@ void ANBSquirrel::BuildInputAssets()
 	JumpAction = NewObject<UInputAction>(this, TEXT("IA_Jump"));
 	InteractAction = NewObject<UInputAction>(this, TEXT("IA_Interact"));
 	ActionAction = NewObject<UInputAction>(this, TEXT("IA_Action"));
+	HostAction = NewObject<UInputAction>(this, TEXT("IA_Host"));
+	JoinAction = NewObject<UInputAction>(this, TEXT("IA_Join"));
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
 
@@ -196,6 +199,9 @@ void ANBSquirrel::BuildInputAssets()
 	// The repair/work button: hold, mash or time it depending on the interactable.
 	InputContext->MapKey(ActionAction, EKeys::LeftMouseButton);
 	InputContext->MapKey(ActionAction, EKeys::Gamepad_FaceButton_Right);
+	// Prototype lobby keys, until there is a menu. (F1-F4 are taken by dev view modes.)
+	InputContext->MapKey(HostAction, EKeys::H);
+	InputContext->MapKey(JoinAction, EKeys::J);
 }
 
 void ANBSquirrel::PawnClientRestart()
@@ -225,6 +231,8 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &ANBSquirrel::Interact);
 	Input->BindAction(ActionAction, ETriggerEvent::Started, this, &ANBSquirrel::ActionPressed);
 	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
+	Input->BindAction(HostAction, ETriggerEvent::Started, this, &ANBSquirrel::NBHost);
+	Input->BindAction(JoinAction, ETriggerEvent::Started, this, &ANBSquirrel::NBJoin);
 }
 
 void ANBSquirrel::Move(const FInputActionValue& Value)
@@ -397,6 +405,22 @@ void ANBSquirrel::NBFail(const FString& PartName)
 void ANBSquirrel::NBChaos()
 {
 	Server_DevChaos();
+}
+
+void ANBSquirrel::NBHost()
+{
+	if (UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>())
+	{
+		Sessions->Host();
+	}
+}
+
+void ANBSquirrel::NBJoin()
+{
+	if (UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>())
+	{
+		Sessions->FindAndJoin();
+	}
 }
 
 void ANBSquirrel::Server_DevFail_Implementation(const FString& PartName)

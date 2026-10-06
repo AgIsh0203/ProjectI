@@ -5,7 +5,7 @@
 ## Status (last updated 2026-10-05, Day 1 evening)
 - **M0 Foundations: mostly done.**
   - Chaos car driven by 2 players (Wheel seat steers, Pedals seat does gas/brake), verified in 2-client PIE.
-  - Remaining for M0: package a build, then do the Steam + VOIP test on the user's 2 PCs (host / invite / join / voice).
+  - Remaining for M0: the Steam + VOIP test on the user's 2 PCs (host / invite / join / voice). Development builds are packaged to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
 - **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
   1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
   2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
@@ -70,12 +70,21 @@
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
+- `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies (a stopgap until there's a menu).
+  - H / `NBHost` creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
+  - J / `NBJoin` finds a lobby and joins it. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.
+  - Each step destroys a stale session first. The HUD's top-left line shows OFFLINE / HOST / CONNECTED, the online subsystem and the session status.
 - `TP_VehicleAdv/` — imported C++ Vehicle template, compiled inside the ProjectI module. Its duplicate `IMPLEMENT_PRIMARY_GAME_MODULE` was removed; `Build.cs` adds its folders to the include path.
 - Map: `/Game/Maps/L_TestTrack` (greybox floor, ramps, bumps). It's the default and startup map.
 
 ## Config gotchas (already applied; keep them)
 - **Physics substepping ON** (≤8.3 ms, 12 max, MaxPhysicsDeltaTime 0.1). Without it, Chaos tires popped up to ~16 cm at uneven frame rates.
 - **Physics Prediction OFF.** Turning it on stops the unpossessed Chaos car from moving: it switches vehicles to the network-prediction input path.
+- **The net driver is SteamSockets** (plugin enabled, `bUseSteamNetworking`, relays on). Without Steam (e.g. PIE) it falls back to IpNetDriver.
+  - UE 5.7 no longer has `OnlineSubsystemSteam.SteamNetDriver`; the old config silently fell back to IP.
+  - Voice is open mic (`bRequiresPushToTalk=false`).
+- **Packaging:** `/Game/VehicleTemplate` and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them.
+  - Package with: `RunUAT BuildCookRun -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -archive -archivedirectory=...`
 - **Motion blur OFF** (`r.DefaultFeature.MotionBlur=False`): it smeared the spinning tires into noise.
 - **PIE runs 2 players as a listen server**, from `Config/DefaultEditorPerProjectUserSettings.ini`. The per-user `Saved/` ini can override it.
 

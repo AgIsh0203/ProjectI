@@ -9,6 +9,9 @@
 #include "Parts/NBCarPartComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/GameInstance.h"
+#include "Game/NBSessionSubsystem.h"
+#include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Player/NBSquirrel.h"
 
@@ -46,6 +49,7 @@ void ANBHUD::DrawHUD()
 	}
 
 	DrawCarStatus();
+	DrawNetStatus();
 
 	if (Squirrel->IsRagdolled())
 	{
@@ -97,6 +101,37 @@ void ANBHUD::DrawCarStatus()
 				DrawText(Part->PartName.ToString(), Alarm, Screen.X + Size * 0.7f, Screen.Y - 10.f, GEngine->GetMediumFont(), 1.f);
 			}
 		}
+	}
+}
+
+void ANBHUD::DrawNetStatus()
+{
+	const UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>();
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	const int32 Players = GameState ? GameState->PlayerArray.Num() : 1;
+
+	FString Line;
+	switch (GetNetMode())
+	{
+	case NM_Standalone:
+		Line = TEXT("OFFLINE    H: host    J: join");
+		break;
+	case NM_ListenServer:
+		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    Shift+Tab: invite friends"), Players);
+		break;
+	default:
+		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels"), Players);
+		break;
+	}
+	if (Sessions)
+	{
+		Line += FString::Printf(TEXT("    [%s]"), *Sessions->GetSubsystemName());
+	}
+	UFont* Font = GEngine->GetSmallFont();
+	DrawText(Line, FLinearColor(1.f, 1.f, 1.f, 0.8f), 16.f, 12.f, Font, 1.2f);
+	if (Sessions && !Sessions->GetStatusText().IsEmpty())
+	{
+		DrawText(Sessions->GetStatusText(), ProgressColor, 16.f, 32.f, Font, 1.2f);
 	}
 }
 
