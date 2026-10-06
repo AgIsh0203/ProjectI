@@ -2,10 +2,11 @@
 
 20-day UE 5.7.1 co-op "friend slop" **prototype**: 2–4 tiny squirrels drive ONE human-sized, open-top, falling-apart car. Guiding principle: **viewer fun first, player fun second**, so the game spreads through streams and clips. Full design: `Docs/GDD.md`. Approved plan: `C:\Users\ishan\.claude\plans\for-the-first-project-woolly-wozniak.md`.
 
-## Status (last updated 2026-10-05, Day 1 evening)
-- **M0 Foundations: mostly done.**
+## Status (last updated 2026-10-07)
+- **M0 Foundations: done.**
   - Chaos car driven by 2 players (Wheel seat steers, Pedals seat does gas/brake), verified in 2-client PIE.
-  - Remaining for M0: the Steam + VOIP test on the user's 2 PCs (host / invite / join / voice). Development builds are packaged to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
+  - 2-PC Steam test passed on 2026-10-07: host / invite / join, voice works, no physics stutter.
+  - That test found ejected squirrels falling through the floor; fixed in `58658fb`, after the 2026-10-06 build. Development builds are packaged to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
 - **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
   1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
   2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
