@@ -11,6 +11,7 @@ class UNBBrakePart;
 class UNBCarPartComponent;
 class UNBDoorPart;
 class UNBEnginePart;
+class UNBInteractableComponent;
 class UNBTirePart;
 class UStaticMeshComponent;
 
@@ -55,9 +56,19 @@ public:
 	/** Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random tire) or All. */
 	void DevFail(const FString& PartName);
 
+	/** Dev: roll the car onto its roof so the flip-up can be tested. */
+	void DevFlip();
+
 	/** Random failures every DevChaosInterval seconds. */
 	void SetDevChaos(bool bEnable);
 	bool IsDevChaos() const { return DevChaosTimer.IsValid(); }
+
+	/**
+	 * Upside down or on its side and nearly stopped. Riders are thrown out, the seats are
+	 * closed, and two squirrels on foot have to push together at FlipSpot to right it.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Car|Flip")
+	bool IsFlipped() const { return bFlipped; }
 
 	/** cm/s along the car's forward axis. */
 	UFUNCTION(BlueprintPure, Category = "Car")
@@ -134,6 +145,26 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Car|Parts")
 	TObjectPtr<UStaticMeshComponent> DoorPanel;
 
+	/** Where squirrels push to right a flipped car. Only enabled while flipped. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Flip")
+	TObjectPtr<UNBInteractableComponent> FlipSpot;
+
+	/** Counts as flipped while the car's up axis is below this (0 = on its side). */
+	UPROPERTY(EditAnywhere, Category = "Car|Flip")
+	float FlipUpDot = 0.35f;
+
+	/** ...and it is slower than this (cm/s)... */
+	UPROPERTY(EditAnywhere, Category = "Car|Flip")
+	float FlipMaxSpeed = 200.f;
+
+	/** ...for this long, so a roll that lands on its wheels doesn't count. */
+	UPROPERTY(EditAnywhere, Category = "Car|Flip")
+	float FlipConfirmSeconds = 1.5f;
+
+	/** Righted cars are lifted this far before being dropped back on their wheels. */
+	UPROPERTY(EditAnywhere, Category = "Car|Flip")
+	float RightingLift = 120.f;
+
 	/** Every part. Filled in BeginPlay. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNBCarPartComponent>> Parts;
@@ -145,6 +176,17 @@ private:
 	void ApplyInputsToVehicle();
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
+	void CheckFlipped();
+	void SetFlipped(bool bNewFlipped);
+
+	UFUNCTION()
+	void HandleFlipPushed(UNBInteractableComponent* Interactable);
+
+	FTimerHandle FlipCheckTimerHandle;
+	float FlippedSeconds = 0.f;
+
+	UPROPERTY(Replicated)
+	bool bFlipped = false;
 
 	FTimerHandle DevChaosTimer;
 

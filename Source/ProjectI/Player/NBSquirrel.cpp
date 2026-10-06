@@ -423,6 +423,19 @@ void ANBSquirrel::NBJoin()
 	}
 }
 
+void ANBSquirrel::NBFlip()
+{
+	Server_DevFlip();
+}
+
+void ANBSquirrel::Server_DevFlip_Implementation()
+{
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		It->DevFlip();
+	}
+}
+
 void ANBSquirrel::Server_DevFail_Implementation(const FString& PartName)
 {
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)

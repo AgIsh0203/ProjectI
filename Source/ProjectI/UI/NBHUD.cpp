@@ -82,6 +82,11 @@ void ANBHUD::DrawCarStatus()
 	float ListY = 20.f;
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
+		if (It->IsFlipped())
+		{
+			DrawCenteredText(TEXT("CAR FLIPPED!  Two squirrels: hold LMB next to it"), ListY, Alarm, 1.7f);
+			ListY += 36.f;
+		}
 		for (const UNBCarPartComponent* Part : It->GetParts())
 		{
 			if (!Part || !Part->IsFailed())

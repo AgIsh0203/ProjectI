@@ -119,6 +119,10 @@ public:
 	UFUNCTION(Exec)
 	void NBChaos();
 
+	/** Dev: roll the car onto its roof. */
+	UFUNCTION(Exec)
+	void NBFlip();
+
 	/** Host a lobby friends can join (H). */
 	UFUNCTION(Exec)
 	void NBHost();
@@ -196,6 +200,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevChaos();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevFlip();
 
 	UFUNCTION()
 	void OnRep_ClingTarget();

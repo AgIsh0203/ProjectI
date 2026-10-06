@@ -12,7 +12,7 @@
   2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
   3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
   4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
-  5. Two-squirrel flip-up.
+  5. ~~Two-squirrel flip-up.~~ Done. The full cycle was verified in PIE via Python; the push still needs a hands-on 2-player check. **M1 is code-complete.**
 - **Schedule:**
   - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
   - M3a (17–20 Oct): Kenney art, VFX/SFX, end-screen stats, private itch page; **friend test Tue 20 Oct**.
@@ -35,7 +35,12 @@
   - Never possessed: the server feeds Chaos from `SetSeatInput`.
   - Physics replication mode is `PredictiveInterpolation`.
   - `SetRequiresControllerForInputs(!HasAuthority())`, so clients use Chaos's `ReplicatedState`. This fixed client wheel jitter.
-  - Template auto-flip-reset is disabled (`FlipCheckMinDot = -2`).
+  - Template auto-flip-reset is disabled (`FlipCheckMinDot = -2`). Our own flip-up replaces it:
+    - A 0.25 s server timer (`CheckFlipped`) checks the car. If its up axis is below `FlipUpDot` (0.35) and it's slower than 200 cm/s for 1.5 s, it counts as flipped (replicated `bFlipped`).
+    - Flipping ejects every rider, zeroes the inputs and closes the seats (`FindNearestFreeSeat` / `FindNextFreeSeat` return null, so respawns land beside the car).
+    - It also enables `FlipSpot`: Push2, 2 users, on foot, Range 360, at the middle of the body.
+    - Completing the push lifts the car 120 cm and sets it upright, keeping its yaw. If the car rolls back onto its wheels by itself (up axis > 0.8), the flipped state clears.
+    - Dev console: `NBFlip` rolls the car onto its roof. The HUD shows a "CAR FLIPPED!" banner.
   - Damage hooks: `SetEnginePowerScale`, `SetBrakePowerScale`, `SetWheelGripScale` (scale the base values cached in BeginPlay).
 - `Car/NBSeatComponent` — replicated seat (Wheel / Pedals / Rider); the squirrel attaches to it, so its location is the capsule centre.
   - The car has 5: WheelSeat (perched on the steering wheel), PedalSeat (footwell), HoodSeat (front hood), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
@@ -67,7 +72,7 @@
     - Tire ×4 (outside each wheel, Hold 3 s, `bRequiresOnFoot` + `bAttachUser`, so the squirrel clings and gets dragged): that wheel's grip drops to 30 %.
     - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (`EjectFromCar`).
   - Part ranges are tuned so the wheel/pedal seats reach nothing; each rider seat reaches exactly one part.
-  - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, and `NBChaos` toggles a random failure every 12 s. These stand in until M2's failure director.
+  - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, `NBChaos` toggles a random failure every 12 s, and `NBFlip` rolls the car over. These stand in until M2's failure director.
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.

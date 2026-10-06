@@ -7,9 +7,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Interaction/NBInteractableComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Parts/NBCarParts.h"
+#include "Player/NBSquirrel.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -104,6 +106,19 @@ ANBCar::ANBCar()
 	DoorPart->SetupAttachment(GetMesh());
 	DoorPart->SetRelativeLocation(FVector(30.f, 95.f, 100.f));
 	DoorPart->Range = 130.f;
+
+	// Middle of the body, so a squirrel standing at any side of the upturned car reaches it
+	// (half-length ~250, half-width ~200, and the roof-down body sits ~1.5 m up).
+	FlipSpot = CreateDefaultSubobject<UNBInteractableComponent>(TEXT("FlipSpot"));
+	FlipSpot->SetupAttachment(GetMesh());
+	FlipSpot->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
+	FlipSpot->Mode = ENBInteractMode::Push2;
+	FlipSpot->RequiredUsers = 2;
+	FlipSpot->HoldSeconds = 2.f;
+	FlipSpot->Range = 360.f;
+	FlipSpot->bRequiresOnFoot = true;
+	FlipSpot->bDisableOnComplete = true;
+	FlipSpot->Prompt = NSLOCTEXT("NB", "FlipPrompt", "Flip the car back over");
 }
 
 UNBTirePart* ANBCar::CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName)
@@ -124,6 +139,13 @@ void ANBCar::BeginPlay()
 	Seats = {WheelSeat, PedalSeat, HoodSeat, PassengerSeat, DeckSeat};
 	Parts = {EnginePart, BrakePart, TireFL, TireFR, TireBL, TireBR, DoorPart};
 	DoorPart->Hinge = DoorHinge;
+
+	if (HasAuthority())
+	{
+		FlipSpot->SetInteractEnabled(false);
+		FlipSpot->OnCompleted.AddDynamic(this, &ANBCar::HandleFlipPushed);
+		GetWorldTimerManager().SetTimer(FlipCheckTimerHandle, this, &ANBCar::CheckFlipped, 0.25f, true);
+	}
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
 	// Only the server consumes raw inputs. Clients, still requiring a controller they
@@ -147,6 +169,7 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANBCar, SteerInput);
 	DOREPLIFETIME(ANBCar, ThrottleInput);
+	DOREPLIFETIME(ANBCar, bFlipped);
 }
 
 void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
@@ -177,6 +200,11 @@ void ANBCar::ApplyInputsToVehicle()
 
 UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float MaxDistance) const
 {
+	// Seats are closed until the car is back on its wheels.
+	if (bFlipped)
+	{
+		return nullptr;
+	}
 	UNBSeatComponent* Best = nullptr;
 	float BestDistSq = FMath::Square(MaxDistance);
 	for (UNBSeatComponent* Seat : Seats)
@@ -197,6 +225,10 @@ UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float Max
 
 UNBSeatComponent* ANBCar::FindNextFreeSeat(const UNBSeatComponent* From) const
 {
+	if (bFlipped)
+	{
+		return nullptr;
+	}
 	// Without a From seat, scan every seat starting at the first (the wheel).
 	const int32 Start = From ? Seats.IndexOfByKey(From) : INDEX_NONE;
 	for (int32 Step = 1; Step <= Seats.Num(); ++Step)
@@ -292,4 +324,72 @@ void ANBCar::SetWheelGripScale(int32 WheelIndex, float Scale)
 	{
 		GetChaosVehicleMovement()->SetWheelFrictionMultiplier(WheelIndex, BaseFriction[WheelIndex] * FMath::Max(Scale, 0.f));
 	}
+}
+
+void ANBCar::CheckFlipped()
+{
+	const float UpDot = FVector::DotProduct(GetMesh()->GetUpVector(), FVector::UpVector);
+	if (bFlipped)
+	{
+		// Rolled back onto its wheels by itself (a bump, a push from the other car...).
+		if (UpDot > 0.8f)
+		{
+			SetFlipped(false);
+		}
+		return;
+	}
+
+	const bool bLooksFlipped = UpDot < FlipUpDot && GetVelocity().Size() < FlipMaxSpeed;
+	FlippedSeconds = bLooksFlipped ? FlippedSeconds + GetWorldTimerManager().GetTimerRate(FlipCheckTimerHandle) : 0.f;
+	if (FlippedSeconds >= FlipConfirmSeconds)
+	{
+		SetFlipped(true);
+	}
+}
+
+void ANBCar::SetFlipped(bool bNewFlipped)
+{
+	check(HasAuthority());
+	FlippedSeconds = 0.f;
+	if (bFlipped == bNewFlipped)
+	{
+		return;
+	}
+	bFlipped = bNewFlipped;
+	FlipSpot->SetInteractEnabled(bFlipped);
+	if (!bFlipped)
+	{
+		return;
+	}
+
+	// Open top: whoever is still inside falls out.
+	for (UNBSeatComponent* Seat : Seats)
+	{
+		if (ANBSquirrel* Occupant = Seat ? Seat->GetOccupant() : nullptr)
+		{
+			Occupant->EjectFromCar();
+		}
+	}
+	SteerInput = 0.f;
+	ThrottleInput = 0.f;
+	ApplyInputsToVehicle();
+}
+
+void ANBCar::HandleFlipPushed(UNBInteractableComponent* Interactable)
+{
+	// Back on its wheels, keeping its heading, dropped from a little height.
+	const FRotator Upright(0.f, GetActorRotation().Yaw, 0.f);
+	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, RightingLift), Upright, false, nullptr, ETeleportType::TeleportPhysics);
+	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	SetFlipped(false);
+}
+
+void ANBCar::DevFlip()
+{
+	check(HasAuthority());
+	const FRotator Roof(0.f, GetActorRotation().Yaw, 180.f);
+	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, 250.f), Roof, false, nullptr, ETeleportType::TeleportPhysics);
+	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 }
