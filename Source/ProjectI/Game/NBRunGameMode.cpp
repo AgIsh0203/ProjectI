@@ -86,10 +86,18 @@ void ANBRunGameMode::FindOrSpawnFinishZone()
 	}
 
 	const FVector Forward = FRotator(0.f, Car->GetActorRotation().Yaw, 0.f).Vector();
+	FVector Where = Car->GetActorLocation() + Forward * FallbackFinishDistance;
+	// Sit the gate on the ground there.
+	FHitResult Ground;
+	if (GetWorld()->LineTraceSingleByChannel(Ground, Where + FVector(0.f, 0.f, 2000.f), Where - FVector(0.f, 0.f, 2000.f), ECC_Visibility))
+	{
+		Where.Z = Ground.ImpactPoint.Z;
+	}
+	Where.Z += 10.f;
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	FinishZone = GetWorld()->SpawnActor<ANBFinishZone>(ANBFinishZone::StaticClass(),
-		Car->GetActorLocation() + Forward * FallbackFinishDistance, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f), Params);
+		Where, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f), Params);
 }
 
 void ANBRunGameMode::DevStartRun()

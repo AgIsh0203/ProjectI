@@ -32,6 +32,10 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Visual;
 
+	/** Two posts either side of the track so the gate reads from far away. */
+	UPROPERTY(VisibleAnywhere)
+	TArray<TObjectPtr<UStaticMeshComponent>> Posts;
+
 	UPROPERTY(EditAnywhere, Category = "Finish")
 	FVector HalfExtent = FVector(300.f, 500.f, 250.f);
 };
