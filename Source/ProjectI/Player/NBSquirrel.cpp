@@ -27,6 +27,8 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Net/UnrealNetwork.h"
+#include "Net/VoiceConfig.h"
+#include "Sound/SoundAttenuation.h"
 #include "UObject/ConstructorHelpers.h"
 
 ANBSquirrel::ANBSquirrel()
@@ -73,6 +75,8 @@ ANBSquirrel::ANBSquirrel()
 		TailVisual->SetMaterial(0, FurMaterial.Object);
 	}
 
+	VoiceTalker = CreateDefaultSubobject<UVOIPTalker>(TEXT("VoiceTalker"));
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = OnFootArmLength;
@@ -106,6 +110,7 @@ void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 void ANBSquirrel::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	RegisterVoiceTalker();
 
 	if (ColorIndex != INDEX_NONE || FurColors.IsEmpty())
 	{
@@ -648,9 +653,36 @@ void ANBSquirrel::RefreshAttachedState()
 	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? 420.f : 60.f);
 }
 
+void ANBSquirrel::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	RegisterVoiceTalker();
+}
+
+void ANBSquirrel::RegisterVoiceTalker()
+{
+	if (!VoiceTalker || !GetPlayerState())
+	{
+		return;
+	}
+	// Proximity chat: spatialised on this squirrel, silent beyond Full+Falloff.
+	USoundAttenuation* Attenuation = NewObject<USoundAttenuation>(this);
+	FSoundAttenuationSettings& Settings = Attenuation->Attenuation;
+	Settings.bAttenuate = true;
+	Settings.bSpatialize = true;
+	Settings.AttenuationShape = EAttenuationShape::Sphere;
+	Settings.AttenuationShapeExtents = FVector(VoiceFullRadius);
+	Settings.FalloffDistance = VoiceFalloff;
+	Settings.DistanceAlgorithm = EAttenuationDistanceModel::Linear;
+	VoiceTalker->Settings.AttenuationSettings = Attenuation;
+	VoiceTalker->Settings.ComponentToAttachTo = GetRootComponent();
+	VoiceTalker->RegisterWithPlayerState(GetPlayerState());
+}
+
 void ANBSquirrel::BeginPlay()
 {
 	Super::BeginPlay();
+	RegisterVoiceTalker();
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
 }
