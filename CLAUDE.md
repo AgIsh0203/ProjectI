@@ -13,7 +13,7 @@
   3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
   4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
   5. ~~Two-squirrel flip-up.~~ Done. The full cycle was verified in PIE via Python; the push still needs a hands-on 2-player check. **M1 is code-complete.**
-- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written and compile; **not yet tested in PIE**. Still to do: Steam lobby polish, proximity voice, Acorn-in-Mouth mute + chat wheel.
+- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written. Server logic verified in 2-client PIE via Python on 2026-10-09: the run starts by itself, the director fails parts, delivery scores (teleported car into the zone), a total wreck ends the run, and a sudden speed change spilled 40 -> 22 acorns. The HUD, the feel of the spills and the drop-off distance still need a hands-on look. (The editor tools needed the editor launched by hand; `mcp-unreal` timed out on connect, so scripts went straight to port 8090.) Still to do: Steam lobby polish, proximity voice, Acorn-in-Mouth mute + chat wheel.
 - **Schedule:**
   - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
   - M3a (17–20 Oct): Kenney art, VFX/SFX, end-screen stats, private itch page; **friend test Tue 20 Oct**.
