@@ -54,6 +54,7 @@ void UNBCarPartComponent::Repair()
 		return;
 	}
 	bFailed = false;
+	LastRepairTime = GetWorld()->GetTimeSeconds();
 	SetInteractEnabled(false);
 	ClearEffect();
 	OnFailedChanged();

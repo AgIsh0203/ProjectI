@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Car/NBAcorn.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
@@ -145,6 +146,8 @@ void ANBCar::BeginPlay()
 		FlipSpot->SetInteractEnabled(false);
 		FlipSpot->OnCompleted.AddDynamic(this, &ANBCar::HandleFlipPushed);
 		GetWorldTimerManager().SetTimer(FlipCheckTimerHandle, this, &ANBCar::CheckFlipped, 0.25f, true);
+		GetWorldTimerManager().SetTimer(SpillTimerHandle, this, &ANBCar::CheckSpill, 0.1f, true);
+		Acorns = MaxAcorns;
 	}
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
@@ -170,6 +173,7 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, SteerInput);
 	DOREPLIFETIME(ANBCar, ThrottleInput);
 	DOREPLIFETIME(ANBCar, bFlipped);
+	DOREPLIFETIME(ANBCar, Acorns);
 }
 
 void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
@@ -195,7 +199,45 @@ void ANBCar::ApplyInputsToVehicle()
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
 	Movement->SetSteeringInput(SteerInput);
 	Movement->SetThrottleInput(FMath::Max(ThrottleInput, 0.f));
-	Movement->SetBrakeInput(FMath::Max(-ThrottleInput, 0.f));
+	Movement->SetBrakeInput(bRunLocked ? 1.f : FMath::Max(-ThrottleInput, 0.f));
+	Movement->SetHandbrakeInput(bRunLocked);
+}
+
+void ANBCar::SetRunLocked(bool bLocked)
+{
+	check(HasAuthority());
+	bRunLocked = bLocked;
+	LastSpillVelocity = GetVelocity();
+	ApplyInputsToVehicle();
+}
+
+int32 ANBCar::SpillAcorns(int32 Count)
+{
+	check(HasAuthority());
+	Count = FMath::Clamp(Count, 0, Acorns);
+	const FTransform Body = GetMesh()->GetComponentTransform();
+	for (int32 i = 0; i < Count; ++i)
+	{
+		// The bed is the open space behind the seats; acorns pop up and out over the sides.
+		const FVector Local(FMath::FRandRange(-130.f, -40.f), FMath::FRandRange(-60.f, 60.f), 200.f);
+		const FVector Side = Body.GetUnitAxis(EAxis::Y) * (FMath::RandBool() ? 1.f : -1.f) * FMath::FRandRange(150.f, 450.f);
+		const FVector Velocity = GetVelocity() * 0.7f + Side + FVector(0.f, 0.f, FMath::FRandRange(250.f, 550.f));
+		ANBAcorn::SpawnSpilled(GetWorld(), Body.TransformPosition(Local), Velocity);
+	}
+	Acorns -= Count;
+	return Count;
+}
+
+void ANBCar::CheckSpill()
+{
+	const FVector Velocity = GetVelocity();
+	const float DeltaV = (Velocity - LastSpillVelocity).Size();
+	LastSpillVelocity = Velocity;
+	if (bRunLocked || Acorns <= 0 || DeltaV < SpillMinDeltaV)
+	{
+		return;
+	}
+	SpillAcorns(1 + FMath::FloorToInt((DeltaV - SpillMinDeltaV) / SpillDeltaVPerAcorn));
 }
 
 UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float MaxDistance) const
@@ -361,6 +403,9 @@ void ANBCar::SetFlipped(bool bNewFlipped)
 	{
 		return;
 	}
+
+	// Tipping over dumps part of the load.
+	SpillAcorns(FMath::CeilToInt(Acorns * FlipSpillFraction));
 
 	// Open top: whoever is still inside falls out.
 	for (UNBSeatComponent* Seat : Seats)

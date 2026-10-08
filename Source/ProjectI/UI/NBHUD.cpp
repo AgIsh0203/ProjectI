@@ -13,6 +13,8 @@
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
+#include "Game/NBRunGameState.h"
+#include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
 
 namespace
@@ -50,6 +52,7 @@ void ANBHUD::DrawHUD()
 
 	DrawCarStatus();
 	DrawNetStatus();
+	DrawRunStatus();
 
 	if (Squirrel->IsRagdolled())
 	{
@@ -107,6 +110,112 @@ void ANBHUD::DrawCarStatus()
 			}
 		}
 	}
+}
+
+void ANBHUD::DrawRunStatus()
+{
+	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
+	if (!State)
+	{
+		return;
+	}
+	const ANBCar* Car = nullptr;
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		Car = *It;
+		break;
+	}
+
+	UFont* Font = GEngine->GetMediumFont();
+	const float Right = Canvas->ClipX - 24.f;
+	auto DrawRight = [&](const FString& Text, float Y, const FLinearColor& Color, float Scale)
+	{
+		float W = 0.f, H = 0.f;
+		GetTextSize(Text, W, H, Font, Scale);
+		DrawText(Text, Color, Right - W, Y, Font, Scale);
+	};
+
+	const float SecondsLeft = State->GetSecondsLeft();
+	switch (State->GetPhase())
+	{
+	case ENBRunPhase::Waiting:
+		DrawCenteredText(TEXT("Waiting for another squirrel..."), Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
+		break;
+	case ENBRunPhase::Countdown:
+		DrawCenteredText(SecondsLeft > 0.f ? FString::FromInt(FMath::CeilToInt(SecondsLeft)) : TEXT("GO!"), Canvas->ClipY * 0.25f, ProgressColor, 4.f);
+		DrawCenteredText(TEXT("Everyone get in the car!"), Canvas->ClipY * 0.25f + 90.f, FLinearColor::White, 1.5f);
+		break;
+	case ENBRunPhase::Driving:
+	{
+		const int32 Total = FMath::CeilToInt(SecondsLeft);
+		const bool bLow = SecondsLeft < 20.f;
+		const float Blink = bLow ? 0.65f + 0.35f * FMath::Sin(GetWorld()->GetTimeSeconds() * 10.f) : 1.f;
+		const FLinearColor TimeColor = bLow ? FLinearColor(BadColor.R, BadColor.G * Blink, BadColor.B * Blink) : FLinearColor::White;
+		DrawRight(FString::Printf(TEXT("%d:%02d"), Total / 60, Total % 60), 14.f, TimeColor, 2.2f);
+
+		if (State->GetWreckSeconds() > 0.f)
+		{
+			const float Fill = State->GetWreckSeconds() / 10.f;
+			DrawCenteredText(TEXT("CAR FALLING APART!  Fix something!"), Canvas->ClipY * 0.2f, BadColor, 1.6f);
+			DrawBar((Canvas->ClipX - 360.f) * 0.5f, Canvas->ClipY * 0.2f + 36.f, 360.f, 14.f, Fill, BadColor);
+		}
+		break;
+	}
+	case ENBRunPhase::Finished:
+		DrawEndScreen(*State);
+		break;
+	}
+
+	if (Car && State->GetPhase() != ENBRunPhase::Finished)
+	{
+		DrawRight(FString::Printf(TEXT("ACORNS  %d / %d"), Car->GetAcorns(), Car->GetMaxAcorns()), 70.f, ProgressColor, 1.5f);
+	}
+}
+
+void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
+{
+	const float PanelW = 560.f;
+	const float PanelH = 400.f;
+	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
+	const float PanelY = (Canvas->ClipY - PanelH) * 0.5f;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), PanelX, PanelY, PanelW, PanelH);
+
+	FString Title;
+	FLinearColor TitleColor = GoodColor;
+	switch (State.GetResult())
+	{
+	case ENBRunResult::Delivered: Title = TEXT("ACORNS DELIVERED!"); break;
+	case ENBRunResult::TimeUp:    Title = TEXT("TIME'S UP"); TitleColor = BadColor; break;
+	case ENBRunResult::Wrecked:   Title = TEXT("TOTAL WRECK"); TitleColor = BadColor; break;
+	default: break;
+	}
+	float Y = PanelY + 20.f;
+	DrawCenteredText(Title, Y, TitleColor, 2.4f);
+	Y += 70.f;
+
+	if (State.GetResult() == ENBRunResult::Delivered)
+	{
+		DrawCenteredText(FString::Printf(TEXT("Acorns delivered: %d"), State.GetAcornsDelivered()), Y, FLinearColor::White, 1.3f);
+		DrawCenteredText(FString::Printf(TEXT("Time bonus: +%d"), State.GetTimeBonus()), Y + 30.f, FLinearColor::White, 1.3f);
+		DrawCenteredText(FString::Printf(TEXT("Respawn penalty: -%d"), State.GetRespawnPenalty()), Y + 60.f, FLinearColor::White, 1.3f);
+		DrawCenteredText(FString::Printf(TEXT("SCORE  %d"), State.GetFinalScore()), Y + 100.f, ProgressColor, 2.2f);
+	}
+	else
+	{
+		DrawCenteredText(TEXT("The acorns never made it."), Y + 20.f, FLinearColor::White, 1.4f);
+	}
+	Y += 170.f;
+
+	for (const APlayerState* Player : State.PlayerArray)
+	{
+		if (const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
+		{
+			const FString Line = FString::Printf(TEXT("%s    falls: %d    respawns: %d"), *Stats->GetPlayerName(), Stats->GetFalls(), Stats->GetRespawns());
+			DrawCenteredText(Line, Y, FLinearColor(1.f, 1.f, 1.f, 0.8f), 1.f);
+			Y += 24.f;
+		}
+	}
+	DrawCenteredText(FString::Printf(TEXT("Restarting in %d"), FMath::CeilToInt(State.GetSecondsLeft())), PanelY + PanelH - 36.f, FLinearColor(1.f, 1.f, 1.f, 0.6f), 1.f);
 }
 
 void ANBHUD::DrawNetStatus()

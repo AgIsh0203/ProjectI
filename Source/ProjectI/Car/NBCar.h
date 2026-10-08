@@ -80,6 +80,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Car")
 	float GetThrottleInput() const { return ThrottleInput; }
 
+	// --- Acorn cargo. The car starts full; bumps and flips spill it. ---
+
+	UFUNCTION(BlueprintPure, Category = "Car|Cargo")
+	int32 GetAcorns() const { return Acorns; }
+
+	UFUNCTION(BlueprintPure, Category = "Car|Cargo")
+	int32 GetMaxAcorns() const { return MaxAcorns; }
+
+	/** Server only. Throws up to Count acorns out of the bed as physics props. Returns how many spilled. */
+	int32 SpillAcorns(int32 Count);
+
+	/** Server only. The run isn't live (waiting, countdown, over): brakes held, no spilling. */
+	void SetRunLocked(bool bLocked);
+
 	// --- Hooks for car parts. 1 = healthy. Server only. ---
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Damage")
@@ -169,6 +183,21 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNBCarPartComponent>> Parts;
 
+	UPROPERTY(EditAnywhere, Category = "Car|Cargo")
+	int32 MaxAcorns = 40;
+
+	/** Velocity change over one CheckSpill step (cm/s) below which a bump spills nothing. */
+	UPROPERTY(EditAnywhere, Category = "Car|Cargo")
+	float SpillMinDeltaV = 350.f;
+
+	/** One acorn per this much velocity change beyond the minimum (cm/s). */
+	UPROPERTY(EditAnywhere, Category = "Car|Cargo")
+	float SpillDeltaVPerAcorn = 120.f;
+
+	/** Share of the remaining cargo dumped when the car flips. */
+	UPROPERTY(EditAnywhere, Category = "Car|Cargo", meta = (ClampMin = "0", ClampMax = "1"))
+	float FlipSpillFraction = 0.25f;
+
 	UPROPERTY(EditAnywhere, Category = "Car|Dev")
 	float DevChaosInterval = 12.f;
 
@@ -177,6 +206,7 @@ private:
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
 	void CheckFlipped();
+	void CheckSpill();
 	void SetFlipped(bool bNewFlipped);
 
 	UFUNCTION()
@@ -189,6 +219,12 @@ private:
 	bool bFlipped = false;
 
 	FTimerHandle DevChaosTimer;
+	FTimerHandle SpillTimerHandle;
+	FVector LastSpillVelocity = FVector::ZeroVector;
+	bool bRunLocked = false;
+
+	UPROPERTY(Replicated)
+	int32 Acorns = 0;
 
 	UPROPERTY(Replicated)
 	float SteerInput = 0.f;

@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Part")
 	bool IsFailed() const { return bFailed; }
 
+	/** Server world time of the last repair, or a very negative number if never repaired. */
+	float GetLastRepairTime() const { return LastRepairTime; }
+
 	/** Server only. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Part")
 	void Fail();
@@ -68,4 +71,5 @@ private:
 	bool bFailed = false;
 
 	float TimeSinceFailure = 0.f;
+	float LastRepairTime = -1000000.f;
 };

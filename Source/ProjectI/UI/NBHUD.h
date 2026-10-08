@@ -23,6 +23,9 @@ public:
 private:
 	/** Failure list at the top plus a marker over each broken part, so viewers can follow along. */
 	void DrawCarStatus();
+	/** Top-right timer and acorn count, the waiting/countdown banners, the wreck warning and the end screen. */
+	void DrawRunStatus();
+	void DrawEndScreen(const class ANBRunGameState& State);
 	/** Top-left: offline / hosting / connected, the online subsystem and the lobby keys. */
 	void DrawNetStatus();
 	void DrawInteractable(const UNBInteractableComponent& Interactable, bool bUsing);

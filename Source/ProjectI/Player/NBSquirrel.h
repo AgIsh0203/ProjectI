@@ -123,6 +123,10 @@ public:
 	UFUNCTION(Exec)
 	void NBFlip();
 
+	/** Dev: start the countdown without waiting for a second squirrel. */
+	UFUNCTION(Exec)
+	void NBStart();
+
 	/** Host a lobby friends can join (H). */
 	UFUNCTION(Exec)
 	void NBHost();
@@ -203,6 +207,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevFlip();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevStart();
 
 	UFUNCTION()
 	void OnRep_ClingTarget();

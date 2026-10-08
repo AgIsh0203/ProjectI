@@ -13,6 +13,7 @@
   3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
   4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
   5. ~~Two-squirrel flip-up.~~ Done. The full cycle was verified in PIE via Python; the push still needs a hands-on 2-player check. **M1 is code-complete.**
+- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written and compile; **not yet tested in PIE**. Still to do: Steam lobby polish, proximity voice, Acorn-in-Mouth mute + chat wheel.
 - **Schedule:**
   - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
   - M3a (17–20 Oct): Kenney art, VFX/SFX, end-screen stats, private itch page; **friend test Tue 20 Oct**.
@@ -76,6 +77,11 @@
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
+- `Game/NBRunGameMode` also runs the run: Waiting (needs 2 squirrels; `NBStart` skips) -> Countdown 5 s -> Driving (150 s deadline) -> Finished (12 s end screen, then `ServerTravel("?Restart")`; does nothing in PIE). Ends on delivery, time up, or a total wreck (3+ parts failed for 10 s). Score = acorns x 10 + 2 per second left - 25 per respawn; bad endings score 0. The car is brake-locked (`SetRunLocked`) outside Driving.
+- `Game/NBRunGameState` — replicated phase, result, clock (`GetSecondsLeft`), wreck timer, score breakdown.
+- `Game/NBFailureDirector` — component on the game mode. Fails a random part every 14 s -> 6 s (ramps with run progress), up to 1 -> players+1 failed at once, 8 s no-rebreak cooldown after a repair.
+- `Game/NBFinishZone` — greybox drop-off box; the run is delivered when the car's centre is inside. If the level has none, the game mode spawns one 80 m ahead of the car.
+- `Car/NBAcorn` + cargo on `NBCar`: 40 acorns (replicated). A velocity change > 350 cm/s per 0.1 s spills acorns as physics props; a flip dumps 25 %.
 - `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies (a stopgap until there's a menu).
   - H / `NBHost` creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
   - J / `NBJoin` finds a lobby and joins it. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.

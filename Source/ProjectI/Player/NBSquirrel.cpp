@@ -16,6 +16,7 @@
 #include "Player/NBPlayerState.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+#include "Game/NBRunGameMode.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -426,6 +427,19 @@ void ANBSquirrel::NBJoin()
 void ANBSquirrel::NBFlip()
 {
 	Server_DevFlip();
+}
+
+void ANBSquirrel::NBStart()
+{
+	Server_DevStart();
+}
+
+void ANBSquirrel::Server_DevStart_Implementation()
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevStartRun();
+	}
 }
 
 void ANBSquirrel::Server_DevFlip_Implementation()
