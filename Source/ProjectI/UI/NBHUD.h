@@ -25,6 +25,8 @@ private:
 	void DrawCarStatus();
 	/** Top-right timer and acorn count, the waiting/countdown banners, the wreck warning and the end screen. */
 	void DrawRunStatus();
+	/** Acorn in Mouth banners, the chat wheel legend and recent pings. */
+	void DrawVoiceStatus();
 	void DrawEndScreen(const class ANBRunGameState& State);
 	/** Top-left: offline / hosting / connected, the online subsystem and the lobby keys. */
 	void DrawNetStatus();

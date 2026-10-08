@@ -82,6 +82,7 @@
 - `Game/NBFailureDirector` — component on the game mode. Fails a random part every 14 s -> 6 s (ramps with run progress), up to 1 -> players+1 failed at once, 8 s no-rebreak cooldown after a repair.
 - `Game/NBFinishZone` — greybox drop-off box; the run is delivered when the car's centre is inside. If the level has none, the game mode spawns one 80 m ahead of the car.
 - `Car/NBAcorn` + cargo on `NBCar`: 40 acorns (replicated). A velocity change > 350 cm/s per 0.1 s spills acorns as physics props; a flip dumps 25 %.
+- **Acorn in Mouth + chat wheel:** `Game/NBRunGameMode::GiveAcornInMouth` mutes one squirrel for 20 s every 75-105 s while driving (weights: Wheel seat +2, next to a failed part +2; skipped in the last 20 s). State lives on `ANBPlayerState` (`MuteEndTime`, last ping). The local `ANBSquirrel` calls `ToggleSpeaking(false/true)` to cut the open mic. Keys 1-8 send a ping (1 s cooldown, shown 4 s left of screen); the HUD shows banners and a legend while muted. Server mute verified in PIE; the voice cutoff, keys and HUD need a hands-on 2-PC test.
 - `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies (a stopgap until there's a menu).
   - H / `NBHost` creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
   - J / `NBJoin` finds a lobby and joins it. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.

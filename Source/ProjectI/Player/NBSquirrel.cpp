@@ -167,6 +167,15 @@ void ANBSquirrel::BuildInputAssets()
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
 
+	static const FKey PingKeys[ANBPlayerState::NumPings] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
+	PingActions.Reset();
+	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
+	{
+		UInputAction* Ping = NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_Ping%d"), i + 1));
+		PingActions.Add(Ping);
+		InputContext->MapKey(Ping, PingKeys[i]);
+	}
+
 	// WASD -> 2D: W/S go to Y via swizzle, A/S are negated.
 	auto MapMoveKey = [this](const FKey& Key, bool bSwizzle, bool bNegate)
 	{
@@ -232,6 +241,10 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &ANBSquirrel::Interact);
 	Input->BindAction(ActionAction, ETriggerEvent::Started, this, &ANBSquirrel::ActionPressed);
 	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
+	for (int32 i = 0; i < PingActions.Num(); ++i)
+	{
+		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
+	}
 	Input->BindAction(HostAction, ETriggerEvent::Started, this, &ANBSquirrel::NBHost);
 	Input->BindAction(JoinAction, ETriggerEvent::Started, this, &ANBSquirrel::NBJoin);
 }
@@ -722,9 +735,43 @@ void ANBSquirrel::StopLocalRagdoll()
 	RefreshAttachedState();
 }
 
+void ANBSquirrel::PingPressed(int32 Index)
+{
+	Server_Ping(Index);
+}
+
+void ANBSquirrel::Server_Ping_Implementation(int32 Index)
+{
+	if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+	{
+		Stats->SendPing(Index);
+	}
+}
+
+void ANBSquirrel::UpdateVoiceMute()
+{
+	const ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>();
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!Stats || !PC)
+	{
+		return;
+	}
+	const bool bMuted = Stats->IsMuted();
+	if (bMuted != bVoiceMuted)
+	{
+		bVoiceMuted = bMuted;
+		// Open mic: stop sending voice while the acorn is in, resume after.
+		PC->ToggleSpeaking(!bMuted);
+	}
+}
+
 void ANBSquirrel::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (IsLocallyControlled())
+	{
+		UpdateVoiceMute();
+	}
 	if (bLocalRagdoll)
 	{
 		// The capsule (and camera) follow the tumbling body.

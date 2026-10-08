@@ -29,7 +29,49 @@ public:
 	/** Server only. */
 	void AddRespawn() { ++Respawns; }
 
+	// --- Acorn in Mouth: muted for a while, but the chat wheel still works. ---
+
+	/** Server world time the mute ends; 0 or in the past = not muted. */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	bool IsMuted() const;
+
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetMuteSecondsLeft() const;
+
+	/** Server only. */
+	void StartMute(float Seconds);
+
+	/** Server only. */
+	void ClearMute() { MuteEndTime = 0.0; }
+
+	// --- Chat wheel: the last ping this squirrel sent. ---
+
+	static constexpr int32 NumPings = 8;
+
+	/** Text for ping slot 0..NumPings-1. */
+	static FText GetPingText(int32 Index);
+
+	/** Slot of the ping still on screen, or INDEX_NONE. */
+	int32 GetActivePing() const;
+
+	/** Server only. Returns false if the squirrel pinged too recently. */
+	bool SendPing(int32 Index);
+
 private:
+	static constexpr float PingShowSeconds = 4.f;
+	static constexpr float PingCooldownSeconds = 1.f;
+
+	double ServerNow() const;
+
+	UPROPERTY(Replicated)
+	double MuteEndTime = 0.0;
+
+	UPROPERTY(Replicated)
+	int32 PingIndex = INDEX_NONE;
+
+	UPROPERTY(Replicated)
+	double PingTime = -1000.0;
+
 	UPROPERTY(Replicated)
 	int32 Falls = 0;
 

@@ -193,6 +193,20 @@ private:
 	void JumpPressed();
 	void Interact();
 	void ActionPressed();
+
+	/** Chat wheel, keys 1-8. */
+	void PingPressed(int32 Index);
+
+	UFUNCTION(Server, Reliable)
+	void Server_Ping(int32 Index);
+
+	/** Local player only: mic off while Acorn in Mouth, back on afterwards. */
+	void UpdateVoiceMute();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> PingActions;
+
+	bool bVoiceMuted = false;
 	void ActionReleased();
 	void ReleaseActiveInteractable();
 	void StartClinging(UNBInteractableComponent* Target);
