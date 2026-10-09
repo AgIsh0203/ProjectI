@@ -267,6 +267,8 @@ int32 ANBRoute::GetSectionAt(float Distance) const
 UInstancedStaticMeshComponent* ANBRoute::MakeLayer(const TCHAR* Name, const FLinearColor& Color, bool bCollision, bool bShadows)
 {
 	UInstancedStaticMeshComponent* Mesh = NewObject<UInstancedStaticMeshComponent>(this, Name);
+	// Every machine builds the same named layers; this lets the replicated movement base (a squirrel standing on the ground) resolve on clients.
+	Mesh->SetNetAddressable();
 	Mesh->SetMobility(EComponentMobility::Movable);
 	Mesh->SetupAttachment(GetRootComponent());
 	Mesh->SetStaticMesh(CubeMesh);
