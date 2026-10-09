@@ -350,9 +350,9 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 	}
 
 	// Seconds at the controls count toward the MVP pick.
-	for (const ENBSeatRole Role : { ENBSeatRole::Wheel, ENBSeatRole::Pedals })
+	for (const ENBSeatRole SeatRole : { ENBSeatRole::Wheel, ENBSeatRole::Pedals })
 	{
-		const UNBSeatComponent* Seat = Car->GetSeat(Role);
+		const UNBSeatComponent* Seat = Car->GetSeat(SeatRole);
 		if (ANBPlayerState* Stats = (Seat && Seat->GetOccupant()) ? Seat->GetOccupant()->GetPlayerState<ANBPlayerState>() : nullptr)
 		{
 			Stats->AddDriveTime(DeltaSeconds);
