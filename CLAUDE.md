@@ -58,7 +58,9 @@
     - If it isn't seated `RespawnDelay` (8 s) after the fall, `RespawnAtCar` puts it in the first free seat (else beside the car). Entering any seat cancels that.
     - Space in a car going ≥ `BailSpeed` (600 cm/s) ejects instead of hopping out. `FellOutOfWorld` respawns instead of destroying.
     - `RefreshAttachedState` is the single place that sets collision, movement mode and the camera for the riding / tumbling / on-foot states.
-- `Player/NBPlayerState` — replicated `Falls` and `Respawns` (M2 turns respawns into a score penalty; the end screen shows falls). Set as `PlayerStateClass`.
+- `Player/NBPlayerState` — replicated per-player run stats for the end screen. Set as `PlayerStateClass`.
+  - `Falls`, `Respawns` (score penalty), `FiresPutOut` (every squirrel who moved a part's repair forward gets one when it completes; the interactable's `GetCompletedBy()`), `AcornsSpilled` (blamed on the Wheel seat, else the Pedals seat), `DriveSeconds` (Wheel or Pedals seat while Driving).
+  - `GetHelpfulness()` = 3/fire + 1 per 30 s driving - 1/fall - 2/respawn - 0.5/acorn spilled. At `EndRun` the game mode picks the highest as MVP and the lowest as "Most useless" (replicated on the game state; none with fewer than 2 squirrels). Not compiled yet.
   - LMB / gamepad B = action. Press and release go to the server (`Server_ActionPressed` carries the client's server-time estimate), which uses `UNBInteractableComponent::FindBestFor`.
 - `Interaction/NBInteractableComponent` — the shared "work on this" spot (repairs, door, flip-up).
   - Modes: Hold, Mash, TimingRing, Push2. Server-authoritative; progress, users, enabled and the sweet spot replicate.
@@ -138,7 +140,7 @@
   - Claude: code, config, Blueprints/levels via MCP, builds, tests, commits.
 
 ## Open items / ideas parked
-- The pedal squirrel sits low in the footwell and may be hidden behind the steering wheel from the chase camera. Check this in play.
+- The pedal squirrel sits low in the footwell; its tail now sticks up as a flag (`PedalTailTransform`) so it shows over the dash. Check this in play.
 - No sound or VFX assets are assigned yet; every slot above is empty. Squirrel events (thrown out, landing) and run events (countdown, delivered, wrecked) have no slots yet; the squirrel is a pure C++ pawn, so its slots would need a Blueprint child or project settings.
-- The seated camera doesn't auto-follow the car's heading yet (feel tweak).
+- The seated camera now swings behind the car after 1 s without look input when the car moves faster than 150 cm/s (`SeatedFollowDelay`, `SeatedFollowSpeed`, `SeatedFollowMinSpeed`). Not compiled or felt yet.
 - Possible remaining TSR shimmer on the tires; tune only if the user still sees it.

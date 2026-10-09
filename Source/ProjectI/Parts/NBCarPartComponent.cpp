@@ -4,6 +4,8 @@
 
 #include "Car/NBCar.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/NBPlayerState.h"
+#include "Player/NBSquirrel.h"
 
 const FName UNBCarPartComponent::SeverityParam(TEXT("Severity"));
 
@@ -73,6 +75,14 @@ void UNBCarPartComponent::Repair()
 
 void UNBCarPartComponent::HandleRepairCompleted(UNBInteractableComponent* Interactable)
 {
+	// Everyone who worked on it put the fire out.
+	for (const TWeakObjectPtr<ANBSquirrel>& Fixer : GetCompletedBy())
+	{
+		if (ANBPlayerState* Stats = Fixer.IsValid() ? Fixer->GetPlayerState<ANBPlayerState>() : nullptr)
+		{
+			Stats->AddFirePutOut();
+		}
+	}
 	Repair();
 }
 

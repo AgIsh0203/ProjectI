@@ -355,8 +355,8 @@ void ANBHUD::DrawVoiceStatus()
 
 void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 {
-	const float PanelW = 560.f;
-	const float PanelH = 400.f;
+	const float PanelW = 720.f;
+	const float PanelH = 490.f;
 	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
 	const float PanelY = (Canvas->ClipY - PanelH) * 0.5f;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), PanelX, PanelY, PanelW, PanelH);
@@ -385,14 +385,27 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 	{
 		DrawCenteredText(TEXT("The acorns never made it."), Y + 20.f, FLinearColor::White, 1.4f);
 	}
-	Y += 170.f;
+	Y += 160.f;
+
+	// Badges, big enough to read in a clip.
+	const APlayerState* Mvp = State.GetMvp();
+	const APlayerState* Useless = State.GetMostUseless();
+	if (Mvp && Useless)
+	{
+		DrawCenteredText(FString::Printf(TEXT("MVP: %s"), *Mvp->GetPlayerName()), Y, ProgressColor, 1.6f);
+		DrawCenteredText(FString::Printf(TEXT("MOST USELESS: %s"), *Useless->GetPlayerName()), Y + 34.f, BadColor, 1.6f);
+		Y += 80.f;
+	}
 
 	for (const APlayerState* Player : State.PlayerArray)
 	{
 		if (const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
 		{
-			const FString Line = FString::Printf(TEXT("%s    falls: %d    respawns: %d"), *Stats->GetPlayerName(), Stats->GetFalls(), Stats->GetRespawns());
-			DrawCenteredText(Line, Y, FLinearColor(1.f, 1.f, 1.f, 0.8f), 1.f);
+			const int32 Drive = Stats->GetDriveSeconds();
+			const FString Line = FString::Printf(TEXT("%s    fires out: %d    acorns spilled: %d    falls: %d    respawns: %d    drove %d:%02d"),
+				*Stats->GetPlayerName(), Stats->GetFiresPutOut(), Stats->GetAcornsSpilled(), Stats->GetFalls(), Stats->GetRespawns(), Drive / 60, Drive % 60);
+			const FLinearColor LineColor = Player == Mvp ? ProgressColor : Player == Useless ? BadColor : FLinearColor(1.f, 1.f, 1.f, 0.8f);
+			DrawCenteredText(Line, Y, LineColor, 1.f);
 			Y += 24.f;
 		}
 	}

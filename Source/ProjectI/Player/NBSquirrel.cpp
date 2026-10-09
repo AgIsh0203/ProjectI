@@ -282,6 +282,10 @@ void ANBSquirrel::MoveCompleted(const FInputActionValue& Value)
 void ANBSquirrel::Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
+	if (!Axis.IsNearlyZero())
+	{
+		LastLookInputTime = GetWorld()->GetTimeSeconds();
+	}
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
 }
@@ -672,6 +676,42 @@ void ANBSquirrel::RefreshAttachedState()
 	CameraBoom->bDoCollisionTest = !bRiding;
 	CameraBoom->TargetArmLength = bRiding ? SeatedArmLength : OnFootArmLength;
 	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? 420.f : 60.f);
+	RefreshTailPose();
+}
+
+void ANBSquirrel::RefreshTailPose()
+{
+	// Before BeginPlay the default pose isn't captured yet; BeginPlay calls this again.
+	// While tumbling the tail rides on the body ball; StopLocalRagdoll restores it.
+	if (!HasActorBegunPlay() || bLocalRagdoll)
+	{
+		return;
+	}
+	const bool bOnPedals = CurrentSeat && CurrentSeat->Role == ENBSeatRole::Pedals;
+	TailVisual->SetRelativeTransform(bOnPedals ? PedalTailTransform : DefaultTailTransform);
+}
+
+void ANBSquirrel::UpdateSeatedCamera(float DeltaSeconds)
+{
+	AController* MyController = GetController();
+	const AActor* Car = CurrentSeat ? CurrentSeat->GetOwner() : nullptr;
+	if (!MyController || !Car)
+	{
+		return;
+	}
+	// Looking around wins; the camera drifts back behind the car once the player lets go.
+	if (GetWorld()->GetTimeSeconds() - LastLookInputTime < SeatedFollowDelay)
+	{
+		return;
+	}
+	if (Car->GetVelocity().Size2D() < SeatedFollowMinSpeed)
+	{
+		return;
+	}
+	// Yaw only: the player's pitch stays, and the car's roll/pitch on bumps doesn't shake the view.
+	const FRotator Current = MyController->GetControlRotation();
+	const FRotator Target(Current.Pitch, Car->GetActorRotation().Yaw, Current.Roll);
+	MyController->SetControlRotation(FMath::RInterpTo(Current, Target, DeltaSeconds, SeatedFollowSpeed));
 }
 
 void ANBSquirrel::OnRep_PlayerState()
@@ -706,6 +746,8 @@ void ANBSquirrel::BeginPlay()
 	RegisterVoiceTalker();
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
+	// A seat may have replicated in before BeginPlay.
+	RefreshTailPose();
 }
 
 void ANBSquirrel::Eject(FVector LaunchVelocity)
@@ -824,6 +866,7 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 	if (IsLocallyControlled())
 	{
 		UpdateVoiceMute();
+		UpdateSeatedCamera(DeltaSeconds);
 	}
 	if (bLocalRagdoll)
 	{

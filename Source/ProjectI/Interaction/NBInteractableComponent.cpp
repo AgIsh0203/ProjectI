@@ -87,6 +87,7 @@ void UNBInteractableComponent::SetInteractEnabled(bool bEnabled)
 	{
 		RemoveAllUsers();
 		Progress = 0.f;
+		Contributors.Reset();
 	}
 }
 
@@ -150,6 +151,7 @@ void UNBInteractableComponent::PressBy(ANBSquirrel* Squirrel, double PressServer
 		break;
 
 	case ENBInteractMode::Mash:
+		Contributors.AddUnique(Squirrel);
 		AddProgress(1.f / MashPresses);
 		break;
 
@@ -163,6 +165,7 @@ void UNBInteractableComponent::PressBy(ANBSquirrel* Squirrel, double PressServer
 		if (IsInSweetSpot(GetRingPhaseAt(JudgedTime)))
 		{
 			PickNewSweetSpot();
+			Contributors.AddUnique(Squirrel);
 			AddProgress(1.f / RingHits);
 		}
 		else
@@ -211,6 +214,10 @@ void UNBInteractableComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 		const int32 Needed = Mode == ENBInteractMode::Push2 ? RequiredUsers : 1;
 		if (Users.Num() >= Needed)
 		{
+			for (ANBSquirrel* User : Users)
+			{
+				Contributors.AddUnique(User);
+			}
 			AddProgress(DeltaTime / HoldSeconds);
 		}
 		else if (Progress > 0.f)
@@ -239,11 +246,18 @@ void UNBInteractableComponent::AddProgress(float Delta)
 	{
 		Complete();
 	}
+	else if (Progress <= 0.f)
+	{
+		// Gave up: whoever started this attempt doesn't get credit for the next one.
+		Contributors.Reset();
+	}
 }
 
 void UNBInteractableComponent::Complete()
 {
 	Progress = 0.f;
+	CompletedBy = MoveTemp(Contributors);
+	Contributors.Reset();
 	RemoveAllUsers();
 	if (bDisableOnComplete)
 	{

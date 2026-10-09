@@ -15,6 +15,8 @@ void ANBRunGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ANBRunGameState, TimeBonus);
 	DOREPLIFETIME(ANBRunGameState, RespawnPenalty);
 	DOREPLIFETIME(ANBRunGameState, FinalScore);
+	DOREPLIFETIME(ANBRunGameState, Mvp);
+	DOREPLIFETIME(ANBRunGameState, MostUseless);
 }
 
 float ANBRunGameState::GetSecondsLeft() const
