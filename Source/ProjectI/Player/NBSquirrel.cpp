@@ -452,6 +452,19 @@ void ANBSquirrel::NBStart()
 	Server_DevStart();
 }
 
+void ANBSquirrel::NBWarp(const FString& Section)
+{
+	Server_DevWarp(Section);
+}
+
+void ANBSquirrel::Server_DevWarp_Implementation(const FString& Section)
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevWarp(Section);
+	}
+}
+
 void ANBSquirrel::Server_DevStart_Implementation()
 {
 	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())

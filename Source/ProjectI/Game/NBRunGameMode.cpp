@@ -6,6 +6,9 @@
 #include "EngineUtils.h"
 #include "Game/NBFailureDirector.h"
 #include "Game/NBFinishZone.h"
+#include "Game/NBRoute.h"
+#include "GameFramework/PlayerStart.h"
+#include "Kismet/GameplayStatics.h"
 #include "Game/NBRunGameState.h"
 #include "Car/NBSeatComponent.h"
 #include "Parts/NBCarPartComponent.h"
@@ -24,6 +27,7 @@ ANBRunGameMode::ANBRunGameMode()
 	GameStateClass = ANBRunGameState::StaticClass();
 
 	Director = CreateDefaultSubobject<UNBFailureDirector>(TEXT("FailureDirector"));
+	RouteClass = ANBRoute::StaticClass();
 
 	// The Blueprint child carries the mesh, tire sockets and torque/steering curves.
 	static ConstructorHelpers::FClassFinder<ANBCar> CarBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"));
@@ -41,10 +45,66 @@ ANBRunGameState* ANBRunGameMode::GetRunState() const
 	return GetGameState<ANBRunGameState>();
 }
 
+void ANBRunGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	if (UGameplayStatics::HasOption(Options, TEXT("Route")))
+	{
+		bUseRoute = UGameplayStatics::GetIntOption(Options, TEXT("Route"), 1) != 0;
+	}
+}
+
+ANBRoute* ANBRunGameMode::EnsureRoute()
+{
+	if (!bUseRoute || Route)
+	{
+		return Route;
+	}
+
+	for (TActorIterator<ANBRoute> It(GetWorld()); It; ++It)
+	{
+		Route = *It;
+		break;
+	}
+	if (!Route)
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Route = GetWorld()->SpawnActor<ANBRoute>(RouteClass ? *RouteClass : ANBRoute::StaticClass(), RouteOrigin, FRotator::ZeroRotator, Params);
+	}
+	if (!Route)
+	{
+		return nullptr;
+	}
+
+	// Squirrels start either side of where the car will be.
+	const FTransform Start = Route->GetStartTransform();
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	for (const FVector& Offset : {FVector(400.f, -350.f, 100.f), FVector(400.f, 350.f, 100.f), FVector(800.f, -350.f, 100.f), FVector(800.f, 350.f, 100.f)})
+	{
+		if (APlayerStart* Spot = GetWorld()->SpawnActor<APlayerStart>(APlayerStart::StaticClass(), Start.TransformPosition(Offset), Start.Rotator(), Params))
+		{
+			RouteStarts.Add(Spot);
+		}
+	}
+	return Route;
+}
+
+AActor* ANBRunGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+	if (EnsureRoute() && !RouteStarts.IsEmpty())
+	{
+		return RouteStarts[NextRouteStart++ % RouteStarts.Num()];
+	}
+	return Super::ChoosePlayerStart_Implementation(Player);
+}
+
 void ANBRunGameMode::StartPlay()
 {
 	Super::StartPlay();
 
+	EnsureRoute();
 	FindOrSpawnCar();
 	if (Car)
 	{
@@ -59,17 +119,30 @@ void ANBRunGameMode::StartPlay()
 
 void ANBRunGameMode::FindOrSpawnCar()
 {
+	FTransform SpawnTransform = FTransform::Identity;
+	if (Route)
+	{
+		const FTransform Start = Route->GetStartTransform();
+		SpawnTransform = FTransform(Start.Rotator(), Start.TransformPosition(CarSpawnOffset));
+	}
+
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
 		Car = *It;
+		if (Route)
+		{
+			Car->SetActorTransform(SpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
 		return;
 	}
 
-	FTransform SpawnTransform = FTransform::Identity;
-	if (const AActor* Start = FindPlayerStart(nullptr))
+	if (!Route)
 	{
-		const FRotator Yaw(0.f, Start->GetActorRotation().Yaw, 0.f);
-		SpawnTransform = FTransform(Yaw, Start->GetActorLocation() + Yaw.RotateVector(CarSpawnOffset));
+		if (const AActor* Start = FindPlayerStart(nullptr))
+		{
+			const FRotator Yaw(0.f, Start->GetActorRotation().Yaw, 0.f);
+			SpawnTransform = FTransform(Yaw, Start->GetActorLocation() + Yaw.RotateVector(CarSpawnOffset));
+		}
 	}
 
 	FActorSpawnParameters Params;
@@ -79,6 +152,12 @@ void ANBRunGameMode::FindOrSpawnCar()
 
 void ANBRunGameMode::FindOrSpawnFinishZone()
 {
+	if (Route)
+	{
+		FinishZone = Route->GetFinishZone();
+		return;
+	}
+
 	for (TActorIterator<ANBFinishZone> It(GetWorld()); It; ++It)
 	{
 		FinishZone = *It;
@@ -103,6 +182,49 @@ void ANBRunGameMode::FindOrSpawnFinishZone()
 void ANBRunGameMode::DevStartRun()
 {
 	bForceStart = true;
+}
+
+void ANBRunGameMode::DevWarp(const FString& Section)
+{
+	if (!Route || !Car || Route->GetNumSections() == 0)
+	{
+		return;
+	}
+
+	int32 Index = INDEX_NONE;
+	if (Section.IsNumeric())
+	{
+		Index = FCString::Atoi(*Section) - 1;
+	}
+	else
+	{
+		for (int32 i = 0; i < Route->GetNumSections(); ++i)
+		{
+			if (Route->GetSectionName(i).Contains(Section))
+			{
+				Index = i;
+				break;
+			}
+		}
+	}
+	if (Index < 0 || Index >= Route->GetNumSections())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NBWarp: no section '%s' (1-%d)"), *Section, Route->GetNumSections());
+		return;
+	}
+
+	// Riders come along; anyone on foot is put back at the car.
+	const FTransform Spot = Route->GetTransformAt(Route->GetSectionStart(Index) + 500.f, 150.f);
+	Car->SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
+	Car->GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	Car->GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsSeated())
+		{
+			It->RespawnAtCar();
+		}
+	}
 }
 
 void ANBRunGameMode::Tick(float DeltaSeconds)
@@ -154,11 +276,12 @@ void ANBRunGameMode::BeginCountdown()
 
 void ANBRunGameMode::BeginDriving()
 {
-	GetRunState()->SetPhase(ENBRunPhase::Driving, Now() + RunSeconds);
+	const float Deadline = Route ? Route->GetDeadlineSeconds() : RunSeconds;
+	GetRunState()->SetPhase(ENBRunPhase::Driving, Now() + Deadline);
 	WreckTimer = 0.f;
 	NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	Car->SetRunLocked(false);
-	Director->Begin(Car, RunSeconds);
+	Director->Begin(Car, Deadline);
 }
 
 void ANBRunGameMode::TickDriving(float DeltaSeconds)
