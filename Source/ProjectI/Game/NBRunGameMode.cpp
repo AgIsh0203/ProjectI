@@ -7,6 +7,8 @@
 #include "Game/NBFailureDirector.h"
 #include "Game/NBFinishZone.h"
 #include "Game/NBRunGameState.h"
+#include "Game/NBSessionSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Car/NBSeatComponent.h"
 #include "Parts/NBCarPartComponent.h"
 #include "Player/NBPlayerState.h"
@@ -24,6 +26,10 @@ ANBRunGameMode::ANBRunGameMode()
 	GameStateClass = ANBRunGameState::StaticClass();
 
 	Director = CreateDefaultSubobject<UNBFailureDirector>(TEXT("FailureDirector"));
+
+	// Restarts keep everyone connected (and in the Steam lobby and voice) instead of
+	// making clients reconnect. With no transition map set, the engine uses an empty one.
+	bUseSeamlessTravel = true;
 
 	// The Blueprint child carries the mesh, tire sockets and torque/steering curves.
 	static ConstructorHelpers::FClassFinder<ANBCar> CarBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"));
@@ -44,6 +50,10 @@ ANBRunGameState* ANBRunGameMode::GetRunState() const
 void ANBRunGameMode::StartPlay()
 {
 	Super::StartPlay();
+
+	UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>();
+	const bool bRestarted = Sessions && Sessions->ConsumeRunRestart();
+	bAutoStart = !bHostStartsRun || bRestarted || GetWorld()->IsPlayInEditor();
 
 	FindOrSpawnCar();
 	if (Car)
@@ -105,6 +115,47 @@ void ANBRunGameMode::DevStartRun()
 	bForceStart = true;
 }
 
+bool ANBRunGameMode::CanStartRun() const
+{
+	const ANBRunGameState* State = GetRunState();
+	return State && State->GetPhase() == ENBRunPhase::Waiting && State->PlayerArray.Num() >= MinPlayers;
+}
+
+void ANBRunGameMode::StartRunFromLobby()
+{
+	if (CanStartRun())
+	{
+		bForceStart = true;
+	}
+}
+
+void ANBRunGameMode::RestartRun()
+{
+	if (bRestarting)
+	{
+		return;
+	}
+	// Set even if the travel is refused, so the end screen doesn't retry every frame.
+	bRestarting = true;
+
+	// Fresh map, fresh car. PIE refuses seamless travel, so there this does nothing; stop and replay.
+	if (!GetWorld()->ServerTravel(TEXT("?Restart")))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NBRun: restart travel refused (seamless travel doesn't run in PIE)"));
+		return;
+	}
+	if (UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>())
+	{
+		Sessions->NoteRunRestart();
+	}
+	// The old world keeps ticking while the map loads; keep the car still and quiet.
+	Director->End();
+	if (Car)
+	{
+		Car->SetRunLocked(true);
+	}
+}
+
 void ANBRunGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -132,8 +183,7 @@ void ANBRunGameMode::Tick(float DeltaSeconds)
 	case ENBRunPhase::Finished:
 		if (State->GetSecondsLeft() <= 0.f)
 		{
-			// Fresh map, fresh car. (In PIE this does nothing; stop and replay.)
-			GetWorld()->ServerTravel(TEXT("?Restart"));
+			RestartRun();
 		}
 		break;
 	}
@@ -141,7 +191,7 @@ void ANBRunGameMode::Tick(float DeltaSeconds)
 
 void ANBRunGameMode::TickWaiting()
 {
-	if (bForceStart || GameState->PlayerArray.Num() >= MinPlayers)
+	if (bForceStart || (bAutoStart && GameState->PlayerArray.Num() >= MinPlayers))
 	{
 		BeginCountdown();
 	}

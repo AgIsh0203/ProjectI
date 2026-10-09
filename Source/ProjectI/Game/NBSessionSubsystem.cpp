@@ -2,11 +2,13 @@
 
 #include "Game/NBSessionSubsystem.h"
 
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
 #include "Online/OnlineSessionNames.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
@@ -31,6 +33,10 @@ void UNBSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		JoinHandle = Sessions->AddOnJoinSessionCompleteDelegate_Handle(FOnJoinSessionCompleteDelegate::CreateUObject(this, &UNBSessionSubsystem::HandleJoinComplete));
 		InviteHandle = Sessions->AddOnSessionUserInviteAcceptedDelegate_Handle(FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &UNBSessionSubsystem::HandleInviteAccepted));
 	}
+	if (GEngine)
+	{
+		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(this, &UNBSessionSubsystem::HandleNetworkFailure);
+	}
 	UE_LOG(LogTemp, Log, TEXT("NBSession: online subsystem %s"), *GetSubsystemName());
 }
 
@@ -43,6 +49,10 @@ void UNBSessionSubsystem::Deinitialize()
 		Sessions->ClearOnFindSessionsCompleteDelegate_Handle(FindHandle);
 		Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinHandle);
 		Sessions->ClearOnSessionUserInviteAcceptedDelegate_Handle(InviteHandle);
+	}
+	if (GEngine)
+	{
+		GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
 	}
 	Super::Deinitialize();
 }
@@ -82,6 +92,28 @@ void UNBSessionSubsystem::FindAndJoin()
 	DestroyThen(EPending::Join);
 }
 
+void UNBSessionSubsystem::Leave()
+{
+	DestroyThen(EPending::Leave);
+}
+
+void UNBSessionSubsystem::ShowInviteUI()
+{
+	const IOnlineSubsystem* Online = IOnlineSubsystem::Get();
+	const IOnlineExternalUIPtr ExternalUI = Online ? Online->GetExternalUIInterface() : nullptr;
+	if (!ExternalUI.IsValid() || !ExternalUI->ShowInviteUI(0, NAME_GameSession))
+	{
+		Status = TEXT("Can't open the invite dialog here. Shift+Tab opens the Steam overlay");
+	}
+}
+
+bool UNBSessionSubsystem::ConsumeRunRestart()
+{
+	const bool bWas = bRunRestarting;
+	bRunRestarting = false;
+	return bWas;
+}
+
 void UNBSessionSubsystem::DestroyThen(EPending Next)
 {
 	// A stale session (e.g. after a disconnect) blocks creating or joining a new one.
@@ -112,6 +144,12 @@ void UNBSessionSubsystem::DestroyThen(EPending Next)
 		Search->QuerySettings.Set(GameKey, GameValue, EOnlineComparisonOp::Equals);
 		Status = TEXT("Searching for a game...");
 		Sessions->FindSessions(0, Search.ToSharedRef());
+	}
+	else if (Next == EPending::Leave)
+	{
+		// Without "listen" the map opens standalone, which drops any connection and shows the menu.
+		Status = TEXT("Left the game");
+		UGameplayStatics::OpenLevel(GetGameInstance(), FName(RunMap), true);
 	}
 }
 
@@ -237,4 +275,17 @@ void UNBSessionSubsystem::HandleInviteAccepted(bool bSuccess, int32 ControllerId
 		return;
 	}
 	JoinResult(Invite);
+}
+
+void UNBSessionSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& Error)
+{
+	if (World && World->GetGameInstance() != GetGameInstance())
+	{
+		return;
+	}
+	// The engine sends us back to the default map offline; say why on the menu.
+	Status = World && World->GetNetMode() == NM_Client
+		? FString::Printf(TEXT("Lost the connection to the host (%s)"), ENetworkFailure::ToString(FailureType))
+		: FString::Printf(TEXT("Network error (%s)"), ENetworkFailure::ToString(FailureType));
+	UE_LOG(LogTemp, Warning, TEXT("NBSession: network failure %s: %s"), ENetworkFailure::ToString(FailureType), *Error);
 }
