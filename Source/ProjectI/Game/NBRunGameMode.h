@@ -92,6 +92,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
 	int32 RespawnPenalty = 25;
 
+	/** Acorn in Mouth: someone gets muted every MuteMinInterval..MuteMaxInterval seconds, for MuteSeconds. */
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Acorn")
+	float MuteMinInterval = 75.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Acorn")
+	float MuteMaxInterval = 105.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Acorn")
+	float MuteSeconds = 20.f;
+
 	/** If the level has no ANBFinishZone, one is spawned this far ahead of the car's start. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	float FallbackFinishDistance = 8000.f;
@@ -114,6 +124,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UNBFailureDirector> Director;
 
+	/** Weighted pick: the Wheel seat and squirrels at a failing part are likelier to need to talk. */
+	void GiveAcornInMouth();
+
+	double NextMuteTime = 0.0;
 	float WreckTimer = 0.f;
 	bool bForceStart = false;
 	/** Start the countdown as soon as MinPlayers are in, without the host's click. */

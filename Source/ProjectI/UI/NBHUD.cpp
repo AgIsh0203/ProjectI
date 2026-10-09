@@ -136,6 +136,7 @@ void ANBHUD::DrawHUD()
 	DrawCarStatus();
 	DrawNetStatus();
 	DrawRunStatus();
+	DrawVoiceStatus();
 
 	if (Squirrel->IsRagdolled())
 	{
@@ -258,6 +259,52 @@ void ANBHUD::DrawRunStatus()
 	if (Car && State->GetPhase() != ENBRunPhase::Finished)
 	{
 		DrawRight(FString::Printf(TEXT("ACORNS  %d / %d"), Car->GetAcorns(), Car->GetMaxAcorns()), 70.f, ProgressColor, 1.5f);
+	}
+}
+
+void ANBHUD::DrawVoiceStatus()
+{
+	const AGameStateBase* State = GetWorld()->GetGameState();
+	if (!State)
+	{
+		return;
+	}
+	const APlayerState* Local = PlayerOwner ? PlayerOwner->PlayerState.Get() : nullptr;
+	UFont* Font = GEngine->GetMediumFont();
+	float Y = Canvas->ClipY * 0.5f - 60.f;
+
+	for (const APlayerState* Player : State->PlayerArray)
+	{
+		const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player);
+		if (!Stats)
+		{
+			continue;
+		}
+		if (Stats->IsMuted())
+		{
+			const bool bMe = Stats == Local;
+			const FString Line = bMe
+				? FString::Printf(TEXT("ACORN IN MOUTH!  Muted for %d s  -  use the chat wheel (1-8)"), FMath::CeilToInt(Stats->GetMuteSecondsLeft()))
+				: FString::Printf(TEXT("%s has an acorn in their mouth!  (%d s)"), *Stats->GetPlayerName(), FMath::CeilToInt(Stats->GetMuteSecondsLeft()));
+			DrawCenteredText(Line, Canvas->ClipY * 0.12f + (bMe ? 0.f : 28.f), bMe ? BadColor : ProgressColor, bMe ? 1.5f : 1.1f);
+		}
+		const int32 Ping = Stats->GetActivePing();
+		if (Ping != INDEX_NONE)
+		{
+			DrawText(FString::Printf(TEXT("%s: %s"), *Stats->GetPlayerName(), *ANBPlayerState::GetPingText(Ping).ToString()), GoodColor, 24.f, Y, Font, 1.3f);
+			Y += 30.f;
+		}
+	}
+
+	// Chat wheel legend, only when it matters.
+	if (const ANBPlayerState* Me = Cast<ANBPlayerState>(Local); Me && Me->IsMuted())
+	{
+		FString Legend;
+		for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
+		{
+			Legend += FString::Printf(TEXT("%d %s   "), i + 1, *ANBPlayerState::GetPingText(i).ToString());
+		}
+		DrawCenteredText(Legend, Canvas->ClipY - 70.f, FLinearColor::White, 1.1f);
 	}
 }
 
