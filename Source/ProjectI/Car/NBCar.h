@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Car/NBSeatComponent.h"
+#include "FX/NBFeedback.h"
 #include "TP_VehicleAdvOffroadCar.h"
 #include "NBCar.generated.h"
 
@@ -13,7 +14,19 @@ class UNBDoorPart;
 class UNBEnginePart;
 class UNBInteractableComponent;
 class UNBTirePart;
+class UAudioComponent;
+class USoundBase;
 class UStaticMeshComponent;
+
+/** Car-wide moments that get a sound/effect on every machine. */
+UENUM()
+enum class ENBCarFeedback : uint8
+{
+	Crash,
+	Spill,
+	Flipped,
+	Righted,
+};
 
 /**
  * The one car everyone shares: a Chaos wheeled vehicle built on the template offroad car.
@@ -31,6 +44,7 @@ public:
 	ANBCar();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	/** Server only. Routes a seated squirrel's axis to the control that seat owns. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car")
@@ -79,6 +93,19 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Car")
 	float GetThrottleInput() const { return ThrottleInput; }
+
+	// --- Engine state. Chaos doesn't replicate it to an unpossessed car, so the car does. ---
+
+	/** Engine speed on this machine: live on the server, smoothed from the replicated value on clients. */
+	UFUNCTION(BlueprintPure, Category = "Car|Engine")
+	float GetEngineRPM() const { return EngineRPM; }
+
+	/** 0 at idle, 1 at the redline. */
+	UFUNCTION(BlueprintPure, Category = "Car|Engine")
+	float GetEngineRPMAlpha() const;
+
+	UFUNCTION(BlueprintPure, Category = "Car|Engine")
+	int32 GetEngineGear() const { return RepGear; }
 
 	// --- Acorn cargo. The car starts full; bumps and flips spill it. ---
 
@@ -201,8 +228,80 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Dev")
 	float DevChaosInterval = 12.f;
 
+	// --- Sound and VFX. All optional: assign assets in BP_OffroadCar_Pawn. ---
+
+	/** Plays the engine loop at the engine deck. Add attenuation on this component in the Blueprint. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car|Feedback")
+	TObjectPtr<UAudioComponent> EngineAudio;
+
+	/** Looping engine sound. A MetaSound can read the RPM, Throttle and EngineFailed float inputs;
+	 *  a plain looping wave works too, with bPitchFromRPM. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	TObjectPtr<USoundBase> EngineSound;
+
+	/** Raw RPM (EngineIdleRPM..MaxRPM). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FName EngineRPMParam = TEXT("RPM");
+
+	/** -1 (brake) to 1 (full gas). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FName EngineThrottleParam = TEXT("Throttle");
+
+	/** 1 while the engine part is broken (sputter, cough), else 0. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FName EngineFailedParam = TEXT("EngineFailed");
+
+	/** Drive the engine sound's pitch from RPM, for a plain looping wave. Turn off if a MetaSound does it. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	bool bPitchFromRPM = true;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (EditCondition = "bPitchFromRPM", ClampMin = "0.1"))
+	float EnginePitchAtIdle = 0.8f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (EditCondition = "bPitchFromRPM", ClampMin = "0.1"))
+	float EnginePitchAtRedline = 2.f;
+
+	/** Engine volume with no throttle; full throttle plays at 1. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0", ClampMax = "1"))
+	float EngineIdleVolume = 0.6f;
+
+	/** How fast clients' RPM follows the replicated value (higher is snappier). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0.5"))
+	float RPMSmoothingSpeed = 8.f;
+
+	/** A hard hit, at the car. Intensity runs from CrashMinDeltaV (0) to CrashMaxDeltaV (1). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FNBFeedback CrashFeedback;
+
+	/** Velocity change over 0.1 s (cm/s) that counts as a crash. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0"))
+	float CrashMinDeltaV = 500.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0"))
+	float CrashMaxDeltaV = 1600.f;
+
+	/** Minimum seconds between crash sounds, so one long scrape doesn't machine-gun them. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0"))
+	float CrashCooldown = 0.3f;
+
+	/** Acorns flying out of the bed. Intensity is the number spilled / SpillFeedbackFullCount. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FNBFeedback SpillFeedback;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "1"))
+	int32 SpillFeedbackFullCount = 6;
+
+	/** The car ends up on its roof or side. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FNBFeedback FlippedFeedback;
+
+	/** Two squirrels push it back onto its wheels. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FNBFeedback RightedFeedback;
+
 private:
 	void ApplyInputsToVehicle();
+	void UpdateEngineState(float DeltaSeconds);
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
 	void CheckFlipped();
@@ -211,6 +310,10 @@ private:
 
 	UFUNCTION()
 	void HandleFlipPushed(UNBInteractableComponent* Interactable);
+
+	/** Cosmetic only, so unreliable: a dropped crash sound is fine. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_Feedback(ENBCarFeedback Event, float Intensity);
 
 	FTimerHandle FlipCheckTimerHandle;
 	float FlippedSeconds = 0.f;
@@ -222,6 +325,16 @@ private:
 	FTimerHandle SpillTimerHandle;
 	FVector LastSpillVelocity = FVector::ZeroVector;
 	bool bRunLocked = false;
+	float NextCrashFeedbackTime = 0.f;
+
+	float EngineRPM = 0.f;
+
+	/** Server's engine RPM, rounded to 10 so idle wobble doesn't re-send it every frame. */
+	UPROPERTY(Replicated)
+	uint16 RepEngineRPM = 0;
+
+	UPROPERTY(Replicated)
+	int8 RepGear = 0;
 
 	UPROPERTY(Replicated)
 	int32 Acorns = 0;
