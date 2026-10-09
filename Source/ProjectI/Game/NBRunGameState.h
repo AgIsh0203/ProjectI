@@ -6,6 +6,8 @@
 #include "GameFramework/GameStateBase.h"
 #include "NBRunGameState.generated.h"
 
+class APlayerState;
+
 UENUM(BlueprintType)
 enum class ENBRunPhase : uint8
 {
@@ -61,9 +63,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	int32 GetFinalScore() const { return FinalScore; }
 
+	/** End-screen badge; null with fewer than 2 squirrels. */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	APlayerState* GetMvp() const { return Mvp; }
+
+	/** End-screen badge; null with fewer than 2 squirrels. */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	APlayerState* GetMostUseless() const { return MostUseless; }
+
 	// --- Server only: written by the game mode. ---
 	void SetPhase(ENBRunPhase NewPhase, double NewEndTime);
 	void SetWreckSeconds(float Seconds) { WreckSeconds = Seconds; }
+	void SetAwards(APlayerState* NewMvp, APlayerState* NewMostUseless) { Mvp = NewMvp; MostUseless = NewMostUseless; }
 	void Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewPenalty, int32 NewScore, double RestartTime);
 
 private:
@@ -91,4 +102,10 @@ private:
 
 	UPROPERTY(Replicated)
 	int32 FinalScore = 0;
+
+	UPROPERTY(Replicated)
+	TObjectPtr<APlayerState> Mvp;
+
+	UPROPERTY(Replicated)
+	TObjectPtr<APlayerState> MostUseless;
 };

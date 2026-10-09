@@ -349,6 +349,16 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 		return;
 	}
 
+	// Seconds at the controls count toward the MVP pick.
+	for (const ENBSeatRole Role : { ENBSeatRole::Wheel, ENBSeatRole::Pedals })
+	{
+		const UNBSeatComponent* Seat = Car->GetSeat(Role);
+		if (ANBPlayerState* Stats = (Seat && Seat->GetOccupant()) ? Seat->GetOccupant()->GetPlayerState<ANBPlayerState>() : nullptr)
+		{
+			Stats->AddDriveTime(DeltaSeconds);
+		}
+	}
+
 	if (Now() >= NextMuteTime)
 	{
 		if (State->GetSecondsLeft() > MuteSeconds)
@@ -409,7 +419,43 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 	}
 	Car->SetRunLocked(true);
 	State->SetWreckSeconds(0.f);
+	PickAwards();
 	State->Finish(Result, Delivered, TimeBonus, Penalty, Score, Now() + EndScreenSeconds);
+}
+
+void ANBRunGameMode::PickAwards()
+{
+	TArray<ANBPlayerState*> Players;
+	for (APlayerState* Player : GameState->PlayerArray)
+	{
+		if (ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
+		{
+			Players.Add(Stats);
+		}
+	}
+	// One squirrel can't be both, and a solo practice run has nobody to compare with.
+	if (Players.Num() < 2)
+	{
+		GetRunState()->SetAwards(nullptr, nullptr);
+		return;
+	}
+
+	// Ties: the MVP goes to more repairs, "Most useless" to more falls.
+	Players.Sort([](const ANBPlayerState& A, const ANBPlayerState& B)
+	{
+		const float HelpA = A.GetHelpfulness();
+		const float HelpB = B.GetHelpfulness();
+		if (HelpA != HelpB)
+		{
+			return HelpA > HelpB;
+		}
+		if (A.GetFiresPutOut() != B.GetFiresPutOut())
+		{
+			return A.GetFiresPutOut() > B.GetFiresPutOut();
+		}
+		return A.GetFalls() < B.GetFalls();
+	});
+	GetRunState()->SetAwards(Players[0], Players.Last());
 }
 
 void ANBRunGameMode::GiveAcornInMouth()

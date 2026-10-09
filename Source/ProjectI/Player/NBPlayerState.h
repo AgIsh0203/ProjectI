@@ -29,6 +29,33 @@ public:
 	/** Server only. */
 	void AddRespawn() { ++Respawns; }
 
+	/** Broken parts this squirrel helped fix ("fires put out"). */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	int32 GetFiresPutOut() const { return FiresPutOut; }
+
+	/** Acorns that flew out of the bed while this squirrel was driving. */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	int32 GetAcornsSpilled() const { return AcornsSpilled; }
+
+	/** Whole seconds spent in the Wheel or Pedals seat during the run. */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	int32 GetDriveSeconds() const { return DriveSeconds; }
+
+	/** Server only. */
+	void AddFirePutOut() { ++FiresPutOut; }
+
+	/** Server only. */
+	void AddAcornsSpilled(int32 Count) { AcornsSpilled += Count; }
+
+	/** Server only. Accumulates exactly; replicates whole seconds. */
+	void AddDriveTime(float Seconds);
+
+	/**
+	 * How much this squirrel helped, for picking the MVP (highest) and "Most useless"
+	 * (lowest). Repairs and driving count up; falls, respawns and spilled acorns down.
+	 */
+	float GetHelpfulness() const;
+
 	// --- Acorn in Mouth: muted for a while, but the chat wheel still works. ---
 
 	/** Server world time the mute ends; 0 or in the past = not muted. */
@@ -77,4 +104,16 @@ private:
 
 	UPROPERTY(Replicated)
 	int32 Respawns = 0;
+
+	UPROPERTY(Replicated)
+	int32 FiresPutOut = 0;
+
+	UPROPERTY(Replicated)
+	int32 AcornsSpilled = 0;
+
+	UPROPERTY(Replicated)
+	int32 DriveSeconds = 0;
+
+	/** Server. Exact drive time; DriveSeconds is its whole part. */
+	float DriveTime = 0.f;
 };
