@@ -14,6 +14,7 @@
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
+#include "Game/NBRoute.h"
 #include "Game/NBRunGameState.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
@@ -259,6 +260,50 @@ void ANBHUD::DrawRunStatus()
 	if (Car && State->GetPhase() != ENBRunPhase::Finished)
 	{
 		DrawRight(FString::Printf(TEXT("ACORNS  %d / %d"), Car->GetAcorns(), Car->GetMaxAcorns()), 70.f, ProgressColor, 1.5f);
+		DrawRouteProgress(*Car);
+	}
+}
+
+void ANBHUD::DrawRouteProgress(const ANBCar& Car)
+{
+	if (!Route.IsValid())
+	{
+		for (TActorIterator<ANBRoute> It(GetWorld()); It; ++It)
+		{
+			Route = *It;
+			break;
+		}
+	}
+	const ANBRoute* Course = Route.Get();
+	if (!Course || Course->GetLength() <= 0.f || Course->GetNumSections() == 0)
+	{
+		return;
+	}
+
+	const float Along = Course->GetDistanceAlong(Car.GetActorLocation());
+	const int32 Section = Course->GetSectionAt(Along);
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Section != ShownSection)
+	{
+		// No banner for the first section on joining; the sign at the start covers it.
+		SectionShownAt = ShownSection == INDEX_NONE ? -100.0 : Now;
+		ShownSection = Section;
+	}
+
+	// Progress bar with the section name and the distance left.
+	const float Width = FMath::Min(520.f, Canvas->ClipX * 0.5f);
+	const float X = (Canvas->ClipX - Width) * 0.5f;
+	const float Y = Canvas->ClipY - 78.f;
+	DrawBar(X, Y, Width, 10.f, Along / Course->GetLength(), ProgressColor);
+	const float MetresLeft = (Course->GetLength() - Along) / 100.f;
+	const FString Left = MetresLeft >= 1000.f ? FString::Printf(TEXT("%.1f km"), MetresLeft / 1000.f) : FString::Printf(TEXT("%d m"), FMath::RoundToInt(MetresLeft));
+	DrawCenteredText(FString::Printf(TEXT("%s   -   depot in %s"), *Course->GetSectionName(Section), *Left), Y - 24.f, FLinearColor(1.f, 1.f, 1.f, 0.85f), 1.1f);
+
+	const double Since = Now - SectionShownAt;
+	if (Since < 3.0)
+	{
+		const float Alpha = Since < 2.0 ? 1.f : static_cast<float>(3.0 - Since);
+		DrawCenteredText(Course->GetSectionName(Section), Canvas->ClipY * 0.4f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, Alpha), 2.6f);
 	}
 }
 

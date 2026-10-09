@@ -128,6 +128,10 @@ public:
 	UFUNCTION(Exec)
 	void NBStart();
 
+	/** Dev: move the car to a route section, by number (1-based) or part of its name, e.g. NBWarp 7 or NBWarp jump. */
+	UFUNCTION(Exec)
+	void NBWarp(const FString& Section);
+
 	/** Dev: host a lobby friends can join (the menu's "Host a game"). */
 	UFUNCTION(Exec)
 	void NBHost();
@@ -242,6 +246,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevStart();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevWarp(const FString& Section);
 
 	UFUNCTION()
 	void OnRep_ClingTarget();

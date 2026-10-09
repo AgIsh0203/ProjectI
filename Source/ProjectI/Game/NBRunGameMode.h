@@ -9,6 +9,8 @@
 
 class ANBCar;
 class ANBFinishZone;
+class ANBRoute;
+class APlayerStart;
 class UNBFailureDirector;
 
 /**
@@ -25,11 +27,17 @@ class PROJECTI_API ANBRunGameMode : public AGameModeBase
 public:
 	ANBRunGameMode();
 
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void StartPlay() override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintPure, Category = "Run")
 	ANBCar* GetCar() const { return Car; }
+
+	/** The long course, or null when playing on the test track (?Route=0). */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	ANBRoute* GetRoute() const { return Route; }
 
 	/** Dev: skip waiting for a crew and start the countdown now (NBStart, the menu's "Practice alone"). */
 	void DevStartRun();
@@ -44,6 +52,9 @@ public:
 	void RestartRun();
 
 	int32 GetMinPlayers() const { return MinPlayers; }
+
+	/** Dev: move the car to the start of a route section, by number (1-based) or name (NBWarp). */
+	void DevWarp(const FString& Section);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
@@ -67,9 +78,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	float CountdownSeconds = 5.f;
 
-	/** Time to reach the drop-off. */
+	/** Time to reach the drop-off on the test track. On the route, the route's own deadline is used. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	float RunSeconds = 150.f;
+
+	/**
+	 * Run on the long route (built in code, away from the test track's floor) instead of the
+	 * test track. The URL option ?Route=0 turns it off for one session.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Route")
+	bool bUseRoute = true;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Route")
+	TSubclassOf<ANBRoute> RouteClass;
+
+	/** Where the route's start sits in the world: far enough out to clear L_TestTrack's floor. */
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Route")
+	FVector RouteOrigin = FVector(0.f, 300000.f, 0.f);
 
 	/** At least this many parts failed for WreckSeconds in a row ends the run. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
@@ -107,6 +132,8 @@ protected:
 	float FallbackFinishDistance = 8000.f;
 
 private:
+	/** Server: the route, spawned on first use (squirrels can spawn before StartPlay). */
+	ANBRoute* EnsureRoute();
 	void FindOrSpawnCar();
 	void FindOrSpawnFinishZone();
 	void BeginCountdown();
@@ -120,6 +147,14 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ANBFinishZone> FinishZone;
+
+	UPROPERTY()
+	TObjectPtr<ANBRoute> Route;
+
+	/** Spawn spots beside the car at the route's start, handed out in turn. */
+	UPROPERTY()
+	TArray<TObjectPtr<APlayerStart>> RouteStarts;
+	int32 NextRouteStart = 0;
 
 	UPROPERTY()
 	TObjectPtr<UNBFailureDirector> Director;

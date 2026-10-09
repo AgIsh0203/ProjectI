@@ -251,8 +251,6 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
 	}
-	Input->BindAction(HostAction, ETriggerEvent::Started, this, &ANBSquirrel::NBHost);
-	Input->BindAction(JoinAction, ETriggerEvent::Started, this, &ANBSquirrel::NBJoin);
 }
 
 void ANBSquirrel::Move(const FInputActionValue& Value)
@@ -460,6 +458,19 @@ void ANBSquirrel::NBFlip()
 void ANBSquirrel::NBStart()
 {
 	Server_DevStart();
+}
+
+void ANBSquirrel::NBWarp(const FString& Section)
+{
+	Server_DevWarp(Section);
+}
+
+void ANBSquirrel::Server_DevWarp_Implementation(const FString& Section)
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevWarp(Section);
+	}
 }
 
 void ANBSquirrel::Server_DevStart_Implementation()

@@ -37,6 +37,8 @@ private:
 	void DrawCarStatus();
 	/** Top-right timer and acorn count, the waiting/countdown banners, the wreck warning and the end screen. */
 	void DrawRunStatus();
+	/** Bottom: how far along the route the car is, and a banner when it enters a new section. */
+	void DrawRouteProgress(const class ANBCar& Car);
 	/** Acorn in Mouth banners, the chat wheel legend and recent pings. */
 	void DrawVoiceStatus();
 	void DrawEndScreen(const class ANBRunGameState& State);
@@ -51,4 +53,8 @@ private:
 	TObjectPtr<UNBLobbyMenu> Menu;
 
 	bool bMenuOpen = false;
+
+	TWeakObjectPtr<class ANBRoute> Route;
+	int32 ShownSection = INDEX_NONE;
+	double SectionShownAt = -100.0;
 };
