@@ -10,9 +10,30 @@ void ANBPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANBPlayerState, Falls);
 	DOREPLIFETIME(ANBPlayerState, Respawns);
+	DOREPLIFETIME(ANBPlayerState, FiresPutOut);
+	DOREPLIFETIME(ANBPlayerState, AcornsSpilled);
+	DOREPLIFETIME(ANBPlayerState, DriveSeconds);
 	DOREPLIFETIME(ANBPlayerState, MuteEndTime);
 	DOREPLIFETIME(ANBPlayerState, PingIndex);
 	DOREPLIFETIME(ANBPlayerState, PingTime);
+}
+
+void ANBPlayerState::AddDriveTime(float Seconds)
+{
+	DriveTime += Seconds;
+	// Only dirty the replicated value once a second.
+	DriveSeconds = FMath::FloorToInt(DriveTime);
+}
+
+float ANBPlayerState::GetHelpfulness() const
+{
+	constexpr float PerFire = 3.f;
+	constexpr float PerDriveSecond = 1.f / 30.f;
+	constexpr float PerFall = 1.f;
+	constexpr float PerRespawn = 2.f;
+	constexpr float PerAcornSpilled = 0.5f;
+	return FiresPutOut * PerFire + DriveSeconds * PerDriveSecond
+		- Falls * PerFall - Respawns * PerRespawn - AcornsSpilled * PerAcornSpilled;
 }
 
 double ANBPlayerState::ServerNow() const

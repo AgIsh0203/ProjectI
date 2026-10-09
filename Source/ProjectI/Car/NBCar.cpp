@@ -12,6 +12,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Parts/NBCarParts.h"
+#include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -225,6 +226,13 @@ int32 ANBCar::SpillAcorns(int32 Count)
 		ANBAcorn::SpawnSpilled(GetWorld(), Body.TransformPosition(Local), Velocity);
 	}
 	Acorns -= Count;
+
+	// Blame whoever is driving: the wheel squirrel, or the pedal squirrel if the wheel is empty.
+	const ANBSquirrel* Driver = WheelSeat->GetOccupant() ? WheelSeat->GetOccupant() : PedalSeat->GetOccupant();
+	if (ANBPlayerState* Stats = (Driver && Count > 0) ? Driver->GetPlayerState<ANBPlayerState>() : nullptr)
+	{
+		Stats->AddAcornsSpilled(Count);
+	}
 	return Count;
 }
 

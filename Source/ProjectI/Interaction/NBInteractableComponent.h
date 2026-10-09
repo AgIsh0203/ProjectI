@@ -128,6 +128,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool IsInRangeOf(const ANBSquirrel* Squirrel) const;
 
+	/**
+	 * Server only. Everyone who moved the last completed attempt forward (pressers and
+	 * holders). Valid inside OnCompleted and until the next completion.
+	 */
+	const TArray<TWeakObjectPtr<ANBSquirrel>>& GetCompletedBy() const { return CompletedBy; }
+
 	/** Enabled, in range, and the squirrel is in a state that may use it. */
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool CanBeUsedBy(const ANBSquirrel* Squirrel) const;
@@ -180,4 +186,10 @@ private:
 
 	UPROPERTY(Replicated)
 	float SweetSpotStart = 0.7f;
+
+	/** Server. Who has moved the current attempt forward; cleared when progress falls back to 0. */
+	TArray<TWeakObjectPtr<ANBSquirrel>> Contributors;
+
+	/** Server. Contributors of the last completed attempt. */
+	TArray<TWeakObjectPtr<ANBSquirrel>> CompletedBy;
 };

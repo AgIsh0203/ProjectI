@@ -139,6 +139,9 @@ private:
 	void BeginCountdown();
 	void BeginDriving();
 	void EndRun(ENBRunResult Result);
+
+	/** Server. Picks the MVP and "Most useless" from the player stats for the end screen. */
+	void PickAwards();
 	void TickWaiting();
 	void TickDriving(float DeltaSeconds);
 
