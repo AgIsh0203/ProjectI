@@ -134,7 +134,7 @@
   - Claude: code, config, Blueprints/levels via MCP, builds, tests, commits.
 
 ## Open items / ideas parked
-- The pedal squirrel sits low in the footwell and may be hidden behind the steering wheel from the chase camera. Check this in play.
+- The pedal squirrel sits low in the footwell; its tail now sticks up as a flag (`PedalTailTransform`) so it shows over the dash. Check this in play.
 - The client shows gear 0 / idle RPM (Chaos doesn't replicate engine state to an unpossessed car). Replicate RPM before adding engine audio.
-- The seated camera doesn't auto-follow the car's heading yet (feel tweak).
+- The seated camera now swings behind the car after 1 s without look input when the car moves faster than 150 cm/s (`SeatedFollowDelay`, `SeatedFollowSpeed`, `SeatedFollowMinSpeed`). Not compiled or felt yet.
 - Possible remaining TSR shimmer on the tires; tune only if the user still sees it.

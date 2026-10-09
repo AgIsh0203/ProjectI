@@ -179,6 +179,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float SeatedArmLength = 1100.f;
 
+	/** Seated, the camera swings back behind the car once the mouse/stick has been idle this long (s). */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float SeatedFollowDelay = 1.f;
+
+	/** How fast the seated camera swings toward the car's heading (RInterpTo speed). */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float SeatedFollowSpeed = 2.5f;
+
+	/** Below this car speed (cm/s) the seated camera stays put, so a car spinning in place doesn't drag it around. */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float SeatedFollowMinSpeed = 150.f;
+
+	/** In the pedal seat the tail sticks straight up like a flag, so the footwell squirrel shows over the dashboard. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	FTransform PedalTailTransform = FTransform(FRotator::ZeroRotator, FVector(-6.f, 20.f, 55.f), FVector(0.16f, 0.16f, 1.f));
+
 	/** Bright, distinct colors so viewers can tell the tiny squirrels apart. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
 	TArray<FLinearColor> FurColors;
@@ -234,6 +250,12 @@ private:
 	void StartClinging(UNBInteractableComponent* Target);
 	void StopClinging();
 	void RefreshAttachedState();
+
+	/** Tail pose for the current seat: the pedal flag, or the default curl. Skipped while tumbling. */
+	void RefreshTailPose();
+
+	/** Local only: swings a seated player's camera behind the car while they aren't looking around. */
+	void UpdateSeatedCamera(float DeltaSeconds);
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevFail(const FString& PartName);
@@ -346,6 +368,9 @@ private:
 	TObjectPtr<UNBInteractableComponent> ActiveInteractable;
 
 	float LastSentSeatInput = 0.f;
+
+	/** World time of the last non-zero look input (local only). */
+	double LastLookInputTime = -1000.0;
 
 	bool bHasRingPress = false;
 	bool bLastRingPressHit = false;
