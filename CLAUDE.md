@@ -13,7 +13,7 @@
   3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
   4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
   5. ~~Two-squirrel flip-up.~~ Done. The full cycle was verified in PIE via Python; the push still needs a hands-on 2-player check. **M1 is code-complete.**
-- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written. Server logic verified in 2-client PIE via Python on 2026-10-09: the run starts by itself, the director fails parts, delivery scores (teleported car into the zone), a total wreck ends the run, and a sudden speed change spilled 40 -> 22 acorns. The HUD, the feel of the spills and the drop-off distance still need a hands-on look. (The editor tools needed the editor launched by hand; `mcp-unreal` timed out on connect, so scripts went straight to port 8090.) Still to do: Steam lobby polish, proximity voice, Acorn-in-Mouth mute + chat wheel.
+- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written. Server logic verified in 2-client PIE via Python on 2026-10-09: the run starts by itself, the director fails parts, delivery scores (teleported car into the zone), a total wreck ends the run, and a sudden speed change spilled 40 -> 22 acorns. The HUD, the feel of the spills and the drop-off distance still need a hands-on look. (The editor tools needed the editor launched by hand; `mcp-unreal` timed out on connect, so scripts went straight to port 8090.) A lobby menu (host, join, start, invite, restart, leave) replaced the H/J keys on branch `claude/project-thread-dmwryj`; it is not compiled or tested yet. Still to do: proximity voice, Acorn-in-Mouth mute + chat wheel.
 - **Schedule:**
   - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
   - M3a (17–20 Oct): Kenney art, VFX/SFX, end-screen stats, private itch page; **friend test Tue 20 Oct**.
@@ -47,7 +47,7 @@
   - The car has 5: WheelSeat (perched on the steering wheel), PedalSeat (footwell), HoodSeat (front hood), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
   - Hop order is the car's `Seats` array (filled in BeginPlay).
 - `Player/NBSquirrel` — character.
-  - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact.
+  - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact, Esc / gamepad Start = lobby menu (`NBMenu` in PIE, where Esc stops play).
   - On foot, E takes the nearest free seat. Seated, E hops to the next free seat (`HopToNextSeat`) and Space jumps out on the seat's side of the car.
   - Each player gets a unique, replicated fur color (`ColorIndex` → `FurColors`, applied via the BasicShapeMaterial `Color` param).
   - Falling: `Eject(velocity)` / `EjectFromCar()` (the car's velocity plus `EjectKick` out of the seat's side and up).
@@ -64,6 +64,8 @@
   - The timing ring's phase is `frac(ServerTime / RingPeriod)`. Presses are judged at the client timestamp, clamped to the last 0.3 s.
   - `OnCompleted` fires on the server. With `bDisableOnComplete`, the owner re-enables it.
   - `NBInteractionSubsystem` (a world subsystem) is the registry.
+- `UI/NBLobbyMenu` — the lobby menu, a UMG widget built entirely in C++ (no widget asset). `ANBHUD` owns it, opens it by itself when standalone, and switches input to UI-only while it's open.
+  - Offline: Host a game, Join a game, Practice alone (`DevStartRun`), Quit. Online: the crew list, Start the run (host, needs 2), Invite friends (Steam overlay invite dialog), Restart the run (host), Leave, Quit.
 - `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
 - `Parts/NBCarPartComponent` — derives from the interactable: a part is its own repair spot.
   - Replicated `bFailed`. While failed, the interactable is on and the subclass's `ApplyFailedEffect(seconds since failure)` escalates every tick. Completing the interaction repairs it.
@@ -77,14 +79,14 @@
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
   - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
-- `Game/NBRunGameMode` also runs the run: Waiting (needs 2 squirrels; `NBStart` skips) -> Countdown 5 s -> Driving (150 s deadline) -> Finished (12 s end screen, then `ServerTravel("?Restart")`; does nothing in PIE). Ends on delivery, time up, or a total wreck (3+ parts failed for 10 s). Score = acorns x 10 + 2 per second left - 25 per respawn; bad endings score 0. The car is brake-locked (`SetRunLocked`) outside Driving.
+- `Game/NBRunGameMode` also runs the run: Waiting (the host presses Start in the lobby menu once 2+ squirrels are in; after a restart, and always in PIE, it starts by itself at 2; `NBStart` skips) -> Countdown 5 s -> Driving (150 s deadline) -> Finished (12 s end screen, then `RestartRun`: `ServerTravel("?Restart")` with **seamless travel**, so clients stay connected, in the lobby and in voice; PIE refuses seamless travel, so restart does nothing there). Ends on delivery, time up, or a total wreck (3+ parts failed for 10 s). Score = acorns x 10 + 2 per second left - 25 per respawn; bad endings score 0. The car is brake-locked (`SetRunLocked`) outside Driving.
 - `Game/NBRunGameState` — replicated phase, result, clock (`GetSecondsLeft`), wreck timer, score breakdown.
 - `Game/NBFailureDirector` — component on the game mode. Fails a random part every 14 s -> 6 s (ramps with run progress), up to 1 -> players+1 failed at once, 8 s no-rebreak cooldown after a repair.
 - `Game/NBFinishZone` — greybox drop-off box; the run is delivered when the car's centre is inside. If the level has none, the game mode spawns one 80 m ahead of the car.
 - `Car/NBAcorn` + cargo on `NBCar`: 40 acorns (replicated). A velocity change > 350 cm/s per 0.1 s spills acorns as physics props; a flip dumps 25 %.
-- `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies (a stopgap until there's a menu).
-  - H / `NBHost` creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
-  - J / `NBJoin` finds a lobby and joins it. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.
+- `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies, driven by the lobby menu.
+  - "Host a game" (or `NBHost`) creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
+  - "Join a game" (or `NBJoin`) finds a lobby and joins it. "Leave the game" destroys the session and reopens the map offline. A network failure (e.g. the host left) sets the menu's status line. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.
   - Each step destroys a stale session first. The HUD's top-left line shows OFFLINE / HOST / CONNECTED, the online subsystem and the session status.
 - `TP_VehicleAdv/` — imported C++ Vehicle template, compiled inside the ProjectI module. Its duplicate `IMPLEMENT_PRIMARY_GAME_MODULE` was removed; `Build.cs` adds its folders to the include path.
 - Map: `/Game/Maps/L_TestTrack` (greybox floor, ramps, bumps). It's the default and startup map.

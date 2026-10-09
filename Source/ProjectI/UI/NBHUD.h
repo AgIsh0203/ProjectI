@@ -7,6 +7,7 @@
 #include "NBHUD.generated.h"
 
 class UNBInteractableComponent;
+class UNBLobbyMenu;
 
 /**
  * Greybox HUD drawn on the canvas: the focused interactable's prompt and progress
@@ -20,16 +21,32 @@ class PROJECTI_API ANBHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	/** The lobby menu: shows the cursor and takes input until closed. */
+	void OpenMenu();
+	void CloseMenu();
+	void ToggleMenu();
+	bool IsMenuOpen() const;
+
+protected:
+	/** Offline there is nothing to do but host or join, so the menu opens by itself. */
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
 	/** Failure list at the top plus a marker over each broken part, so viewers can follow along. */
 	void DrawCarStatus();
 	/** Top-right timer and acorn count, the waiting/countdown banners, the wreck warning and the end screen. */
 	void DrawRunStatus();
 	void DrawEndScreen(const class ANBRunGameState& State);
-	/** Top-left: offline / hosting / connected, the online subsystem and the lobby keys. */
+	/** Top-left: offline / hosting / connected, the online subsystem and the menu key. */
 	void DrawNetStatus();
 	void DrawInteractable(const UNBInteractableComponent& Interactable, bool bUsing);
 	void DrawRing(const UNBInteractableComponent& Interactable, const FVector2D& Center, float Radius);
 	void DrawBar(float X, float Y, float Width, float Height, float Fill, const FLinearColor& Color);
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNBLobbyMenu> Menu;
+
+	bool bMenuOpen = false;
 };

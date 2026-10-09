@@ -2,6 +2,7 @@
 
 #include "UI/NBHUD.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Car/NBCar.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
@@ -16,6 +17,7 @@
 #include "Game/NBRunGameState.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
+#include "UI/NBLobbyMenu.h"
 
 namespace
 {
@@ -38,6 +40,87 @@ namespace
 		}
 		return TEXT("");
 	}
+}
+
+void ANBHUD::BeginPlay()
+{
+	Super::BeginPlay();
+	if (!PlayerOwner || !PlayerOwner->IsLocalController())
+	{
+		return;
+	}
+	if (GetNetMode() == NM_Standalone)
+	{
+		OpenMenu();
+		return;
+	}
+	// Arriving from the menu (host / join / restart): the viewport may still be in UI-only input.
+	PlayerOwner->SetInputMode(FInputModeGameOnly());
+	PlayerOwner->SetShowMouseCursor(false);
+}
+
+void ANBHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (Menu)
+	{
+		Menu->RemoveFromParent();
+		Menu = nullptr;
+		bMenuOpen = false;
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void ANBHUD::OpenMenu()
+{
+	if (!PlayerOwner || IsMenuOpen())
+	{
+		return;
+	}
+	if (!Menu)
+	{
+		Menu = CreateWidget<UNBLobbyMenu>(PlayerOwner.Get(), UNBLobbyMenu::StaticClass());
+	}
+	Menu->AddToViewport(10);
+	bMenuOpen = true;
+
+	FInputModeUIOnly Input;
+	Input.SetWidgetToFocus(Menu->TakeWidget());
+	Input.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PlayerOwner->SetInputMode(Input);
+	PlayerOwner->SetShowMouseCursor(true);
+	Menu->FocusFirstButton();
+}
+
+void ANBHUD::CloseMenu()
+{
+	if (!IsMenuOpen())
+	{
+		return;
+	}
+	Menu->RemoveFromParent();
+	bMenuOpen = false;
+	if (PlayerOwner)
+	{
+		PlayerOwner->SetInputMode(FInputModeGameOnly());
+		PlayerOwner->SetShowMouseCursor(false);
+	}
+}
+
+void ANBHUD::ToggleMenu()
+{
+	if (IsMenuOpen())
+	{
+		CloseMenu();
+	}
+	else
+	{
+		OpenMenu();
+	}
+}
+
+bool ANBHUD::IsMenuOpen() const
+{
+	return Menu && bMenuOpen;
 }
 
 void ANBHUD::DrawHUD()
@@ -139,8 +222,14 @@ void ANBHUD::DrawRunStatus()
 	switch (State->GetPhase())
 	{
 	case ENBRunPhase::Waiting:
-		DrawCenteredText(TEXT("Waiting for another squirrel..."), Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
+	{
+		const int32 Players = State->PlayerArray.Num();
+		const FString Waiting = Players < 2 ? TEXT("Waiting for another squirrel...")
+			: GetNetMode() == NM_Client ? TEXT("Waiting for the host to start...")
+			: TEXT("Everyone here? Esc: start the run");
+		DrawCenteredText(Waiting, Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
 		break;
+	}
 	case ENBRunPhase::Countdown:
 		DrawCenteredText(SecondsLeft > 0.f ? FString::FromInt(FMath::CeilToInt(SecondsLeft)) : TEXT("GO!"), Canvas->ClipY * 0.25f, ProgressColor, 4.f);
 		DrawCenteredText(TEXT("Everyone get in the car!"), Canvas->ClipY * 0.25f + 90.f, FLinearColor::White, 1.5f);
@@ -228,13 +317,13 @@ void ANBHUD::DrawNetStatus()
 	switch (GetNetMode())
 	{
 	case NM_Standalone:
-		Line = TEXT("OFFLINE    H: host    J: join");
+		Line = TEXT("OFFLINE    Esc: menu");
 		break;
 	case NM_ListenServer:
-		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    Shift+Tab: invite friends"), Players);
+		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    Esc: menu"), Players);
 		break;
 	default:
-		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels"), Players);
+		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels    Esc: menu"), Players);
 		break;
 	}
 	if (Sessions)

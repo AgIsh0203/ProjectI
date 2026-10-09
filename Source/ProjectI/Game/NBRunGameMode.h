@@ -12,9 +12,10 @@ class ANBFinishZone;
 class UNBFailureDirector;
 
 /**
- * One run: squirrels spawn near the shared car, wait for a crew, count down, then drive the
- * acorns to the drop-off before the deadline while the failure director breaks things.
- * Ends on delivery, time up, or a total wreck, then restarts the map.
+ * One run: squirrels spawn near the shared car, wait in the lobby until the host starts,
+ * count down, then drive the acorns to the drop-off before the deadline while the failure
+ * director breaks things. Ends on delivery, time up, or a total wreck, then reloads the map
+ * with seamless travel so the crew stays connected, and the next run starts by itself.
  */
 UCLASS()
 class PROJECTI_API ANBRunGameMode : public AGameModeBase
@@ -30,8 +31,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	ANBCar* GetCar() const { return Car; }
 
-	/** Dev: skip waiting for a crew and start the countdown now (NBStart). */
+	/** Dev: skip waiting for a crew and start the countdown now (NBStart, the menu's "Practice alone"). */
 	void DevStartRun();
+
+	/** The host has a crew of at least MinPlayers and the run hasn't started. */
+	bool CanStartRun() const;
+
+	/** The host pressed "Start the run" in the lobby menu. Ignored until CanStartRun. */
+	void StartRunFromLobby();
+
+	/** Reload the map for a fresh run with the same crew (end of a run, or the host's menu). */
+	void RestartRun();
+
+	int32 GetMinPlayers() const { return MinPlayers; }
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
@@ -41,9 +53,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	FVector CarSpawnOffset = FVector(600.f, 0.f, 120.f);
 
-	/** Squirrels needed before the countdown starts. */
+	/** Squirrels needed before the countdown can start. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	int32 MinPlayers = 2;
+
+	/**
+	 * The first run waits for the host to press Start, so a crew of 3-4 can gather. Runs after
+	 * a restart, and every run in PIE (so scripted tests need no click), start at MinPlayers.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Run")
+	bool bHostStartsRun = true;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	float CountdownSeconds = 5.f;
@@ -97,6 +116,9 @@ private:
 
 	float WreckTimer = 0.f;
 	bool bForceStart = false;
+	/** Start the countdown as soon as MinPlayers are in, without the host's click. */
+	bool bAutoStart = false;
+	bool bRestarting = false;
 
 	double Now() const;
 	ANBRunGameState* GetRunState() const;

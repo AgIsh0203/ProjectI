@@ -127,13 +127,17 @@ public:
 	UFUNCTION(Exec)
 	void NBStart();
 
-	/** Host a lobby friends can join (H). */
+	/** Dev: host a lobby friends can join (the menu's "Host a game"). */
 	UFUNCTION(Exec)
 	void NBHost();
 
-	/** Find and join a lobby (J). Steam invites join automatically. */
+	/** Dev: find and join a lobby (the menu's "Join a game"). Steam invites join automatically. */
 	UFUNCTION(Exec)
 	void NBJoin();
+
+	/** Open or close the lobby menu (Esc / gamepad Start; Esc stops PIE, so use this there). */
+	UFUNCTION(Exec)
+	void NBMenu();
 
 protected:
 	virtual void BeginPlay() override;
@@ -300,10 +304,7 @@ private:
 	TObjectPtr<UInputAction> ActionAction;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> HostAction;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> JoinAction;
+	TObjectPtr<UInputAction> MenuAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)
