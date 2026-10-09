@@ -16,6 +16,8 @@ UNBEnginePart::UNBEnginePart()
 	FailureText = NSLOCTEXT("NB", "EngineFail", "OVERHEATING");
 	Prompt = NSLOCTEXT("NB", "EnginePrompt", "Cool engine");
 	Range = 90.f;
+	// The fire/smoke loop peaks as the engine stalls.
+	SeverityRampSeconds = StallSeconds;
 }
 
 void UNBEnginePart::ApplyFailedEffect(float FailedSeconds)
@@ -40,6 +42,7 @@ UNBBrakePart::UNBBrakePart()
 	FailureText = NSLOCTEXT("NB", "BrakesFail", "FADING");
 	Prompt = NSLOCTEXT("NB", "BrakesPrompt", "Pump brakes");
 	Range = 70.f;
+	SeverityRampSeconds = GoneSeconds;
 }
 
 void UNBBrakePart::ApplyFailedEffect(float FailedSeconds)

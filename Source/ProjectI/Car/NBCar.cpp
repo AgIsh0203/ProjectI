@@ -4,6 +4,7 @@
 
 #include "ChaosVehicleWheel.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -21,6 +22,8 @@ ANBCar::ANBCar()
 {
 	bReplicates = true;
 	SetReplicatingMovement(true);
+	// Engine RPM is sampled (server) and smoothed for audio (clients) every frame.
+	PrimaryActorTick.bCanEverTick = true;
 	// Clients interpolate toward the server's car instead of simulating it themselves.
 	SetPhysicsReplicationMode(EPhysicsReplicationMode::PredictiveInterpolation);
 
@@ -121,6 +124,12 @@ ANBCar::ANBCar()
 	FlipSpot->bRequiresOnFoot = true;
 	FlipSpot->bDisableOnComplete = true;
 	FlipSpot->Prompt = NSLOCTEXT("NB", "FlipPrompt", "Flip the car back over");
+
+	// The engine sits under the deck at the back.
+	EngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineAudio"));
+	EngineAudio->SetupAttachment(GetMesh());
+	EngineAudio->SetRelativeLocation(FVector(-100.f, 0.f, 120.f));
+	EngineAudio->bAutoActivate = false;
 }
 
 UNBTirePart* ANBCar::CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName)
@@ -166,6 +175,76 @@ void ANBCar::BeginPlay()
 		BaseBrakeTorque.Add(Wheel ? Wheel->MaxBrakeTorque : 0.f);
 		BaseFriction.Add(Wheel ? Wheel->FrictionForceMultiplier : 1.f);
 	}
+
+	EngineRPM = Movement->EngineSetup.EngineIdleRPM;
+	if (EngineSound && GetNetMode() != NM_DedicatedServer)
+	{
+		EngineAudio->SetSound(EngineSound);
+		EngineAudio->Play();
+	}
+}
+
+void ANBCar::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	UpdateEngineState(DeltaSeconds);
+}
+
+void ANBCar::UpdateEngineState(float DeltaSeconds)
+{
+	const UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	if (HasAuthority())
+	{
+		EngineRPM = Movement->GetEngineRotationSpeed();
+		RepEngineRPM = static_cast<uint16>(FMath::Clamp(FMath::RoundToInt(EngineRPM / 10.f) * 10, 0, MAX_uint16));
+		RepGear = static_cast<int8>(FMath::Clamp(Movement->GetCurrentGear(), -128, 127));
+	}
+	else
+	{
+		EngineRPM = FMath::FInterpTo(EngineRPM, static_cast<float>(RepEngineRPM), DeltaSeconds, RPMSmoothingSpeed);
+	}
+
+	if (!EngineAudio->IsPlaying())
+	{
+		return;
+	}
+	const float Alpha = GetEngineRPMAlpha();
+	EngineAudio->SetFloatParameter(EngineRPMParam, EngineRPM);
+	EngineAudio->SetFloatParameter(EngineThrottleParam, ThrottleInput);
+	EngineAudio->SetFloatParameter(EngineFailedParam, EnginePart->IsFailed() ? 1.f : 0.f);
+	EngineAudio->SetVolumeMultiplier(FMath::Lerp(EngineIdleVolume, 1.f, FMath::Clamp(ThrottleInput, 0.f, 1.f)));
+	if (bPitchFromRPM)
+	{
+		EngineAudio->SetPitchMultiplier(FMath::Lerp(EnginePitchAtIdle, EnginePitchAtRedline, Alpha));
+	}
+}
+
+float ANBCar::GetEngineRPMAlpha() const
+{
+	const auto& Engine = GetChaosVehicleMovement()->EngineSetup;
+	return Engine.MaxRPM > Engine.EngineIdleRPM
+		? FMath::Clamp((EngineRPM - Engine.EngineIdleRPM) / (Engine.MaxRPM - Engine.EngineIdleRPM), 0.f, 1.f)
+		: 0.f;
+}
+
+void ANBCar::Multicast_Feedback_Implementation(ENBCarFeedback Event, float Intensity)
+{
+	switch (Event)
+	{
+	case ENBCarFeedback::Crash:
+		NBFeedback::PlayAttached(CrashFeedback, GetMesh(), FVector::ZeroVector, Intensity);
+		break;
+	case ENBCarFeedback::Spill:
+		// From the open bed behind the seats, where the acorns fly out.
+		NBFeedback::PlayAttached(SpillFeedback, GetMesh(), FVector(-85.f, 0.f, 170.f), Intensity);
+		break;
+	case ENBCarFeedback::Flipped:
+		NBFeedback::PlayAttached(FlippedFeedback, GetMesh(), FVector::ZeroVector, Intensity);
+		break;
+	case ENBCarFeedback::Righted:
+		NBFeedback::PlayAttached(RightedFeedback, GetMesh(), FVector::ZeroVector, Intensity);
+		break;
+	}
 }
 
 void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -175,6 +254,8 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, ThrottleInput);
 	DOREPLIFETIME(ANBCar, bFlipped);
 	DOREPLIFETIME(ANBCar, Acorns);
+	DOREPLIFETIME(ANBCar, RepEngineRPM);
+	DOREPLIFETIME(ANBCar, RepGear);
 }
 
 void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
@@ -241,6 +322,14 @@ void ANBCar::CheckSpill()
 	const FVector Velocity = GetVelocity();
 	const float DeltaV = (Velocity - LastSpillVelocity).Size();
 	LastSpillVelocity = Velocity;
+
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (DeltaV >= CrashMinDeltaV && Now >= NextCrashFeedbackTime)
+	{
+		NextCrashFeedbackTime = Now + CrashCooldown;
+		Multicast_Feedback(ENBCarFeedback::Crash, FMath::GetMappedRangeValueClamped(FVector2f(CrashMinDeltaV, CrashMaxDeltaV), FVector2f(0.f, 1.f), DeltaV));
+	}
+
 	if (bRunLocked || Acorns <= 0 || DeltaV < SpillMinDeltaV)
 	{
 		return;
@@ -411,6 +500,7 @@ void ANBCar::SetFlipped(bool bNewFlipped)
 	{
 		return;
 	}
+	Multicast_Feedback(ENBCarFeedback::Flipped, 1.f);
 
 	// Tipping over dumps part of the load.
 	SpillAcorns(FMath::CeilToInt(Acorns * FlipSpillFraction));
@@ -436,6 +526,7 @@ void ANBCar::HandleFlipPushed(UNBInteractableComponent* Interactable)
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	SetFlipped(false);
+	Multicast_Feedback(ENBCarFeedback::Righted, 1.f);
 }
 
 void ANBCar::DevFlip()

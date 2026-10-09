@@ -43,6 +43,8 @@
     - Completing the push lifts the car 120 cm and sets it upright, keeping its yaw. If the car rolls back onto its wheels by itself (up axis > 0.8), the flipped state clears.
     - Dev console: `NBFlip` rolls the car onto its roof. The HUD shows a "CAR FLIPPED!" banner.
   - Damage hooks: `SetEnginePowerScale`, `SetBrakePowerScale`, `SetWheelGripScale` (scale the base values cached in BeginPlay).
+  - Engine state: the server samples Chaos RPM and gear every tick into replicated `RepEngineRPM` (rounded to 10) / `RepGear`; clients smooth it (`GetEngineRPM`, `GetEngineRPMAlpha`, `GetEngineGear`).
+  - Sound/VFX slots (all empty until assets are assigned in BP_OffroadCar_Pawn, category "Car|Feedback"): `EngineSound` on the `EngineAudio` component (float params RPM, Throttle, EngineFailed; pitch from RPM for a plain loop), `CrashFeedback` (velocity change ≥ 500 cm/s per 0.1 s, intensity up to 1600), `SpillFeedback`, `FlippedFeedback`, `RightedFeedback`. Played through the unreliable `Multicast_Feedback`.
 - `Car/NBSeatComponent` — replicated seat (Wheel / Pedals / Rider); the squirrel attaches to it, so its location is the capsule centre.
   - The car has 5: WheelSeat (perched on the steering wheel), PedalSeat (footwell), HoodSeat (front hood), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
   - Hop order is the car's `Seats` array (filled in BeginPlay).
@@ -69,7 +71,9 @@
 - `UI/NBLobbyMenu` — the lobby menu, a UMG widget built entirely in C++ (no widget asset). `ANBHUD` owns it, opens it by itself when standalone, and switches input to UI-only while it's open.
   - Offline: Host a game, Join a game, Practice alone (`DevStartRun`), Quit. Online: the crew list, Start the run (host, needs 2), Invite friends (Steam overlay invite dialog), Restart the run (host), Leave, Quit.
 - `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
+- `FX/NBFeedback` — `FNBFeedback` (optional sound + Niagara effect, volume/pitch/jitter/scale) and `NBFeedback::PlayAt` / `PlayAttached` / `StartLoop`. Every play sets the float param `Intensity` (0..1) on both. No-op on a dedicated server or with no assets, so events are wired in code and assets get dropped in later.
 - `Parts/NBCarPartComponent` — derives from the interactable: a part is its own repair spot.
+  - Feedback slots on every part ("Part|Feedback"): `BreakFeedback`, `FailedLoopFeedback` (loops while broken, e.g. engine fire; its `Severity` param ramps 0→1 over `SeverityRampSeconds`, = stall/gone time for engine/brakes), `RepairFeedback`. One-shots only play for live changes, not the state a late joiner receives.
   - Replicated `bFailed`. While failed, the interactable is on and the subclass's `ApplyFailedEffect(seconds since failure)` escalates every tick. Completing the interaction repairs it.
   - `Parts/NBCarParts`:
     - Engine (deck, Mash): power fades to 35 % over 10 s, stalls at 16 s.
@@ -137,6 +141,6 @@
 
 ## Open items / ideas parked
 - The pedal squirrel sits low in the footwell; its tail now sticks up as a flag (`PedalTailTransform`) so it shows over the dash. Check this in play.
-- The client shows gear 0 / idle RPM (Chaos doesn't replicate engine state to an unpossessed car). Replicate RPM before adding engine audio.
+- No sound or VFX assets are assigned yet; every slot above is empty. Squirrel events (thrown out, landing) and run events (countdown, delivered, wrecked) have no slots yet; the squirrel is a pure C++ pawn, so its slots would need a Blueprint child or project settings.
 - The seated camera now swings behind the car after 1 s without look input when the car moves faster than 150 cm/s (`SeatedFollowDelay`, `SeatedFollowSpeed`, `SeatedFollowMinSpeed`). Not compiled or felt yet.
 - Possible remaining TSR shimmer on the tires; tune only if the user still sees it.
