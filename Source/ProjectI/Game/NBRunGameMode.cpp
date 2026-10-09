@@ -7,6 +7,7 @@
 #include "Game/NBFailureDirector.h"
 #include "Game/NBFinishZone.h"
 #include "Game/NBRunGameState.h"
+#include "Car/NBSeatComponent.h"
 #include "Parts/NBCarPartComponent.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
@@ -85,10 +86,18 @@ void ANBRunGameMode::FindOrSpawnFinishZone()
 	}
 
 	const FVector Forward = FRotator(0.f, Car->GetActorRotation().Yaw, 0.f).Vector();
+	FVector Where = Car->GetActorLocation() + Forward * FallbackFinishDistance;
+	// Sit the gate on the ground there.
+	FHitResult Ground;
+	if (GetWorld()->LineTraceSingleByChannel(Ground, Where + FVector(0.f, 0.f, 2000.f), Where - FVector(0.f, 0.f, 2000.f), ECC_Visibility))
+	{
+		Where.Z = Ground.ImpactPoint.Z;
+	}
+	Where.Z += 10.f;
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	FinishZone = GetWorld()->SpawnActor<ANBFinishZone>(ANBFinishZone::StaticClass(),
-		Car->GetActorLocation() + Forward * FallbackFinishDistance, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f), Params);
+		Where, FRotator(0.f, Car->GetActorRotation().Yaw, 0.f), Params);
 }
 
 void ANBRunGameMode::DevStartRun()
@@ -147,6 +156,7 @@ void ANBRunGameMode::BeginDriving()
 {
 	GetRunState()->SetPhase(ENBRunPhase::Driving, Now() + RunSeconds);
 	WreckTimer = 0.f;
+	NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	Car->SetRunLocked(false);
 	Director->Begin(Car, RunSeconds);
 }
@@ -164,6 +174,15 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 	{
 		EndRun(ENBRunResult::TimeUp);
 		return;
+	}
+
+	if (Now() >= NextMuteTime)
+	{
+		if (State->GetSecondsLeft() > MuteSeconds)
+		{
+			GiveAcornInMouth();
+		}
+		NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	}
 
 	int32 NumFailed = 0;
@@ -208,7 +227,60 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 	}
 
 	Director->End();
+	for (APlayerState* Player : GameState->PlayerArray)
+	{
+		if (ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
+		{
+			Stats->ClearMute();
+		}
+	}
 	Car->SetRunLocked(true);
 	State->SetWreckSeconds(0.f);
 	State->Finish(Result, Delivered, TimeBonus, Penalty, Score, Now() + EndScreenSeconds);
+}
+
+void ANBRunGameMode::GiveAcornInMouth()
+{
+	TArray<ANBPlayerState*> Candidates;
+	TArray<float> Weights;
+	float TotalWeight = 0.f;
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		ANBPlayerState* Stats = It->GetPlayerState<ANBPlayerState>();
+		if (!Stats || Stats->IsMuted())
+		{
+			continue;
+		}
+		float Weight = 1.f;
+		if (const UNBSeatComponent* Seat = It->GetCurrentSeat(); Seat && Seat->Role == ENBSeatRole::Wheel)
+		{
+			Weight += 2.f;
+		}
+		for (const UNBCarPartComponent* Part : Car->GetParts())
+		{
+			if (Part && Part->IsFailed() && Part->IsInRangeOf(*It))
+			{
+				Weight += 2.f;
+				break;
+			}
+		}
+		Candidates.Add(Stats);
+		Weights.Add(Weight);
+		TotalWeight += Weight;
+	}
+	if (Candidates.IsEmpty())
+	{
+		return;
+	}
+
+	float Roll = FMath::FRandRange(0.f, TotalWeight);
+	for (int32 i = 0; i < Candidates.Num(); ++i)
+	{
+		Roll -= Weights[i];
+		if (Roll <= 0.f || i == Candidates.Num() - 1)
+		{
+			Candidates[i]->StartMute(MuteSeconds);
+			return;
+		}
+	}
 }

@@ -48,6 +48,7 @@ public:
 	virtual void PawnClientRestart() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 
 	/** Which entry of FurColors this squirrel wears; unique per player. */
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
@@ -137,6 +138,17 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	/** Plays this squirrel's voice from its body, fading with distance. */
+	UPROPERTY(VisibleAnywhere, Category = "Voice")
+	TObjectPtr<class UVOIPTalker> VoiceTalker;
+
+	/** Voice carries this far at full volume, then fades out over VoiceFalloff (cm). */
+	UPROPERTY(EditAnywhere, Category = "Voice")
+	float VoiceFullRadius = 800.f;
+
+	UPROPERTY(EditAnywhere, Category = "Voice")
+	float VoiceFalloff = 2500.f;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -193,6 +205,22 @@ private:
 	void JumpPressed();
 	void Interact();
 	void ActionPressed();
+
+	/** Chat wheel, keys 1-8. */
+	void PingPressed(int32 Index);
+
+	UFUNCTION(Server, Reliable)
+	void Server_Ping(int32 Index);
+
+	/** Local player only: mic off while Acorn in Mouth, back on afterwards. */
+	void UpdateVoiceMute();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> PingActions;
+
+	bool bVoiceMuted = false;
+
+	void RegisterVoiceTalker();
 	void ActionReleased();
 	void ReleaseActiveInteractable();
 	void StartClinging(UNBInteractableComponent* Target);

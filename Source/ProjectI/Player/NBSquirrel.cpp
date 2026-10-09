@@ -27,6 +27,8 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Net/UnrealNetwork.h"
+#include "Net/VoiceConfig.h"
+#include "Sound/SoundAttenuation.h"
 #include "UObject/ConstructorHelpers.h"
 
 ANBSquirrel::ANBSquirrel()
@@ -73,6 +75,8 @@ ANBSquirrel::ANBSquirrel()
 		TailVisual->SetMaterial(0, FurMaterial.Object);
 	}
 
+	VoiceTalker = CreateDefaultSubobject<UVOIPTalker>(TEXT("VoiceTalker"));
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = OnFootArmLength;
@@ -106,6 +110,7 @@ void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 void ANBSquirrel::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	RegisterVoiceTalker();
 
 	if (ColorIndex != INDEX_NONE || FurColors.IsEmpty())
 	{
@@ -166,6 +171,15 @@ void ANBSquirrel::BuildInputAssets()
 	JoinAction = NewObject<UInputAction>(this, TEXT("IA_Join"));
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
+
+	static const FKey PingKeys[ANBPlayerState::NumPings] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
+	PingActions.Reset();
+	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
+	{
+		UInputAction* Ping = NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_Ping%d"), i + 1));
+		PingActions.Add(Ping);
+		InputContext->MapKey(Ping, PingKeys[i]);
+	}
 
 	// WASD -> 2D: W/S go to Y via swizzle, A/S are negated.
 	auto MapMoveKey = [this](const FKey& Key, bool bSwizzle, bool bNegate)
@@ -232,6 +246,10 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(InteractAction, ETriggerEvent::Started, this, &ANBSquirrel::Interact);
 	Input->BindAction(ActionAction, ETriggerEvent::Started, this, &ANBSquirrel::ActionPressed);
 	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
+	for (int32 i = 0; i < PingActions.Num(); ++i)
+	{
+		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
+	}
 	Input->BindAction(HostAction, ETriggerEvent::Started, this, &ANBSquirrel::NBHost);
 	Input->BindAction(JoinAction, ETriggerEvent::Started, this, &ANBSquirrel::NBJoin);
 }
@@ -635,9 +653,36 @@ void ANBSquirrel::RefreshAttachedState()
 	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? 420.f : 60.f);
 }
 
+void ANBSquirrel::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	RegisterVoiceTalker();
+}
+
+void ANBSquirrel::RegisterVoiceTalker()
+{
+	if (!VoiceTalker || !GetPlayerState())
+	{
+		return;
+	}
+	// Proximity chat: spatialised on this squirrel, silent beyond Full+Falloff.
+	USoundAttenuation* Attenuation = NewObject<USoundAttenuation>(this);
+	FSoundAttenuationSettings& Settings = Attenuation->Attenuation;
+	Settings.bAttenuate = true;
+	Settings.bSpatialize = true;
+	Settings.AttenuationShape = EAttenuationShape::Sphere;
+	Settings.AttenuationShapeExtents = FVector(VoiceFullRadius);
+	Settings.FalloffDistance = VoiceFalloff;
+	Settings.DistanceAlgorithm = EAttenuationDistanceModel::Linear;
+	VoiceTalker->Settings.AttenuationSettings = Attenuation;
+	VoiceTalker->Settings.ComponentToAttachTo = GetRootComponent();
+	VoiceTalker->RegisterWithPlayerState(GetPlayerState());
+}
+
 void ANBSquirrel::BeginPlay()
 {
 	Super::BeginPlay();
+	RegisterVoiceTalker();
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
 }
@@ -722,9 +767,43 @@ void ANBSquirrel::StopLocalRagdoll()
 	RefreshAttachedState();
 }
 
+void ANBSquirrel::PingPressed(int32 Index)
+{
+	Server_Ping(Index);
+}
+
+void ANBSquirrel::Server_Ping_Implementation(int32 Index)
+{
+	if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+	{
+		Stats->SendPing(Index);
+	}
+}
+
+void ANBSquirrel::UpdateVoiceMute()
+{
+	const ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>();
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!Stats || !PC)
+	{
+		return;
+	}
+	const bool bMuted = Stats->IsMuted();
+	if (bMuted != bVoiceMuted)
+	{
+		bVoiceMuted = bMuted;
+		// Open mic: stop sending voice while the acorn is in, resume after.
+		PC->ToggleSpeaking(!bMuted);
+	}
+}
+
 void ANBSquirrel::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (IsLocallyControlled())
+	{
+		UpdateVoiceMute();
+	}
 	if (bLocalRagdoll)
 	{
 		// The capsule (and camera) follow the tumbling body.
