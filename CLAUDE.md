@@ -1,24 +1,32 @@
 # ProjectI — "Squirrel Wheels" (working title)
 
-20-day UE 5.7.1 co-op "friend slop" **prototype**: 2–4 tiny squirrels drive ONE human-sized, open-top, falling-apart car. Guiding principle: **viewer fun first, player fun second**, so the game spreads through streams and clips. Full design: `Docs/GDD.md`. Approved plan: `C:\Users\ishan\.claude\plans\for-the-first-project-woolly-wozniak.md`.
+20-day UE 5.7.1 co-op "friend slop" **prototype**: 2–4 tiny squirrels drive ONE human-sized, open-top, falling-apart car. Guiding principle: **viewer fun first, player fun second**, so the game spreads through streams and clips.
 
-## Status (last updated 2026-10-09)
-- **M0 Foundations: done.**
-  - Chaos car driven by 2 players (Wheel seat steers, Pedals seat does gas/brake), verified in 2-client PIE.
-  - 2-PC Steam test passed on 2026-10-07: host / invite / join, voice works, no physics stutter.
-  - That test found ejected squirrels falling through the floor; fixed in `58658fb`, after the 2026-10-06 build. Development builds are packaged to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
-- **Next: M1 core loop greybox (Thu 8 – Sun 11 Oct).** In order:
-  1. ~~Seat placement on the buggy, plus hopping between stations.~~ Done (verified in 2-client PIE via Python; the user still needs to eyeball it in play).
-  2. ~~`UNBInteractableComponent` with Hold / Mash / TimingRing / Push2 modes.~~ Done. Server logic verified in PIE; the HUD hasn't been seen on screen yet.
-  3. ~~4 parts, each with a unique repair: Engine = mash, Brakes = timing ring, Tire = hold outside the car, Door = slam.~~ Done. Verified in PIE via Python; tire clinging and the driving effects still need a hands-on test.
-  4. ~~Ejection ragdoll and respawn (8 s).~~ Done. Verified in PIE via Python; how the tumble looks and feels still needs a hands-on check.
-  5. ~~Two-squirrel flip-up.~~ Done. The full cycle was verified in PIE via Python; the push still needs a hands-on 2-player check. **M1 is code-complete.**
-- **M2 in progress (2026-10-09):** run loop, failure director, deadline, total wreck, acorn cargo + score and end screen are written. Server logic verified in 2-client PIE via Python on 2026-10-09: the run starts by itself, the director fails parts, delivery scores (teleported car into the zone), a total wreck ends the run, and a sudden speed change spilled 40 -> 22 acorns. The HUD, the feel of the spills and the drop-off distance still need a hands-on look. (The editor tools needed the editor launched by hand; `mcp-unreal` timed out on connect, so scripts went straight to port 8090.) A lobby menu (host, join, start, invite, restart, leave) replaced the H/J keys on branch `claude/project-thread-dmwryj`; it is not compiled or tested yet. Still to do: proximity voice, Acorn-in-Mouth mute + chat wheel.
-- **Schedule:**
-  - M2 (12–16 Oct): route, failure director, deadline, total wreck, acorn cargo + score, Steam lobby, proximity voice, Acorn-in-Mouth mute + chat wheel.
-  - M3a (17–20 Oct): Kenney art, VFX/SFX, end-screen stats, private itch page; **friend test Tue 20 Oct**.
-  - M4: public free itch demo **Sat 24 Oct**.
-- **Budget:** about 65 h total. Weekdays 2–3 h, weekends 5–6 h.
+## Docs
+- `docs/Roadmap.md` — **before picking up new work or packaging**: the schedule to the 24 Oct demo, the ranked backlog (items are cited as #N), the package-size budget and how to meet it, and the decisions waiting on the user.
+- `docs/GDD.md` — **design questions**: what each feature is, its status (Built / Friend test / Demo / Later), and the tuning table where playtested values get recorded.
+- `docs/Assets.md` — **before importing, assigning or committing any asset**: licence rules, folders, the slot map, sources.
+- `docs/Playtest.md` — **before a packaged build or a 2-PC test**: everything that still needs a hands-on check.
+- `CREDITS.md` — **when an asset is imported**: add its line.
+- The approved plan (`C:\Users\ishan\.claude\plans\for-the-first-project-woolly-wozniak.md`) holds the original scope and success test. The Roadmap replaces its schedule, and the code map below replaces its technical sketch.
+
+## Status (last updated 2026-10-12)
+- **M0, M1 and M2 are code-complete** (M2 on 2026-10-09, three days early). Built so far:
+  - the Chaos car, its 5 seats and hopping;
+  - 4 parts with distinct repairs, ragdoll + respawn, flip-up;
+  - the run loop, failure director, deadline, total wreck, acorn cargo + score, end-screen stats with MVP / Most useless;
+  - the code-built route, lobby menu, proximity voice, Acorn in Mouth + pings, and sound/VFX slots.
+- **Only M0 has been played by hand** (2-PC Steam test on 2026-10-07: host / invite / join, voice, no physics stutter). Everything since is verified only by Python in PIE.
+- The only packaged build (`D:\Games-Unreal\ProjectI_Builds\2026-10-06\Windows\`) predates M1 and M2. It's a 1.04 GB download that installs to 3 GB. Most of that is the 2.3 GB PDB, a default-on AI denoiser plugin, and ray-tracing / Lumen shaders. New builds go to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
+- Every sound/VFX slot is empty, and no third-party assets are in the project yet.
+- **Next** (details in `docs/Roadmap.md`):
+  1. **Slim the package** (Mon 12): a Development build ≤ 300 MB zipped.
+  2. 2-PC playtest with the slim build (Tue 13).
+  3. Blockers, then the friend-test code: horn, squirrel sounds, acorn pile, readable failures (Wed 14 – Fri 16).
+  4. Sounds in the slots, squirrel charm pass, onboarding, VFX, private itch page (Sat 17 – Mon 19).
+  5. **Friend test Tue 20 Oct**, then the top-3 fixes and Tier 2 picks.
+  6. **Public itch demo Sat 24 Oct**, as a Shipping build ≤ 200 MB zipped.
+- **Budget:** about 65 h total; weekdays 2–3 h, weekends 5–6 h. About 41 h remain from Mon 12 by the plan's calendar.
 
 ## Locked decisions (don't relitigate)
 - **Players and camera:** 2-player minimum, no bots. Third-person chase camera, wider while seated. Arcade feel. Repair juggling is the heart of the game.
@@ -30,6 +38,12 @@
 - **Release:** free public itch demo. Steam only after a "go" signal (needs $100 fee + 2-week Coming Soon page).
 - **Title:** a squirrel/wheels pun, decided before release. The C++ module stays `ProjectI`.
 - **Assets:** Epic template content (the Chaos vehicle) is committed publicly. The user decided this.
+
+## Assets and licences (the repo is public)
+- Commit only CC0, CC-BY and OFL / Apache font files, under `Content/ThirdParty/<Source>/`, with the `CREDITS.md` line in the same commit.
+- Fab (including Epic's free monthly content), Sonniss and Pixabay files may ship in builds, but they stay out of the repo: they go in `Content/ThirdParty_Private/<Source>/`, which `.gitignore` excludes.
+- Non-commercial (NC) licences would block the later Steam release; leave those files out.
+- Rules, folders, the slot map and sources: `docs/Assets.md`.
 
 ## Code map (`Source/ProjectI/`)
 - `Car/NBCar` — derives from `ATP_VehicleAdvOffroadCar` (Chaos).
@@ -48,9 +62,11 @@
 - `Car/NBSeatComponent` — replicated seat (Wheel / Pedals / Rider); the squirrel attaches to it, so its location is the capsule centre.
   - The car has 5: WheelSeat (perched on the steering wheel), PedalSeat (footwell), HoodSeat (front hood), PassengerSeat, DeckSeat (engine deck). Positions were measured from `SM_Offroad_Body` vertices; the comment in the `ANBCar` constructor lists the landmarks.
   - Hop order is the car's `Seats` array (filled in BeginPlay).
-- `Player/NBSquirrel` — character.
-  - Enhanced Input is built in code (no input assets): WASD, mouse look, Space, E = interact, Esc / gamepad Start = lobby menu (`NBMenu` in PIE, where Esc stops play).
+- `Player/NBSquirrel` — character, set in C++ as `DefaultPawnClass`. It has no Blueprint child yet, so there's nowhere to assign squirrel assets.
+  - Enhanced Input is built in code (no input assets): WASD, mouse look, Space = jump, E = interact, LMB = action, keys 1–8 = pings, Esc = lobby menu (`NBMenu` in PIE, where Esc stops play). Gamepad: A jump, X interact, B action, Start menu; pings have no pad binding.
   - On foot, E takes the nearest free seat. Seated, E hops to the next free seat (`HopToNextSeat`) and Space jumps out on the seat's side of the car.
+  - Action press and release go to the server (`Server_ActionPressed` carries the client's server-time estimate), which uses `UNBInteractableComponent::FindBestFor`.
+  - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back. Above 150 cm/s, after 1 s without look input, the camera swings behind the car (`SeatedFollowDelay`, `SeatedFollowSpeed`, `SeatedFollowMinSpeed`). On the Pedals seat the tail sticks up as a flag (`PedalTailTransform`) so the low footwell squirrel shows over the dash.
   - Each player gets a unique, replicated fur color (`ColorIndex` → `FurColors`, applied via the BasicShapeMaterial `Color` param).
   - Falling: `Eject(velocity)` / `EjectFromCar()` (the car's velocity plus `EjectKick` out of the seat's side and up).
     - The "ragdoll" detaches `BodyVisual` (the tail rides on it) as a physics ball. Each machine simulates it from the replicated `FNBRagdollState` (start + velocity), and the capsule follows it in Tick.
@@ -60,8 +76,7 @@
     - `RefreshAttachedState` is the single place that sets collision, movement mode and the camera for the riding / tumbling / on-foot states.
 - `Player/NBPlayerState` — replicated per-player run stats for the end screen. Set as `PlayerStateClass`.
   - `Falls`, `Respawns` (score penalty), `FiresPutOut` (every squirrel who moved a part's repair forward gets one when it completes; the interactable's `GetCompletedBy()`), `AcornsSpilled` (blamed on the Wheel seat, else the Pedals seat), `DriveSeconds` (Wheel or Pedals seat while Driving).
-  - `GetHelpfulness()` = 3/fire + 1 per 30 s driving - 1/fall - 2/respawn - 0.5/acorn spilled. At `EndRun` the game mode picks the highest as MVP and the lowest as "Most useless" (replicated on the game state; none with fewer than 2 squirrels). Verified in 3-player PIE via Python on 2026-10-09 (stats, picks and their replication); the end screen itself hasn't been seen on screen yet.
-  - LMB / gamepad B = action. Press and release go to the server (`Server_ActionPressed` carries the client's server-time estimate), which uses `UNBInteractableComponent::FindBestFor`.
+  - `GetHelpfulness()` = 3/fire + 1 per 30 s driving - 1/fall - 2/respawn - 0.5/acorn spilled. At `EndRun` the game mode picks the highest as MVP and the lowest as "Most useless" (replicated on the game state; none with fewer than 2 squirrels).
 - `Interaction/NBInteractableComponent` — the shared "work on this" spot (repairs, door, flip-up).
   - Modes: Hold, Mash, TimingRing, Push2. Server-authoritative; progress, users, enabled and the sweet spot replicate.
   - A squirrel uses the nearest enabled one within `Range` of its actor location, so seated squirrels reach parts near their seat.
@@ -70,8 +85,10 @@
   - `NBInteractionSubsystem` (a world subsystem) is the registry.
 - `UI/NBLobbyMenu` — the lobby menu, a UMG widget built entirely in C++ (no widget asset). `ANBHUD` owns it, opens it by itself when standalone, and switches input to UI-only while it's open.
   - Offline: Host a game, Join a game, Practice alone (`DevStartRun`), Quit. Online: the crew list, Start the run (host, needs 2), Invite friends (Steam overlay invite dialog), Restart the run (host), Leave, Quit.
-- `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, and a controls hint. Set as `HUDClass` in the game mode.
+- `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, the run clock, banners and end screen, and a controls hint. Set as `HUDClass` in the game mode.
 - `FX/NBFeedback` — `FNBFeedback` (optional sound + Niagara effect, volume/pitch/jitter/scale) and `NBFeedback::PlayAt` / `PlayAttached` / `StartLoop`. Every play sets the float param `Intensity` (0..1) on both. No-op on a dedicated server or with no assets, so events are wired in code and assets get dropped in later.
+  - `Effect` is a `UNiagaraSystem`; legacy Cascade particle systems don't fit.
+  - The squirrel and the run events (countdown, delivered, wrecked) have no slots yet.
 - `Parts/NBCarPartComponent` — derives from the interactable: a part is its own repair spot.
   - Feedback slots on every part ("Part|Feedback"): `BreakFeedback`, `FailedLoopFeedback` (loops while broken, e.g. engine fire; its `Severity` param ramps 0→1 over `SeverityRampSeconds`, = stall/gone time for engine/brakes), `RepairFeedback`. One-shots only play for live changes, not the state a late joiner receives.
   - Replicated `bFailed`. While failed, the interactable is on and the subclass's `ApplyFailedEffect(seconds since failure)` escalates every tick. Completing the interaction repairs it.
@@ -81,22 +98,21 @@
     - Tire ×4 (outside each wheel, Hold 3 s, `bRequiresOnFoot` + `bAttachUser`, so the squirrel clings and gets dragged): that wheel's grip drops to 30 %.
     - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (`EjectFromCar`).
   - Part ranges are tuned so the wheel/pedal seats reach nothing; each rider seat reaches exactly one part.
-  - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, `NBChaos` toggles a random failure every 12 s, `NBFlip` rolls the car over, and `NBWarp` jumps the car to a route section. These stand in until M2's failure director.
+  - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, `NBChaos` toggles a random failure every 12 s, `NBFlip` rolls the car over, and `NBWarp` jumps the car to a route section.
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
-  - Seated: movement and collision off, the move axis goes to the server via `Server_SetSeatInput`, and the camera boom has collision off and is pulled back.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.
 - `Game/NBRunGameMode` also runs the run: Waiting (the host presses Start in the lobby menu once 2+ squirrels are in; after a restart, and always in PIE, it starts by itself at 2; `NBStart` skips) -> Countdown 5 s -> Driving (the route's 480 s deadline; 150 s on the test track) -> Finished (12 s end screen, then `RestartRun`: `ServerTravel("?Restart")` with **seamless travel**, so clients stay connected, in the lobby and in voice; PIE refuses seamless travel, so restart does nothing there). Ends on delivery, time up, or a total wreck (3+ parts failed for 10 s). Score = acorns x 10 + 2 per second left - 25 per respawn; bad endings score 0. The car is brake-locked (`SetRunLocked`) outside Driving.
 - `Game/NBRunGameState` — replicated phase, result, clock (`GetSecondsLeft`), wreck timer, score breakdown.
 - `Game/NBFailureDirector` — component on the game mode. Fails a random part every 14 s -> 6 s (ramps with run progress), up to 1 -> players+1 failed at once, 8 s no-rebreak cooldown after a repair.
 - `Game/NBFinishZone` — greybox drop-off box with two gate posts; the run is delivered when the car's centre is inside. With the route on, the route spawns its own at the end of the road. On the test track (`?Route=0`) the game mode uses a placed one or spawns one 80 m ahead of the car, grounded by a trace. (The gate at x=8600 and the slalom described in `ad7b92f` were never saved into the committed L_TestTrack.umap.)
-- `Game/NBRoute` — the run's course, built entirely in code so it needs no level edits. ~3.5 km, 10 named sections (THE PARK, COBBLE LANE, ACORN HILL, THE HAIRPIN, THE BRIDGE, ROCKY ROAD, SQUIRREL SLALOM, THE BIG JUMP, WIGGLY ROAD, HOME STRETCH, THE DEPOT); the segment list is in the constructor and in `docs/GDD.md`.
+- `Game/NBRoute` — the run's course, built entirely in code so it needs no level edits. ~3.5 km, 11 named sections (THE PARK, COBBLE LANE, ACORN HILL, THE HAIRPIN, THE BRIDGE, ROCKY ROAD, SQUIRREL SLALOM, THE BIG JUMP, WIGGLY ROAD, HOME STRETCH, THE DEPOT); the segment list is in the constructor and in `docs/GDD.md`.
   - The game mode spawns it at `RouteOrigin` (0, 3 km, 0), away from L_TestTrack's floor, and spawns 4 player starts and the car at its start. `?Route=0` in the URL goes back to the test track.
   - Replicated + always relevant, but every machine builds the same geometry itself in BeginPlay (centreline in PostInitializeComponents): a walled ground slab (top at z=0, the only thing the wheels touch on flat road), a visual road strip with lines, and per-segment features as ISM layers on BasicShapeMaterial (Bumps, Rocks with a fixed seed, Slalom pillars, Hill/Bridge/Jump slabs), corner markers, roadside TextRender signs and a depot shed. The server spawns the finish gate 30 m before the road's end.
   - `GetDistanceAlong` (windowed nearest-sample search, so the hairpin's legs don't swap) drives the HUD's progress bar, "depot in X km" and the section banner.
   - Dev console: `NBWarp <n|name>` teleports the car to a section start (riders come along, anyone on foot respawns at the car).
-- `Car/NBAcorn` + cargo on `NBCar`: 40 acorns (replicated). A velocity change > 350 cm/s per 0.1 s spills acorns as physics props; a flip dumps 25 %.
-- **Acorn in Mouth + chat wheel:** `Game/NBRunGameMode::GiveAcornInMouth` mutes one squirrel for 20 s every 75-105 s while driving (weights: Wheel seat +2, next to a failed part +2; skipped in the last 20 s). State lives on `ANBPlayerState` (`MuteEndTime`, last ping). The local `ANBSquirrel` calls `ToggleSpeaking(false/true)` to cut the open mic. Keys 1-8 send a ping (1 s cooldown, shown 4 s left of screen); the HUD shows banners and a legend while muted. Server mute verified in PIE; the voice cutoff, keys and HUD need a hands-on 2-PC test.
-- **Proximity voice:** every `ANBSquirrel` has a `UVOIPTalker` registered with its PlayerState (BeginPlay / PossessedBy / OnRep_PlayerState). Spatialised on the squirrel, full volume within 800 cm, fading to silence over 2500 cm more (`VoiceFullRadius`, `VoiceFalloff`). Compiles and PIE starts clean; **needs a 2-PC Steam test** to hear it.
+- `Car/NBAcorn` + cargo on `NBCar`: 40 acorns. `Acorns` is plain `Replicated`, with no RepNotify yet. A velocity change > 350 cm/s per 0.1 s spills acorns as server-spawned, replicated physics actors (20 s lifespan); a flip dumps 25 %.
+- **Acorn in Mouth + chat wheel:** `Game/NBRunGameMode::GiveAcornInMouth` mutes one squirrel for 20 s every 75-105 s while driving (weights: Wheel seat +2, next to a failed part +2; skipped in the last 20 s). State lives on `ANBPlayerState` (`MuteEndTime`, last ping). The local `ANBSquirrel` calls `ToggleSpeaking(false/true)` to cut the open mic. Keys 1-8 send a ping, muted or not (1 s cooldown, shown 4 s left of screen); the HUD shows banners and a legend while muted.
+- **Proximity voice:** every `ANBSquirrel` has a `UVOIPTalker` registered with its PlayerState (BeginPlay / PossessedBy / OnRep_PlayerState). Spatialised on the squirrel, full volume within 800 cm, fading to silence over 2500 cm more (`VoiceFullRadius`, `VoiceFalloff`).
 - `Game/NBSessionSubsystem` — game-instance subsystem for Steam lobbies, driven by the lobby menu.
   - "Host a game" (or `NBHost`) creates a lobby tagged `NBGAME=SquirrelWheels` (so searches on AppID 480 only find ours), then reopens L_TestTrack with `?listen`.
   - "Join a game" (or `NBJoin`) finds a lobby and joins it. "Leave the game" destroys the session and reopens the map offline. A network failure (e.g. the host left) sets the menu's status line. An accepted Steam invite, or "Join Game" from the friends list, joins automatically.
@@ -110,8 +126,10 @@
 - **The net driver is SteamSockets** (plugin enabled, `bUseSteamNetworking`, relays on). Without Steam (e.g. PIE) it falls back to IpNetDriver.
   - UE 5.7 no longer has `OnlineSubsystemSteam.SteamNetDriver`; the old config silently fell back to IP.
   - Voice is open mic (`bRequiresPushToTalk=false`).
-- **Packaging:** `/Game/VehicleTemplate` and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them.
-  - Package with: `RunUAT BuildCookRun -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -archive -archivedirectory=...`
+- **Packaging:** `/Game/VehicleTemplate` and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them. Anything new that only C++ references (a `BP_Squirrel`, a HUD font, an imported mesh) needs the same treatment; `docs/Assets.md` has the folder plan.
+  - Package with: `RunUAT BuildCookRun -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -nodebuginfo -archive -archivedirectory=...`
+  - `-nodebuginfo` keeps the 2.3 GB PDB out of the build. Copy the PDB from `Binaries/Win64` to `ProjectI_Builds\<date>\Symbols\` so crash dumps can still be read.
+  - The size budget and the steps to meet it are in `docs/Roadmap.md` (Package size). Write each build's zip size in the playtest notes.
 - **Motion blur OFF** (`r.DefaultFeature.MotionBlur=False`): it smeared the spinning tires into noise.
 - **PIE runs 2 players as a listen server**, from `Config/DefaultEditorPerProjectUserSettings.ini`. The per-user `Saved/` ini can override it.
 
@@ -136,11 +154,5 @@
   - The LFS lock check needs `lfs.<url>.access=basic` + `credential.https://github.com.username=AgIsh0203` (already set).
   - Push with `GCM_INTERACTIVE=never`. PowerShell prints git's stderr as errors; check for `main -> main`.
 - **Who does what:**
-  - The user: feel/fun calls, 2-PC tests, the itch account, playtesters, downloading Kenney/CC0 packs, final title.
-  - Claude: code, config, Blueprints/levels via MCP, builds, tests, commits.
-
-## Open items / ideas parked
-- The pedal squirrel sits low in the footwell; its tail now sticks up as a flag (`PedalTailTransform`) so it shows over the dash. Check this in play.
-- No sound or VFX assets are assigned yet; every slot above is empty. Squirrel events (thrown out, landing) and run events (countdown, delivered, wrecked) have no slots yet; the squirrel is a pure C++ pawn, so its slots would need a Blueprint child or project settings.
-- The seated camera now swings behind the car after 1 s without look input when the car moves faster than 150 cm/s (`SeatedFollowDelay`, `SeatedFollowSpeed`, `SeatedFollowMinSpeed`). Verified in PIE (holds while parked, swings 90° → 0° while driving); not felt by hand yet.
-- Possible remaining TSR shimmer on the tires; tune only if the user still sees it.
+  - The user: feel/fun calls, 2-PC tests, the itch account, playtesters, downloading the asset shopping list (`docs/Assets.md`), and the decisions listed in `docs/Roadmap.md` (final title, AppID for the public build, and the rest).
+  - Claude: code, config, Blueprints/levels via MCP, asset imports with their `CREDITS.md` lines, builds, tests, commits.

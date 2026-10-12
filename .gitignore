@@ -28,3 +28,6 @@ Plugins/**/Intermediate/
 
 # mcp-unreal generated docs search index
 docs/index.bleve/
+
+# Third-party assets we may ship but not redistribute (Fab, Sonniss, Pixabay). See docs/Assets.md.
+Content/ThirdParty_Private/
