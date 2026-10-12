@@ -17,7 +17,7 @@
   - the run loop, failure director, deadline, total wreck, acorn cargo + score, end-screen stats with MVP / Most useless;
   - the code-built route, lobby menu, proximity voice, Acorn in Mouth + pings, and sound/VFX slots.
 - **Only M0 has been played by hand** (2-PC Steam test on 2026-10-07: host / invite / join, voice, no physics stutter). Everything since is verified only by Python in PIE.
-- The only packaged build (`D:\Games-Unreal\ProjectI_Builds\2026-10-06\Windows\`) predates M1 and M2. It's a 1.04 GB download that installs to 3 GB. Most of that is the 2.3 GB PDB, a default-on AI denoiser plugin, and ray-tracing / Lumen shaders. New builds go to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
+- The latest packaged build is the slim Development build of 2026-10-13 (`D:\Games-Unreal\ProjectI_Builds\2026-10-13\`, size phases A + B): a 254 MB zip that installs to 495 MB, down from 1.04 GB / 3 GB. It launches offline with no load errors; nobody has played it yet, and the no-Lumen look still needs your check. New builds go to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
 - Every sound/VFX slot is empty, and no third-party assets are in the project yet.
 - **Next** (details in `docs/Roadmap.md`):
   1. **Slim the package** (Mon 12): a Development build ≤ 300 MB zipped.
@@ -128,6 +128,7 @@
   - Voice is open mic (`bRequiresPushToTalk=false`).
 - **Packaging:** `/Game/VehicleTemplate` and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them. Anything new that only C++ references (a `BP_Squirrel`, a HUD font, an imported mesh) needs the same treatment; `docs/Assets.md` has the folder plan.
   - Package with: `RunUAT BuildCookRun -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -nodebuginfo -archive -archivedirectory=...`
+  - Linking the monolithic `ProjectI.exe` with full debug info needs ~16 GB of RAM. With Firefox or a game open, UBA kills the link at its memory threshold and retries for ~20 min; close big apps before packaging. (`DebugInfoLineTablesOnly` in the Target.cs does nothing with MSVC; `DebugInfo = DebugInfoMode.ProjectOnly` would fix it at the cost of an engine recompile.)
   - `-nodebuginfo` keeps the 2.3 GB PDB out of the build. Copy the PDB from `Binaries/Win64` to `ProjectI_Builds\<date>\Symbols\` so crash dumps can still be read.
   - The size budget and the steps to meet it are in `docs/Roadmap.md` (Package size). Write each build's zip size in the playtest notes.
 - **Motion blur OFF** (`r.DefaultFeature.MotionBlur=False`): it smeared the spinning tires into noise.

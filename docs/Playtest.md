@@ -3,8 +3,13 @@
 Everything here has been verified only by Python scripts in PIE, so this is the first time anyone feels it. Use it for the M2 gate (Mon 12 – Tue 13 Oct), the smoke test before the friend test (Mon 19), and the friend test itself (Tue 20). Tick what works. For what doesn't, write it down with the build's commit.
 
 ## Setup (Claude)
-- [ ] Package the slim Development build: phases A and B of [Package size](Roadmap.md#package-size-slim-it-before-the-playtest). The only build so far (6 Oct) predates M1 and M2 and is a 1 GB download. The command is in CLAUDE.md under Config gotchas → Packaging. Archive to `D:\Games-Unreal\ProjectI_Builds\<date>\`, with the PDB in `Symbols\`, outside the zip.
-- [ ] Note the commit it was built from, the zip size and the installed size. The target is ≤ 300 MB zipped.
+- [x] Package the slim Development build: phases A and B of [Package size](Roadmap.md#package-size-slim-it-before-the-playtest). The command is in CLAUDE.md under Config gotchas → Packaging. Archive to `D:\Games-Unreal\ProjectI_Builds\<date>\`, with the PDB in `Symbols\`, outside the zip.
+- [x] Note the commit it was built from, the zip size and the installed size. The target is ≤ 300 MB zipped.
+
+  | Date | Commit | Zip | Installed | Notes |
+  |---|---|---|---|---|
+  | 2026-10-06 | (pre-M1) | 1.04 GB | 3 GB | Included the 2.3 GB PDB. |
+  | 2026-10-13 | `a950c06` | 254 MB | 495 MB | Phases A + B. `ProjectI-2026-10-13-Dev.zip`. The exe (302 MB) is now the biggest file; content is 129 MB. Launches offline with no load errors. |
 - [ ] Copy the zip to the second PC, the way a friend would get it. Steam runs on both, signed into two different accounts.
 
 ## Slim build
