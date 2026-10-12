@@ -24,7 +24,7 @@ What follows from that:
 - **Commit the imported `.uasset` files, not the raw downloads.** (`.gitignore` drops `*.obj` anyway, since it's also a compiler output.)
 - **Keep the download small** (the demo budget is ≤ 200 MB zipped; [Roadmap.md](Roadmap.md#package-size-slim-it-before-the-playtest)). Cap textures at 1024 px; Kenney's are far smaller. Music loops are the biggest audio files, so keep each under ~3 min. Check the zip size after each import batch.
 - **Credit on import.** Add the `CREDITS.md` line the day a file is imported, CC0 included, so the itch page can thank everyone.
-- **Cooking.** Assets assigned in a cooked Blueprint cook with it. BP_OffroadCar_Pawn lives in the always-cooked `/Game/VehicleTemplate`, so its slots are covered. Anything only C++ constructors reference (a HUD font, the acorn-pile mesh, `BP_Squirrel`) must sit in a directory listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`. When the first file lands, add `/Game/ThirdParty` and `/Game/ThirdParty_Private` there.
+- **Cooking.** Assets assigned in a cooked Blueprint cook with it. BP_OffroadCar_Pawn and BP_Squirrel live in always-cooked directories (`/Game/VehicleTemplate/Blueprints/OffroadCar`, `/Game/Blueprints`), so their slots are covered. Anything else only C++ constructors reference (a HUD font, an imported mesh) must sit in a directory listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`. When the first file lands, add `/Game/ThirdParty` and `/Game/ThirdParty_Private` there.
 - **Public clones miss the private files.** Blueprints that point at them load with empty slots. `FNBFeedback` does nothing without assets, so the game still runs, just quieter. The second PC gets everything through the packaged build, not git.
 - **Fallback:** if the private folder becomes a hassle, go CC0-only. Kenney, Freesound CC0 and jsfxr cover every slot, at lower quality.
 
@@ -56,8 +56,8 @@ Which file goes in which slot. Every slot is an `FNBFeedback` (a sound plus a Ni
 | `FailedLoopFeedback` | Engine | Fire crackle loop and a fire/smoke effect; its `Severity` parameter ramps 0→1 until the stall | Sonniss, Niagara |
 | `FailedLoopFeedback` | Brakes, Tire, Door | Optional: a squeal, flapping rubber, a creak | Sonniss |
 | `RepairFeedback` | each part | A confirmation ding and a sparkle | Kenney Interface |
-| New `HornFeedback` (#3) | car | A squeaky bicycle or clown horn | Freesound CC0 |
-| New squirrel slots (#4) | BP_Squirrel | A scream when thrown out, a thud on landing, a chatter when grabbing a part | Freesound CC0 |
+| `HornFeedback` | car | A squeaky bicycle or clown horn | Freesound CC0 |
+| `ScreamFeedback`, `LandFeedback`, `GrabFeedback` | BP_Squirrel (`/Game/Blueprints`, always cooked) | A scream when thrown out, a thud on landing (Intensity = impact speed), a chatter when grabbing a part | Freesound CC0 |
 | New run events | game mode / HUD | Countdown beeps, a delivery fanfare, a total-wreck explosion | Kenney Interface / Digital Audio |
 | Music | menu, run | Upbeat, goofy, loopable | FreePD, Kenney |
 

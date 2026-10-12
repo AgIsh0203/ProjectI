@@ -14,6 +14,7 @@ UNBEnginePart::UNBEnginePart()
 	Mode = ENBInteractMode::Mash;
 	PartName = NSLOCTEXT("NB", "EngineName", "ENGINE");
 	FailureText = NSLOCTEXT("NB", "EngineFail", "OVERHEATING");
+	CalloutText = NSLOCTEXT("NB", "EngineCallout", "ENGINE ON FIRE!");
 	Prompt = NSLOCTEXT("NB", "EnginePrompt", "Cool engine");
 	Range = 90.f;
 	// The fire/smoke loop peaks as the engine stalls.
@@ -40,6 +41,7 @@ UNBBrakePart::UNBBrakePart()
 	Mode = ENBInteractMode::TimingRing;
 	PartName = NSLOCTEXT("NB", "BrakesName", "BRAKES");
 	FailureText = NSLOCTEXT("NB", "BrakesFail", "FADING");
+	CalloutText = NSLOCTEXT("NB", "BrakesCallout", "THE BRAKES ARE GOING!");
 	Prompt = NSLOCTEXT("NB", "BrakesPrompt", "Pump brakes");
 	Range = 70.f;
 	SeverityRampSeconds = GoneSeconds;
@@ -66,6 +68,7 @@ UNBTirePart::UNBTirePart()
 	bAttachUser = true;
 	PartName = NSLOCTEXT("NB", "TireName", "TIRE");
 	FailureText = NSLOCTEXT("NB", "TireFail", "FLAT");
+	CalloutText = NSLOCTEXT("NB", "TireCallout", "FLAT TIRE!");
 	Prompt = NSLOCTEXT("NB", "TirePrompt", "Patch tire");
 	Range = 110.f;
 }
@@ -98,6 +101,7 @@ UNBDoorPart::UNBDoorPart()
 	MashDrainPerSecond = 0.25f;
 	PartName = NSLOCTEXT("NB", "DoorName", "DOOR");
 	FailureText = NSLOCTEXT("NB", "DoorFail", "OPEN");
+	CalloutText = NSLOCTEXT("NB", "DoorCallout", "THE DOOR FLEW OPEN!");
 	Prompt = NSLOCTEXT("NB", "DoorPrompt", "Slam door");
 	Range = 110.f;
 }

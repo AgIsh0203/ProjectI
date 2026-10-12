@@ -15,6 +15,7 @@ class UNBEnginePart;
 class UNBInteractableComponent;
 class UNBTirePart;
 class UAudioComponent;
+class UInstancedStaticMeshComponent;
 class USoundBase;
 class UStaticMeshComponent;
 
@@ -26,6 +27,7 @@ enum class ENBCarFeedback : uint8
 	Spill,
 	Flipped,
 	Righted,
+	Horn,
 };
 
 /**
@@ -117,6 +119,12 @@ public:
 
 	/** Server only. Throws up to Count acorns out of the bed as physics props. Returns how many spilled. */
 	int32 SpillAcorns(int32 Count);
+
+	/** Server only. A seated squirrel honks; ignored inside HornCooldown. */
+	void Honk();
+
+	/** Local world time this machine last heard the horn, for the HUD's HONK! bubble. */
+	double GetLastHornTime() const { return LastHornTime; }
 
 	/** Server only. The run isn't live (waiting, countdown, over): brakes held, no spilling. */
 	void SetRunLocked(bool bLocked);
@@ -225,6 +233,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Cargo", meta = (ClampMin = "0", ClampMax = "1"))
 	float FlipSpillFraction = 0.25f;
 
+	/** The cargo you can see: one instance per acorn, piled on the engine deck. Shrinks as acorns spill. */
+	UPROPERTY(VisibleAnywhere, Category = "Car|Cargo")
+	TObjectPtr<UInstancedStaticMeshComponent> AcornPile;
+
 	UPROPERTY(EditAnywhere, Category = "Car|Dev")
 	float DevChaosInterval = 12.f;
 
@@ -299,6 +311,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
 	FNBFeedback RightedFeedback;
 
+	/** A seated squirrel honks (H / gamepad Y). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback")
+	FNBFeedback HornFeedback;
+
+	/** Minimum seconds between honks, so spamming H gives a rhythm instead of a drone. */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0"))
+	float HornCooldown = 0.25f;
+
+	/** Riders' cameras shake on a crash; squirrels on foot feel it fading out to this distance (cm). */
+	UPROPERTY(EditAnywhere, Category = "Car|Feedback", meta = (ClampMin = "0"))
+	float CrashShakeRadius = 2500.f;
+
 private:
 	void ApplyInputsToVehicle();
 	void UpdateEngineState(float DeltaSeconds);
@@ -307,6 +331,15 @@ private:
 	void CheckFlipped();
 	void CheckSpill();
 	void SetFlipped(bool bNewFlipped);
+
+	/** All machines: show exactly Acorns instances of the pile. */
+	void RefreshAcornPile();
+
+	/** Camera punch for this machine's squirrels in or near the car. */
+	void ShakeLocalCameras(float Intensity) const;
+
+	UFUNCTION()
+	void OnRep_Acorns();
 
 	UFUNCTION()
 	void HandleFlipPushed(UNBInteractableComponent* Interactable);
@@ -336,8 +369,14 @@ private:
 	UPROPERTY(Replicated)
 	int8 RepGear = 0;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_Acorns)
 	int32 Acorns = 0;
+
+	/** Every acorn's spot in the pile, bottom layer first, so spills empty it from the top. */
+	TArray<FTransform> AcornPileSlots;
+
+	float NextHornTime = 0.f;
+	double LastHornTime = -100.0;
 
 	UPROPERTY(Replicated)
 	float SteerInput = 0.f;

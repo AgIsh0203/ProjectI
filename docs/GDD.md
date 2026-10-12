@@ -53,13 +53,14 @@ The park-to-depot road is built in code (`ANBRoute`): about 3.5 km of greybox ro
 ## The squirrels
 - **Built:** made from primitives in C++ (a body and a tail), with a unique fur colour per player. No free, rigged, CC0 squirrel exists, and a stiff, wobbly primitive ragdolls funnier than a realistic one.
 - **Charm pass — Friend test (#7):** a head, big eyes with googly pupils, ears, a wobbly tail.
-- **Voice — Friend test (#4):** a scream when thrown out, a thud on landing, a chatter when grabbing a part.
-- **Horn — Friend test (#3):** any seated squirrel can honk.
+- **Voice — Built, slots empty (#4):** a scream when thrown out, a thud each time the tumbling body hits something hard (louder for harder hits), a chatter when grabbing a part. The slots are on `BP_Squirrel`.
+- **Horn — Built, slot empty (#3):** any seated squirrel honks with H or gamepad Y (0.25 s cooldown). A "HONK!" pops over the car for 0.6 s, so viewers see it with the sound off.
 
 ## Readability and juice
 Viewers can't hear game state, so every failure must read on screen in under 2 s with the sound off.
 - **Built:** a pulsing failure list, "!" markers over broken parts, the timing ring with NICE / MISS, a "CAR FLIPPED!" banner, section banners, and sound/VFX slots on every car and part event (all still empty).
-- **Friend test:** sound in every slot (#2); big per-failure callouts in a chunky font and camera shake on crashes (#6); a visible acorn pile that shrinks as acorns spill (#5); VFX for engine fire, crash sparks and spills.
+- **Built (#5, #6):** a big outlined callout per failure ("ENGINE ON FIRE!", "THE BRAKES ARE GOING!", "FLAT TIRE!", "THE DOOR FLEW OPEN!") that slams in, shakes and fades over 2.4 s, newest biggest, at most 3. A camera punch on crashes: full for riders, fading out to 25 m for squirrels on foot. An acorn pile on the engine deck, one sphere per acorn, that empties from the top as acorns spill.
+- **Friend test:** sound in every slot (#2); a chunky imported font for the callouts (they use the engine's large font for now); VFX for engine fire, crash sparks and spills.
 - **No slow-mo:** time dilation is global in multiplayer and would slow everyone's physics. A camera punch does the job instead.
 - **Tuned for comedy** at the 2-PC test (#1): bigger ejection kicks, a wobblier door, more body roll.
 

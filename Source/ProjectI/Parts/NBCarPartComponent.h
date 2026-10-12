@@ -34,6 +34,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
 	FText FailureText;
 
+	/** Shouted across the middle of the screen when it breaks, e.g. "ENGINE ON FIRE!". */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	FText CalloutText;
+
 	// --- Sound and VFX. All optional; played on every machine, at the part. ---
 
 	/** One-shot when it breaks (bang, pop, hiss). */

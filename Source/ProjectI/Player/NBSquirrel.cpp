@@ -169,6 +169,7 @@ void ANBSquirrel::BuildInputAssets()
 	InteractAction = NewObject<UInputAction>(this, TEXT("IA_Interact"));
 	ActionAction = NewObject<UInputAction>(this, TEXT("IA_Action"));
 	MenuAction = NewObject<UInputAction>(this, TEXT("IA_Menu"));
+	HornAction = NewObject<UInputAction>(this, TEXT("IA_Horn"));
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
 
@@ -217,6 +218,8 @@ void ANBSquirrel::BuildInputAssets()
 	// Opens the lobby menu; while it is open the menu itself handles Esc / Start to close.
 	InputContext->MapKey(MenuAction, EKeys::Escape);
 	InputContext->MapKey(MenuAction, EKeys::Gamepad_Special_Right);
+	InputContext->MapKey(HornAction, EKeys::H);
+	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
 }
 
 void ANBSquirrel::PawnClientRestart()
@@ -247,6 +250,7 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(ActionAction, ETriggerEvent::Started, this, &ANBSquirrel::ActionPressed);
 	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
 	Input->BindAction(MenuAction, ETriggerEvent::Started, this, &ANBSquirrel::NBMenu);
+	Input->BindAction(HornAction, ETriggerEvent::Started, this, &ANBSquirrel::HornPressed);
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
@@ -359,6 +363,34 @@ void ANBSquirrel::Server_ActionPressed_Implementation(double PressServerTime)
 		{
 			StartClinging(Target);
 		}
+		const double Now = GetWorld()->GetTimeSeconds();
+		if (Now >= NextGrabFeedbackTime)
+		{
+			NextGrabFeedbackTime = Now + 1.5;
+			Multicast_Grabbed();
+		}
+	}
+}
+
+void ANBSquirrel::Multicast_Grabbed_Implementation()
+{
+	NBFeedback::PlayAttached(GrabFeedback, GetRootComponent());
+}
+
+void ANBSquirrel::HornPressed()
+{
+	// Only a squirrel in the car can reach the horn.
+	if (CurrentSeat)
+	{
+		Server_Honk();
+	}
+}
+
+void ANBSquirrel::Server_Honk_Implementation()
+{
+	if (ANBCar* Car = GetSeatCar())
+	{
+		Car->Honk();
 	}
 }
 
@@ -746,8 +778,48 @@ void ANBSquirrel::BeginPlay()
 	RegisterVoiceTalker();
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
+	DefaultCameraLocation = FollowCamera->GetRelativeLocation();
+	DefaultCameraRotation = FollowCamera->GetRelativeRotation();
+	BodyVisual->OnComponentHit.AddDynamic(this, &ANBSquirrel::OnBodyHit);
 	// A seat may have replicated in before BeginPlay.
 	RefreshTailPose();
+}
+
+void ANBSquirrel::OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (!bLocalRagdoll || Now < NextLandFeedbackTime)
+	{
+		return;
+	}
+	// Speed lost into the surface: impulse over mass.
+	const float ImpactSpeed = NormalImpulse.Size() / FMath::Max(BodyVisual->GetMass(), KINDA_SMALL_NUMBER);
+	if (ImpactSpeed < LandMinSpeed)
+	{
+		return;
+	}
+	NextLandFeedbackTime = Now + LandCooldown;
+	const float Intensity = FMath::GetMappedRangeValueClamped(FVector2f(LandMinSpeed, LandMaxSpeed), FVector2f(0.f, 1.f), ImpactSpeed);
+	NBFeedback::PlayAt(this, LandFeedback, Hit.ImpactPoint, Hit.ImpactNormal.Rotation(), Intensity);
+}
+
+void ANBSquirrel::AddCameraPunch(float Intensity)
+{
+	CameraPunch = FMath::Clamp(FMath::Max(CameraPunch, Intensity), 0.f, 1.f);
+}
+
+void ANBSquirrel::UpdateCameraPunch(float DeltaSeconds)
+{
+	if (CameraPunch <= 0.f)
+	{
+		return;
+	}
+	CameraPunch = FMath::Max(CameraPunch - CameraPunchDecay * DeltaSeconds, 0.f);
+	// Squared so the end of the shake fades out softly instead of stopping dead.
+	const float Strength = CameraPunch * CameraPunch;
+	FollowCamera->SetRelativeLocationAndRotation(
+		DefaultCameraLocation + FMath::VRand() * CameraPunchDistance * Strength,
+		DefaultCameraRotation + FRotator(0.f, 0.f, FMath::FRandRange(-1.f, 1.f) * CameraPunchRoll * Strength));
 }
 
 void ANBSquirrel::Eject(FVector LaunchVelocity)
@@ -808,6 +880,15 @@ void ANBSquirrel::StartLocalRagdoll()
 	BodyVisual->SetSimulatePhysics(true);
 	BodyVisual->SetPhysicsLinearVelocity(Ragdoll.Velocity);
 	BodyVisual->SetPhysicsAngularVelocityInDegrees(FVector(720.f, 540.f, 360.f));
+	BodyVisual->SetNotifyRigidBodyCollision(true);
+	// No thud for the frame it leaves the seat brushing the car.
+	NextLandFeedbackTime = GetWorld()->GetTimeSeconds() + 0.15;
+
+	// The scream rides on the flying body. A late joiner receiving an old fall stays quiet.
+	if (HasActorBegunPlay())
+	{
+		NBFeedback::PlayAttached(ScreamFeedback, BodyVisual);
+	}
 
 	RefreshAttachedState();
 }
@@ -821,6 +902,7 @@ void ANBSquirrel::StopLocalRagdoll()
 	bLocalRagdoll = false;
 
 	BodyVisual->SetSimulatePhysics(false);
+	BodyVisual->SetNotifyRigidBodyCollision(false);
 	BodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	BodyVisual->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
 	BodyVisual->SetRelativeTransform(DefaultBodyTransform);
@@ -867,6 +949,7 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 	{
 		UpdateVoiceMute();
 		UpdateSeatedCamera(DeltaSeconds);
+		UpdateCameraPunch(DeltaSeconds);
 	}
 	if (bLocalRagdoll)
 	{

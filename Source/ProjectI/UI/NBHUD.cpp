@@ -3,6 +3,7 @@
 #include "UI/NBHUD.h"
 
 #include "Blueprint/UserWidget.h"
+#include "CanvasItem.h"
 #include "Car/NBCar.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
@@ -29,6 +30,10 @@ namespace
 
 	/** How long the NICE/MISS flash stays up after a timing-ring press. */
 	constexpr double RingFeedbackSeconds = 0.45;
+
+	/** How long a failure callout stays on screen, and how many show at once. */
+	constexpr float CalloutSeconds = 2.4f;
+	constexpr int32 MaxCallouts = 3;
 
 	const TCHAR* VerbFor(ENBInteractMode Mode)
 	{
@@ -138,6 +143,9 @@ void ANBHUD::DrawHUD()
 	DrawNetStatus();
 	DrawRunStatus();
 	DrawVoiceStatus();
+	UpdateCallouts();
+	DrawCallouts();
+	DrawHornBubble();
 
 	if (Squirrel->IsRagdolled())
 	{
@@ -156,7 +164,7 @@ void ANBHUD::DrawHUD()
 	}
 
 	const FString Hint = Squirrel->IsClinging() ? TEXT("Keep holding LMB    Space: let go")
-		: Squirrel->IsSeated() ? TEXT("E: hop seat    Space: jump out    LMB: work")
+		: Squirrel->IsSeated() ? TEXT("E: hop seat    Space: jump out    LMB: work    H: horn")
 		: TEXT("E: get in    Space: jump    LMB: work");
 	DrawCenteredText(Hint, Canvas->ClipY - 36.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 1.f);
 }
@@ -195,6 +203,83 @@ void ANBHUD::DrawCarStatus()
 			}
 		}
 	}
+	AlarmStackBottom = ListY;
+}
+
+void ANBHUD::UpdateCallouts()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		for (const UNBCarPartComponent* Part : It->GetParts())
+		{
+			if (!Part)
+			{
+				continue;
+			}
+			const bool bFailed = Part->IsFailed();
+			const bool* Before = SeenFailed.Find(Part);
+			if (Before && !*Before && bFailed)
+			{
+				const FText& Text = Part->CalloutText.IsEmpty() ? Part->PartName : Part->CalloutText;
+				Callouts.Add({Text.ToString(), Now});
+			}
+			SeenFailed.Add(Part, bFailed);
+		}
+	}
+	Callouts.RemoveAll([Now](const FCallout& Callout) { return Now - Callout.StartTime > CalloutSeconds; });
+	// A burst of failures shows the newest few, not a wall of text.
+	if (Callouts.Num() > MaxCallouts)
+	{
+		Callouts.RemoveAt(0, Callouts.Num() - MaxCallouts);
+	}
+}
+
+void ANBHUD::DrawCallouts()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	// Newest just below the alarms at the top, older ones pushed down and shrunk.
+	float Y = FMath::Max(Canvas->ClipY * 0.36f, AlarmStackBottom + 60.f);
+	for (int32 i = Callouts.Num() - 1; i >= 0; --i)
+	{
+		const float Age = static_cast<float>(Now - Callouts[i].StartTime);
+		// Slams in from twice the size, shakes for half a second, fades over the last 0.4 s.
+		const float Slam = 1.f - FMath::SmoothStep(0.f, 0.18f, Age);
+		const float Scale = (i == Callouts.Num() - 1 ? 3.2f : 2.f) * (1.f + Slam);
+		const float Shake = FMath::Max(0.f, 1.f - Age / 0.5f) * FMath::Sin(Age * 45.f) * 10.f;
+		const float Alpha = FMath::Clamp((CalloutSeconds - Age) / 0.4f, 0.f, 1.f);
+		DrawShoutText(Callouts[i].Text, Canvas->ClipX * 0.5f + Shake, Y, FLinearColor(BadColor.R, BadColor.G, BadColor.B, Alpha), Scale);
+		Y += i == Callouts.Num() - 1 ? 70.f : 48.f;
+	}
+}
+
+void ANBHUD::DrawHornBubble()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		const float Age = static_cast<float>(Now - It->GetLastHornTime());
+		FVector2D Screen;
+		if (Age > 0.6f || !PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(It->GetActorLocation() + FVector(0.f, 0.f, 260.f), Screen))
+		{
+			continue;
+		}
+		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, Age));
+		DrawShoutText(TEXT("HONK!"), Screen.X, Screen.Y - 30.f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - Age) / 0.2f, 0.f, 1.f)), 2.f * Pop);
+	}
+}
+
+void ANBHUD::DrawShoutText(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float Scale)
+{
+	UFont* Font = GEngine->GetLargeFont();
+	float W = 0.f, H = 0.f;
+	GetTextSize(Text, W, H, Font, Scale);
+	FCanvasTextItem Item(FVector2D(CenterX - W * 0.5f, Y - H * 0.5f), FText::FromString(Text), Font, Color);
+	Item.Scale = FVector2D(Scale);
+	Item.bOutlined = true;
+	Item.OutlineColor = FLinearColor(0.f, 0.f, 0.f, Color.A);
+	Item.EnableShadow(FLinearColor(0.f, 0.f, 0.f, 0.6f * Color.A), FVector2D(3.f, 3.f));
+	Canvas->DrawItem(Item);
 }
 
 void ANBHUD::DrawRunStatus()
@@ -247,8 +332,10 @@ void ANBHUD::DrawRunStatus()
 		if (State->GetWreckSeconds() > 0.f)
 		{
 			const float Fill = State->GetWreckSeconds() / 10.f;
-			DrawCenteredText(TEXT("CAR FALLING APART!  Fix something!"), Canvas->ClipY * 0.2f, BadColor, 1.6f);
-			DrawBar((Canvas->ClipX - 360.f) * 0.5f, Canvas->ClipY * 0.2f + 36.f, 360.f, 14.f, Fill, BadColor);
+			const float WreckY = FMath::Max(Canvas->ClipY * 0.2f, AlarmStackBottom + 10.f);
+			DrawCenteredText(TEXT("CAR FALLING APART!  Fix something!"), WreckY, BadColor, 1.6f);
+			DrawBar((Canvas->ClipX - 360.f) * 0.5f, WreckY + 36.f, 360.f, 14.f, Fill, BadColor);
+			AlarmStackBottom = WreckY + 60.f;
 		}
 		break;
 	}

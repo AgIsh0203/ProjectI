@@ -5,9 +5,12 @@
 #include "ChaosVehicleWheel.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "Car/NBAcorn.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Materials/MaterialInterface.h"
@@ -107,6 +110,21 @@ ANBCar::ANBCar()
 		DoorPanel->SetMaterial(0, ShapeMaterial.Object);
 	}
 
+	// The same spheres the spilled acorns use, so a spill visibly comes out of the pile.
+	AcornPile = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("AcornPile"));
+	AcornPile->SetupAttachment(GetMesh());
+	AcornPile->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AcornPile->SetCanEverAffectNavigation(false);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (SphereMesh.Succeeded())
+	{
+		AcornPile->SetStaticMesh(SphereMesh.Object);
+	}
+	if (ShapeMaterial.Succeeded())
+	{
+		AcornPile->SetMaterial(0, ShapeMaterial.Object);
+	}
+
 	DoorPart = CreateDefaultSubobject<UNBDoorPart>(TEXT("DoorPart"));
 	DoorPart->SetupAttachment(GetMesh());
 	DoorPart->SetRelativeLocation(FVector(30.f, 95.f, 100.f));
@@ -159,6 +177,27 @@ void ANBCar::BeginPlay()
 		GetWorldTimerManager().SetTimer(SpillTimerHandle, this, &ANBCar::CheckSpill, 0.1f, true);
 		Acorns = MaxAcorns;
 	}
+
+	// Layers of 5 x 4 on the engine deck (top ~z 148 over x -60..-110), each layer nudged
+	// half a step so it nests in the one below. Fixed seed: every machine builds the same pile.
+	AcornPileSlots.Reset();
+	FRandomStream Jitter(4242);
+	constexpr int32 Columns = 5;
+	constexpr int32 Rows = 4;
+	for (int32 i = 0; i < MaxAcorns; ++i)
+	{
+		const int32 Layer = i / (Columns * Rows);
+		const int32 Column = i % Columns;
+		const int32 Row = (i / Columns) % Rows;
+		const float Nudge = (Layer % 2) * 0.5f;
+		const FVector Location(
+			-125.f + (Column + Nudge) * 18.f + Jitter.FRandRange(-3.f, 3.f),
+			-42.f + (Row + Nudge) * 26.f + Jitter.FRandRange(-3.f, 3.f),
+			156.f + Layer * 11.f);
+		const FRotator Tumble(Jitter.FRandRange(-30.f, 30.f), Jitter.FRandRange(0.f, 360.f), Jitter.FRandRange(-30.f, 30.f));
+		AcornPileSlots.Add(FTransform(Tumble, Location, FVector(0.14f)));
+	}
+	RefreshAcornPile();
 
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
 	// Only the server consumes raw inputs. Clients, still requiring a controller they
@@ -233,6 +272,7 @@ void ANBCar::Multicast_Feedback_Implementation(ENBCarFeedback Event, float Inten
 	{
 	case ENBCarFeedback::Crash:
 		NBFeedback::PlayAttached(CrashFeedback, GetMesh(), FVector::ZeroVector, Intensity);
+		ShakeLocalCameras(Intensity);
 		break;
 	case ENBCarFeedback::Spill:
 		// From the open bed behind the seats, where the acorns fly out.
@@ -244,7 +284,62 @@ void ANBCar::Multicast_Feedback_Implementation(ENBCarFeedback Event, float Inten
 	case ENBCarFeedback::Righted:
 		NBFeedback::PlayAttached(RightedFeedback, GetMesh(), FVector::ZeroVector, Intensity);
 		break;
+	case ENBCarFeedback::Horn:
+		LastHornTime = GetWorld()->GetTimeSeconds();
+		// Behind the front grille.
+		NBFeedback::PlayAttached(HornFeedback, GetMesh(), FVector(190.f, 0.f, 100.f), Intensity);
+		break;
 	}
+}
+
+void ANBCar::ShakeLocalCameras(float Intensity) const
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PC = It->Get();
+		ANBSquirrel* Squirrel = PC && PC->IsLocalController() ? Cast<ANBSquirrel>(PC->GetPawn()) : nullptr;
+		if (!Squirrel)
+		{
+			continue;
+		}
+		// Riders take the full hit; squirrels on foot feel it less the farther away they are.
+		const bool bRiding = Squirrel->GetAttachParentActor() == this;
+		const float Falloff = bRiding ? 1.f
+			: 1.f - FMath::Clamp(FVector::Dist(Squirrel->GetActorLocation(), GetActorLocation()) / FMath::Max(CrashShakeRadius, 1.f), 0.f, 1.f);
+		if (Falloff > 0.f)
+		{
+			Squirrel->AddCameraPunch(Intensity * Falloff);
+		}
+	}
+}
+
+void ANBCar::Honk()
+{
+	check(HasAuthority());
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now < NextHornTime)
+	{
+		return;
+	}
+	NextHornTime = Now + HornCooldown;
+	Multicast_Feedback(ENBCarFeedback::Horn, 1.f);
+}
+
+void ANBCar::OnRep_Acorns()
+{
+	RefreshAcornPile();
+}
+
+void ANBCar::RefreshAcornPile()
+{
+	// Rebuilt whole: at 40 instances that's cheaper to reason about than removing by index.
+	const int32 Count = FMath::Clamp(Acorns, 0, AcornPileSlots.Num());
+	if (AcornPile->GetInstanceCount() == Count)
+	{
+		return;
+	}
+	AcornPile->ClearInstances();
+	AcornPile->AddInstances(TArray<FTransform>(AcornPileSlots.GetData(), Count), false, false, false);
 }
 
 void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -307,6 +402,7 @@ int32 ANBCar::SpillAcorns(int32 Count)
 		ANBAcorn::SpawnSpilled(GetWorld(), Body.TransformPosition(Local), Velocity);
 	}
 	Acorns -= Count;
+	RefreshAcornPile();
 
 	// Blame whoever is driving: the wheel squirrel, or the pedal squirrel if the wheel is empty.
 	const ANBSquirrel* Driver = WheelSeat->GetOccupant() ? WheelSeat->GetOccupant() : PedalSeat->GetOccupant();

@@ -38,11 +38,14 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] The pedal squirrel's tail flag shows over the dash.
 - [ ] The seated camera swings behind the car after 1 s without look input.
 - [ ] Driving feels arcade, not sluggish. Any tire shimmer (TSR) left?
+- [ ] Horn: H (or pad Y) in any seat shows "HONK!" over the car on both PCs. Fun to spam, or annoying? (Not tested by script: Python can't press keys.)
+- [ ] Crash camera punch: noticeable on a hard hit without being sickening. Tune `CameraPunchDistance` / `CameraPunchRoll` on BP_Squirrel.
 
 ## Repairs and failures
 - [ ] The HUD shows the failure list, the "!" markers over broken parts, prompts, the progress bar, the push count, and the timing ring with NICE / MISS.
 - [ ] Engine (mash 14 times), brakes (3 timing-ring hits), tire (hold 3 s outside the car, clinging while it drags you), door (slam: 3 presses). Is each one readable, and fun?
 - [ ] An open door throws the passenger out every 3 s above 300 cm/s.
+- [ ] Each break shows its big callout ("ENGINE ON FIRE!"...). Readable at a glance with the sound off? Does it cover anything you needed to see?
 - [ ] Failure rate (one every 14 s, ramping to one every 6 s): too calm, or too busy? Do failures feel random (Roadmap #16)?
 - [ ] Total wreck: 3 parts failed for 10 s ends the run.
 
@@ -50,6 +53,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Getting thrown out looks funny, not broken. You get up after 2.5 s, and respawn at the car after 8 s if you haven't got back in.
 - [ ] Flip (`NBFlip` in the host's console): two squirrels pushing at once right the car.
 - [ ] Spills: COBBLE LANE's bumps spill a few acorns, not all of them. A flip dumps a quarter.
+- [ ] The acorn pile on the engine deck shrinks with each spill and can be read from the chase cam. Does the deck squirrel sitting in it look OK?
 - [ ] The drop-off gate triggers when the car is inside it.
 
 ## Run and end screen

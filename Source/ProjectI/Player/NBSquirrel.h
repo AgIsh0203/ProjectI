@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FX/NBFeedback.h"
 #include "GameFramework/Character.h"
 #include "NBSquirrel.generated.h"
 
@@ -111,6 +112,9 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void FellOutOfWorld(const UDamageType& DamageType) override;
+
+	/** Local only: jolt this player's camera (0..1), e.g. on a crash. Decays by itself. */
+	void AddCameraPunch(float Intensity);
 
 	/** Dev: fail a car part. Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random) or All. */
 	UFUNCTION(Exec)
@@ -221,6 +225,43 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Falling")
 	FVector2D EjectKick = FVector2D(350.f, 450.f);
 
+	/** Camera offset (cm) at a full-strength punch; it shakes randomly within this and decays. */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float CameraPunchDistance = 35.f;
+
+	/** Camera roll (degrees) at a full-strength punch. */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float CameraPunchRoll = 4.f;
+
+	/** How fast a punch dies away (strength per second). */
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "0.1"))
+	float CameraPunchDecay = 3.f;
+
+	// --- Sound and VFX. All optional: assign assets in BP_Squirrel. Played on every machine. ---
+
+	/** Thrown out of the car (or bailing at speed). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback")
+	FNBFeedback ScreamFeedback;
+
+	/** The tumbling body hits something. Intensity runs from LandMinSpeed (0) to LandMaxSpeed (1). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback")
+	FNBFeedback LandFeedback;
+
+	/** Impact speed (cm/s) below which a bounce makes no thud. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback", meta = (ClampMin = "0"))
+	float LandMinSpeed = 250.f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback", meta = (ClampMin = "0"))
+	float LandMaxSpeed = 1500.f;
+
+	/** Minimum seconds between thuds, so a rolling body doesn't buzz. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback", meta = (ClampMin = "0"))
+	float LandCooldown = 0.25f;
+
+	/** Grabs a part to work on it. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Feedback")
+	FNBFeedback GrabFeedback;
+
 private:
 	void BuildInputAssets();
 	void Move(const FInputActionValue& Value);
@@ -232,6 +273,31 @@ private:
 
 	/** Chat wheel, keys 1-8. */
 	void PingPressed(int32 Index);
+
+	/** H / gamepad Y. Seated only. */
+	void HornPressed();
+
+	UFUNCTION(Server, Reliable)
+	void Server_Honk();
+
+	/** Cosmetic only, so unreliable. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_Grabbed();
+
+	/** Thuds for the tumbling body. Bound on every machine, since each simulates its own copy. */
+	UFUNCTION()
+	void OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	/** Local only: applies the decaying camera punch. */
+	void UpdateCameraPunch(float DeltaSeconds);
+
+	float CameraPunch = 0.f;
+	FVector DefaultCameraLocation = FVector::ZeroVector;
+	FRotator DefaultCameraRotation = FRotator::ZeroRotator;
+	double NextLandFeedbackTime = 0.0;
+
+	/** Server: mashing a part sends a press per click, but it should chatter once per grab. */
+	double NextGrabFeedbackTime = 0.0;
 
 	UFUNCTION(Server, Reliable)
 	void Server_Ping(int32 Index);
@@ -362,6 +428,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> MenuAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> HornAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)

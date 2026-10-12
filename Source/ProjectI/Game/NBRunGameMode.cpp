@@ -38,6 +38,13 @@ ANBRunGameMode::ANBRunGameMode()
 	// The Blueprint child carries the mesh, tire sockets and torque/steering curves.
 	static ConstructorHelpers::FClassFinder<ANBCar> CarBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"));
 	CarClass = CarBP.Succeeded() ? CarBP.Class : TSubclassOf<ANBCar>(ANBCar::StaticClass());
+
+	// The squirrel's sound/VFX slots are filled in its Blueprint child (always cooked, see DefaultGame.ini).
+	static ConstructorHelpers::FClassFinder<ANBSquirrel> SquirrelBP(TEXT("/Game/Blueprints/BP_Squirrel"));
+	if (SquirrelBP.Succeeded())
+	{
+		DefaultPawnClass = SquirrelBP.Class;
+	}
 }
 
 double ANBRunGameMode::Now() const

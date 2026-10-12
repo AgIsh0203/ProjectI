@@ -49,6 +49,30 @@ private:
 	void DrawBar(float X, float Y, float Width, float Height, float Fill, const FLinearColor& Color);
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 
+	/** Queues a callout for each part that broke since the last frame. */
+	void UpdateCallouts();
+	/** The big "ENGINE ON FIRE!" lines: they slam in, shake, and fade. Readable with the sound off. */
+	void DrawCallouts();
+	/** "HONK!" over the car for a moment after each honk. */
+	void DrawHornBubble();
+	/** Large outlined text centred on CenterX, for anything viewers must read at a glance. */
+	void DrawShoutText(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float Scale);
+
+	struct FCallout
+	{
+		FString Text;
+		double StartTime = 0.0;
+	};
+	TArray<FCallout> Callouts;
+
+	/** Where the top-of-screen alarms (flip banner, failure list, wreck warning) end this frame,
+	 *  so the next one stacks below instead of on top. */
+	float AlarmStackBottom = 0.f;
+
+	/** Each part's failed state last frame. A part seen for the first time only records its state,
+	 *  so joining (or restarting) mid-failure doesn't shout about old breaks. */
+	TMap<TWeakObjectPtr<const class UNBCarPartComponent>, bool> SeenFailed;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UNBLobbyMenu> Menu;
 
