@@ -53,6 +53,8 @@ private:
 	void UpdateCallouts();
 	/** The big "ENGINE ON FIRE!" lines: they slam in, shake, and fade. Readable with the sound off. */
 	void DrawCallouts();
+	/** Onboarding: WHEEL / PEDALS over the two driving seats until someone first sits in each. */
+	void DrawSeatLabels();
 	/** "HONK!" over the car for a moment after each honk. */
 	void DrawHornBubble();
 	/** Large outlined text centred on CenterX, for anything viewers must read at a glance. */
@@ -72,6 +74,9 @@ private:
 	/** Each part's failed state last frame. A part seen for the first time only records its state,
 	 *  so joining (or restarting) mid-failure doesn't shout about old breaks. */
 	TMap<TWeakObjectPtr<const class UNBCarPartComponent>, bool> SeenFailed;
+
+	/** Driving seats someone has sat in; their labels are gone for good (until the map reloads). */
+	TSet<TWeakObjectPtr<const class UNBSeatComponent>> UsedSeats;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNBLobbyMenu> Menu;

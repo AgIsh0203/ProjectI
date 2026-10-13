@@ -458,6 +458,13 @@ void ANBRoute::BuildGeometry()
 		Distance += Length;
 	}
 
+	// THE PARK teaches the controls on the left, in the order they're needed. The car starts at 10 m;
+	// the first board is in view from the start, where everyone spawns on foot.
+	AddSign(TEXT("E: GET IN / HOP SEAT"), 2200.f, true);
+	AddSign(TEXT("LMB: FIX BROKEN PARTS"), 5500.f, true);
+	AddSign(TEXT("SPACE: JUMP OUT"), 9000.f, true);
+	AddSign(TEXT("H: HONK!"), 13000.f, true);
+
 	// The depot shed past the drop-off gate.
 	{
 		FVector Location;
@@ -506,16 +513,18 @@ void ANBRoute::AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistanc
 	AddRamp(RampLength + Top, false);
 }
 
-void ANBRoute::AddSign(const FString& Text, float Distance)
+void ANBRoute::AddSign(const FString& Text, float Distance, bool bLeftSide)
 {
 	FVector Location;
 	float Yaw;
 	SampleAt(Distance, Location, Yaw);
-	const FVector Side = RightOf(Yaw) * (RoadWidth * 0.5f + 450.f);
+	// The board grows with the text (about 55 cm per letter at this world size).
+	const float BoardWidth = FMath::Max(760.f, Text.Len() * 55.f + 120.f);
+	const FVector Side = RightOf(Yaw) * (RoadWidth * 0.5f + 100.f + BoardWidth * 0.5f) * (bLeftSide ? -1.f : 1.f);
 	const FRotator Facing(0.f, Yaw, 0.f);
 
 	AddBox(Walls, Location + Side + FVector(0.f, 0.f, 175.f), Facing, FVector(30.f, 30.f, 350.f));
-	AddBox(Markers, Location + Side + FVector(0.f, 0.f, 380.f), Facing, FVector(20.f, 760.f, 160.f));
+	AddBox(Markers, Location + Side + FVector(0.f, 0.f, 380.f), Facing, FVector(20.f, BoardWidth, 160.f));
 
 	// Readable from the road behind it: text faces its local +X, so turn it to face oncoming cars.
 	UTextRenderComponent* Label = NewObject<UTextRenderComponent>(this);

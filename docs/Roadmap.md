@@ -8,7 +8,7 @@ Effort: **S** < 2 h, **M** 2–5 h, **L** > 5 h.
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
 - That build is a **1.04 GB download that installs to 3 GB**, though players need only about 0.7 GB of it ([Package size](#package-size-slim-it-before-the-playtest)).
-- Every sound and VFX slot is empty. The squirrel is a coloured sphere with a cylinder tail.
+- Every sound and VFX slot is empty. The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
 
 ## Rules for the last two weeks
 1. **Playtest before adding anything.** Every number (spill threshold, failure rate, deadline, tire cling) is a guess until two people have played a run.
@@ -26,7 +26,7 @@ Hours follow the plan's calendar (weekdays ~2.5 h, weekends ~5.5 h): about 41 h 
 | Tue 13 | 2.5 | **M2 gate.** A full 2-PC Steam run with the slim build and [Playtest.md](Playtest.md); start on blockers; tune numbers live. | You play; Claude fixes | A run goes start to finish on 2 PCs, and you've listed the five things that felt worst. |
 | Wed 14 – Fri 16 | 7.5 | **Blockers first**, then the friend-test code: horn (#3), squirrel sound slots (#4), acorn pile (#5), readable failures (#6). Batch the header changes into one editor-closed build. | Claude | All four work in 2-client PIE. |
 | by Fri 16 | — | **Downloads:** the [shopping list](Assets.md#shopping-list). | You | The files are on disk, ready to import. |
-| Sat 17 – Sun 18 | 11 | **M3a art and juice:** sounds into every slot, squirrel charm pass (#7), onboarding (#8), VFX (engine fire, crash sparks, spill puff), private itch page + butler upload. Route dressing only if time is left. | Claude; you for itch | A packaged build with sound. |
+| Sat 17 – Sun 18 | 11 | **M3a art and juice:** sounds into every slot, VFX (engine fire, crash sparks, spill puff), private itch page + butler upload. Route dressing only if time is left. | Claude; you for itch | A packaged build with sound. |
 | Mon 19 | 2.5 | Fresh slim build, a short 2-PC smoke test, upload to the private itch page, send friends the link. | Both | Friends can download it, and it's still ≤ 300 MB zipped. |
 | **Tue 20** | — | **Friend test.** Record (OBS/Discord), then the 3-question form ([Playtest.md](Playtest.md#friend-test-tue-20-oct)). | You | Recordings and answers collected. |
 | Wed 21 – Fri 23 | 7.5 | **M3b:** the top-3 friend-test issues first, then the Tier 2 picks the test supports. | Claude | Top-3 issues fixed. |
@@ -104,8 +104,8 @@ Ranked within each tier. "Touches" says where the work lands, so a session can s
 | 4 | **Squirrel screams and a landing thud** (plus a chatter when grabbing a part; code done 13 Oct, slots on BP_Squirrel) | A squirrel yelling as it flies out is the genre's funniest moment. | S–M | `FNBFeedback` UPROPERTYs on `ANBSquirrel`, played in `Eject` and when the ragdoll ends. Assigning assets needs a Blueprint child (`BP_Squirrel`) that the game mode loads with `FClassFinder` like the car; it must sit in an always-cooked directory ([Assets.md](Assets.md#where-files-go)) |
 | 5 | **Visible acorn pile in the bed** (code done 13 Oct) | Viewers can't see an integer. A shrinking pile makes spills readable from the chase cam. | S–M | `ANBCar::Acorns` becomes `ReplicatedUsing=OnRep_Acorns`; an ISM of acorns in the bed hides one instance per acorn lost. Header change |
 | 6 | **Readable failures:** big per-failure callouts ("ENGINE ON FIRE!"), a chunky font, camera shake on crashes (code done 13 Oct, except the font: it needs an imported OFL font) | Viewers can't hear game state, so the screen has to say it. | S–M | `ANBHUD` (today a small pulsing list); the crash event on `ANBCar` shakes the riders' cameras on each machine. Use a camera punch, not slow-mo: time dilation is global, so it would slow the server's physics for everyone |
-| 7 | **Squirrel charm pass:** a head, big eyes with pupils, ears, a wobbly tail and googly pupils | Personality turns falls into character moments and makes clips recognisable. | M | `ANBSquirrel` constructor. New parts attach to `BodyVisual` so they ride the ragdoll and take the fur colour; the wobble is a cosmetic spring in Tick |
-| 8 | **First-30-seconds onboarding:** WHEEL / PEDALS labels over empty seats until first used, and signs in THE PARK teaching E, Space and LMB | Friend testers won't read a controls hint. | S | `ANBHUD` (world-projected labels); `ANBRoute` TextRender signs |
+| 7 | **Squirrel charm pass:** a head, big eyes with pupils, ears, a wobbly tail and googly pupils (code done 13 Oct) | Personality turns falls into character moments and makes clips recognisable. | M | `ANBSquirrel` constructor. New parts attach to `BodyVisual` so they ride the ragdoll and take the fur colour; the wobble is a cosmetic spring in Tick |
+| 8 | **First-30-seconds onboarding:** WHEEL / PEDALS labels over empty seats until first used, and signs in THE PARK teaching E, Space and LMB (code done 13 Oct) | Friend testers won't read a controls hint. | S | `ANBHUD` (world-projected labels); `ANBRoute` TextRender signs |
 
 ### Tier 2: for the demo, only if the playtest agrees
 | # | Item | Why | Effort | Touches |

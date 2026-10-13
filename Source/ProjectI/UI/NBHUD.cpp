@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "CanvasItem.h"
 #include "Car/NBCar.h"
+#include "Car/NBSeatComponent.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
@@ -139,6 +140,7 @@ void ANBHUD::DrawHUD()
 		return;
 	}
 
+	DrawSeatLabels();
 	DrawCarStatus();
 	DrawNetStatus();
 	DrawRunStatus();
@@ -266,6 +268,34 @@ void ANBHUD::DrawHornBubble()
 		}
 		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, Age));
 		DrawShoutText(TEXT("HONK!"), Screen.X, Screen.Y - 30.f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - Age) / 0.2f, 0.f, 1.f)), 2.f * Pop);
+	}
+}
+
+void ANBHUD::DrawSeatLabels()
+{
+	const float Bob = 6.f * FMath::Sin(GetWorld()->GetTimeSeconds() * 4.f);
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		for (const UNBSeatComponent* Seat : It->GetSeats())
+		{
+			if (!Seat || Seat->Role == ENBSeatRole::Rider || UsedSeats.Contains(Seat))
+			{
+				continue;
+			}
+			if (!Seat->IsFree())
+			{
+				UsedSeats.Add(Seat);
+				continue;
+			}
+			FVector2D Screen;
+			if (!PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(Seat->GetComponentLocation() + FVector(0.f, 0.f, 45.f), Screen))
+			{
+				continue;
+			}
+			const bool bWheel = Seat->Role == ENBSeatRole::Wheel;
+			DrawShoutText(bWheel ? TEXT("WHEEL") : TEXT("PEDALS"), Screen.X, Screen.Y - 40.f + Bob, GoodColor, 1.5f);
+			DrawShoutText(bWheel ? TEXT("steers") : TEXT("gas + brake"), Screen.X, Screen.Y - 12.f + Bob, FLinearColor::White, 0.8f);
+		}
 	}
 }
 

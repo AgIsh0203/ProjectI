@@ -176,6 +176,31 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
 	TObjectPtr<UStaticMeshComponent> TailVisual;
 
+	/** Cream patch on the front of the body. */
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> BellyVisual;
+
+	/** Unscaled pivot for the head, so the eyes and ears aren't stretched by the body's scale. */
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<USceneComponent> HeadRoot;
+
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> HeadVisual;
+
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> NoseVisual;
+
+	/** Left, right. */
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> EarVisuals[2];
+
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> EyeVisuals[2];
+
+	/** Googly: they slosh around inside the eyes with the squirrel's acceleration. */
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> PupilVisuals[2];
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float OnFootArmLength = 320.f;
 
@@ -198,6 +223,39 @@ protected:
 	/** In the pedal seat the tail sticks straight up like a flag, so the footwell squirrel shows over the dashboard. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
 	FTransform PedalTailTransform = FTransform(FRotator::ZeroRotator, FVector(-6.f, 20.f, 55.f), FVector(0.16f, 0.16f, 1.f));
+
+	/** Tail spring: how hard it swings back to its pose (1/s^2), how fast the swing dies (1/s), and
+	 *  how far it leans with acceleration (degrees of lean = TailGain * cm/s^2 / TailStiffness). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float TailStiffness = 120.f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float TailDamping = 7.f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float TailGain = 1.8f;
+
+	/** Most the tail leans away from its pose (degrees). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float TailMaxLean = 40.f;
+
+	/** Idle sway on top of the spring (degrees), so a parked squirrel still looks alive. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float TailIdleSway = 5.f;
+
+	/** Pupil spring, like the tail's but in cm. Low damping keeps them googly; gravity pulls them low. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float PupilStiffness = 60.f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float PupilDamping = 2.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float PupilGain = 0.075f;
+
+	/** How far a pupil can roll off the eye's centre (cm) before it bounces off the rim. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Charm")
+	float PupilTravel = 2.3f;
 
 	/** Bright, distinct colors so viewers can tell the tiny squirrels apart. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
@@ -287,6 +345,23 @@ private:
 	/** Thuds for the tumbling body. Bound on every machine, since each simulates its own copy. */
 	UFUNCTION()
 	void OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	/** Cosmetic, every machine: tail wobble and googly pupils, driven by the squirrel's acceleration. */
+	void UpdateCharm(float DeltaSeconds);
+
+	/** Body-relative acceleration from the smoothed movement of the actor (cm/s^2), clamped so teleports don't kick. */
+	FVector SampleCharmAcceleration(float DeltaSeconds);
+
+	FVector CharmLastLocation = FVector::ZeroVector;
+	FVector CharmVelocity = FVector::ZeroVector;
+	bool bHasCharmSample = false;
+	FVector2D TailLean = FVector2D::ZeroVector;
+	FVector2D TailLeanVelocity = FVector2D::ZeroVector;
+	FVector2D PupilOffset = FVector2D::ZeroVector;
+	FVector2D PupilVelocity = FVector2D::ZeroVector;
+
+	/** The tail's pose before wobble: the default curl or the pedal flag. */
+	FTransform TailBaseTransform;
 
 	/** Local only: applies the decaying camera punch. */
 	void UpdateCameraPunch(float DeltaSeconds);
@@ -396,6 +471,12 @@ private:
 
 	FTransform DefaultBodyTransform;
 	FTransform DefaultTailTransform;
+
+	/** Parts that ride on the body ball while tumbling (tail, belly, head), with their standing poses. */
+	TArray<TPair<TObjectPtr<USceneComponent>, FTransform>> RideAlongParts;
+
+	/** Tints a basic-shape part (BasicShapeMaterial's Color parameter). */
+	static void SetPartColor(UStaticMeshComponent* Part, const FLinearColor& Color);
 	FTimerHandle RecoverTimer;
 	FTimerHandle RespawnTimer;
 

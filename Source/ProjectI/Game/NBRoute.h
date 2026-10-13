@@ -130,7 +130,8 @@ private:
 	void BuildGeometry();
 	/** Ramp up, flat top, ramp down along the road from StartDistance. RampLength 0 = a lone kicker. */
 	void AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistance, float Length, float RampLength, float Height, float Width, bool bKicker);
-	void AddSign(const FString& Text, float Distance);
+	/** A roadside board at Distance along the road, sized to its text, facing oncoming cars. */
+	void AddSign(const FString& Text, float Distance, bool bLeftSide = false);
 
 	/** A cube instance: Size in cm, at Location (local) with Rotation. */
 	static void AddBox(UInstancedStaticMeshComponent* Mesh, const FVector& Location, const FRotator& Rotation, const FVector& Size);

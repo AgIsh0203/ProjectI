@@ -47,33 +47,46 @@ ANBSquirrel::ANBSquirrel()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 
-	BodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyVisual"));
-	BodyVisual->SetupAttachment(GetCapsuleComponent());
-	BodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	BodyVisual->SetRelativeScale3D(FVector(0.34f, 0.3f, 0.44f));
-	if (SphereMesh.Succeeded())
-	{
-		BodyVisual->SetStaticMesh(SphereMesh.Object);
-	}
-
-	TailVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TailVisual"));
-	TailVisual->SetupAttachment(GetCapsuleComponent());
-	TailVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	TailVisual->SetRelativeLocation(FVector(-20.f, 0.f, 12.f));
-	TailVisual->SetRelativeRotation(FRotator(-35.f, 0.f, 0.f));
-	TailVisual->SetRelativeScale3D(FVector(0.16f, 0.16f, 0.42f));
-	if (CylinderMesh.Succeeded())
-	{
-		TailVisual->SetStaticMesh(CylinderMesh.Object);
-	}
-
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(TEXT("/Engine/BasicShapes/Cone.Cone"));
 	// The basic-shape meshes default to the grey checker DefaultMaterial, which has no
-	// "Color" parameter; ApplyFurColor tints this one instead.
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FurMaterial(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-	if (FurMaterial.Succeeded())
+	// "Color" parameter; ApplyFurColor and BeginPlay tint this one instead.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> ShapeMaterial(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+
+	// Greybox squirrel built from basic shapes (each is 100 cm across before scaling).
+	auto MakePart = [&](const TCHAR* Name, USceneComponent* Parent, UStaticMesh* PartMesh, const FVector& Location, const FRotator& Rotation, const FVector& Scale)
 	{
-		BodyVisual->SetMaterial(0, FurMaterial.Object);
-		TailVisual->SetMaterial(0, FurMaterial.Object);
+		UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+		Part->SetupAttachment(Parent);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetGenerateOverlapEvents(false);
+		Part->SetRelativeLocationAndRotation(Location, Rotation);
+		Part->SetRelativeScale3D(Scale);
+		Part->SetStaticMesh(PartMesh);
+		Part->SetMaterial(0, ShapeMaterial.Object);
+		return Part;
+	};
+
+	BodyVisual = MakePart(TEXT("BodyVisual"), GetCapsuleComponent(), SphereMesh.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector(0.34f, 0.3f, 0.44f));
+	BellyVisual = MakePart(TEXT("BellyVisual"), GetCapsuleComponent(), SphereMesh.Object, FVector(9.f, 0.f, -4.f), FRotator::ZeroRotator, FVector(0.2f, 0.22f, 0.3f));
+	// The tail's pivot is its middle; UpdateCharm swings it about its root end, at the squirrel's rump.
+	TailVisual = MakePart(TEXT("TailVisual"), GetCapsuleComponent(), CylinderMesh.Object, FVector(-20.f, 0.f, 12.f), FRotator(-35.f, 0.f, 0.f), FVector(0.16f, 0.16f, 0.42f));
+
+	// The head sits on top of the body, a little forward, and overlaps it so there's no neck.
+	HeadRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HeadRoot"));
+	HeadRoot->SetupAttachment(GetCapsuleComponent());
+	HeadRoot->SetRelativeLocation(FVector(4.f, 0.f, 24.f));
+	HeadVisual = MakePart(TEXT("HeadVisual"), HeadRoot, SphereMesh.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector(0.26f));
+	NoseVisual = MakePart(TEXT("NoseVisual"), HeadRoot, SphereMesh.Object, FVector(12.5f, 0.f, -2.f), FRotator::ZeroRotator, FVector(0.045f));
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		const float Y = Side == 0 ? -1.f : 1.f;
+		const TCHAR* SideName = Side == 0 ? TEXT("Left") : TEXT("Right");
+		// Ears lean outwards: positive roll tips a cone's point toward +Y.
+		EarVisuals[Side] = MakePart(*FString::Printf(TEXT("%sEar"), SideName), HeadRoot, ConeMesh.Object, FVector(-1.f, 7.f * Y, 12.f), FRotator(0.f, 0.f, 25.f * Y), FVector(0.07f, 0.07f, 0.11f));
+		// Big eyes bulging out of the face; UpdateCharm keeps each pupil on the eye's front.
+		EyeVisuals[Side] = MakePart(*FString::Printf(TEXT("%sEye"), SideName), HeadRoot, SphereMesh.Object, FVector(9.5f, 5.5f * Y, 3.f), FRotator::ZeroRotator, FVector(0.1f));
+		PupilVisuals[Side] = MakePart(*FString::Printf(TEXT("%sPupil"), SideName), HeadRoot, SphereMesh.Object, FVector(13.3f, 5.5f * Y, 3.f), FRotator::ZeroRotator, FVector(0.05f));
+		PupilVisuals[Side]->SetCastShadow(false);
 	}
 
 	VoiceTalker = CreateDefaultSubobject<UVOIPTalker>(TEXT("VoiceTalker"));
@@ -145,12 +158,17 @@ void ANBSquirrel::ApplyFurColor()
 	{
 		return;
 	}
-	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get()})
+	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get(), HeadVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get()})
 	{
-		if (UMaterialInstanceDynamic* Material = Part->CreateAndSetMaterialInstanceDynamic(0))
-		{
-			Material->SetVectorParameterValue(TEXT("Color"), FurColors[ColorIndex]);
-		}
+		SetPartColor(Part, FurColors[ColorIndex]);
+	}
+}
+
+void ANBSquirrel::SetPartColor(UStaticMeshComponent* Part, const FLinearColor& Color)
+{
+	if (UMaterialInstanceDynamic* Material = Part->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Material->SetVectorParameterValue(TEXT("Color"), Color);
 	}
 }
 
@@ -720,7 +738,81 @@ void ANBSquirrel::RefreshTailPose()
 		return;
 	}
 	const bool bOnPedals = CurrentSeat && CurrentSeat->Role == ENBSeatRole::Pedals;
-	TailVisual->SetRelativeTransform(bOnPedals ? PedalTailTransform : DefaultTailTransform);
+	TailBaseTransform = bOnPedals ? PedalTailTransform : DefaultTailTransform;
+	TailVisual->SetRelativeTransform(TailBaseTransform);
+}
+
+FVector ANBSquirrel::SampleCharmAcceleration(float DeltaSeconds)
+{
+	const FVector Location = GetActorLocation();
+	if (!bHasCharmSample || DeltaSeconds <= KINDA_SMALL_NUMBER || FVector::DistSquared(Location, CharmLastLocation) > FMath::Square(300.f))
+	{
+		// First frame, a paused frame, or a teleport (respawn, warp): start over instead of kicking.
+		bHasCharmSample = true;
+		CharmLastLocation = Location;
+		CharmVelocity = FVector::ZeroVector;
+		return FVector::ZeroVector;
+	}
+	const FVector RawVelocity = (Location - CharmLastLocation) / DeltaSeconds;
+	CharmLastLocation = Location;
+	// Smooth the velocity first: replicated motion arrives in steps, and a second difference of raw positions is mostly noise.
+	const FVector NewVelocity = FMath::Lerp(CharmVelocity, RawVelocity, FMath::Clamp(DeltaSeconds / 0.08f, 0.f, 1.f));
+	const FVector Acceleration = ((NewVelocity - CharmVelocity) / DeltaSeconds).GetClampedToMaxSize(4000.f);
+	CharmVelocity = NewVelocity;
+	return GetActorTransform().InverseTransformVectorNoScale(Acceleration);
+}
+
+void ANBSquirrel::UpdateCharm(float DeltaSeconds)
+{
+	// Springs go unstable on a long frame (a hitch, a breakpoint); substep them instead.
+	const FVector Accel = SampleCharmAcceleration(DeltaSeconds);
+	const int32 Steps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / (1.f / 60.f)), 1, 8);
+	const float Dt = FMath::Min(DeltaSeconds, 0.1f) / Steps;
+	const float Time = GetWorld()->GetTimeSeconds();
+
+	// Tail: accelerating forward swings the tip back (+pitch), accelerating right swings it left (-roll).
+	const FVector2D TailForce(Accel.X * TailGain, -Accel.Y * TailGain);
+	// Pupils, in the eye's plane (right, up): they lag behind sideways/vertical acceleration and sag under gravity.
+	const FVector2D PupilForce(-Accel.Y * PupilGain, -(Accel.Z + 980.f) * PupilGain);
+	for (int32 i = 0; i < Steps; ++i)
+	{
+		TailLeanVelocity += (TailForce - TailLean * TailStiffness - TailLeanVelocity * TailDamping) * Dt;
+		TailLean += TailLeanVelocity * Dt;
+		PupilVelocity += (PupilForce - PupilOffset * PupilStiffness - PupilVelocity * PupilDamping) * Dt;
+		PupilOffset += PupilVelocity * Dt;
+		// Googly: the pupil hits the rim of the eye and bounces back off it.
+		const double Reach = PupilOffset.Size();
+		if (Reach > PupilTravel)
+		{
+			const FVector2D Normal = PupilOffset / Reach;
+			PupilOffset = Normal * PupilTravel;
+			const double Outward = FVector2D::DotProduct(PupilVelocity, Normal);
+			if (Outward > 0.0)
+			{
+				PupilVelocity -= Normal * Outward * 1.5;
+			}
+		}
+	}
+	TailLean = TailLean.ClampAxes(-TailMaxLean, TailMaxLean);
+
+	// While tumbling the tail rides on the body ball, posed by StartLocalRagdoll.
+	if (!bLocalRagdoll)
+	{
+		const FRotator Lean(TailLean.X + TailIdleSway * FMath::Sin(Time * 2.1f), 0.f, TailLean.Y + TailIdleSway * 0.6f * FMath::Sin(Time * 1.3f + 1.f));
+		// Swing about the root end (the bottom of the cylinder), not its middle.
+		const FVector Root = TailBaseTransform.GetLocation() - TailBaseTransform.GetRotation().GetUpVector() * 50.f * TailBaseTransform.GetScale3D().Z;
+		const FQuat LeanQuat = Lean.Quaternion();
+		TailVisual->SetRelativeLocationAndRotation(Root + LeanQuat.RotateVector(TailBaseTransform.GetLocation() - Root), LeanQuat * TailBaseTransform.GetRotation());
+	}
+
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		// Keep the pupil on the front of the eye: further off-centre, further back.
+		const FVector EyeCentre = EyeVisuals[Side]->GetRelativeLocation();
+		const float Radius = 3.8f;
+		const float Forward = FMath::Sqrt(FMath::Max(FMath::Square(Radius) - static_cast<float>(PupilOffset.SizeSquared()), 0.f));
+		PupilVisuals[Side]->SetRelativeLocation(EyeCentre + FVector(Forward, PupilOffset.X, PupilOffset.Y));
+	}
 }
 
 void ANBSquirrel::UpdateSeatedCamera(float DeltaSeconds)
@@ -778,6 +870,19 @@ void ANBSquirrel::BeginPlay()
 	RegisterVoiceTalker();
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
+	TailBaseTransform = DefaultTailTransform;
+	RideAlongParts.Reset();
+	for (USceneComponent* Part : {static_cast<USceneComponent*>(TailVisual.Get()), static_cast<USceneComponent*>(BellyVisual.Get()), HeadRoot.Get()})
+	{
+		RideAlongParts.Emplace(Part, Part->GetRelativeTransform());
+	}
+	SetPartColor(BellyVisual, FLinearColor(1.f, 0.88f, 0.68f));
+	SetPartColor(NoseVisual, FLinearColor(0.9f, 0.3f, 0.4f));
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		SetPartColor(EyeVisuals[Side], FLinearColor(0.95f, 0.95f, 0.95f));
+		SetPartColor(PupilVisuals[Side], FLinearColor(0.01f, 0.01f, 0.01f));
+	}
 	DefaultCameraLocation = FollowCamera->GetRelativeLocation();
 	DefaultCameraRotation = FollowCamera->GetRelativeRotation();
 	BodyVisual->OnComponentHit.AddDynamic(this, &ANBSquirrel::OnBodyHit);
@@ -870,8 +975,11 @@ void ANBSquirrel::StartLocalRagdoll()
 	}
 	bLocalRagdoll = true;
 
-	// The tail rides along on the body; the body becomes a free physics ball.
-	TailVisual->AttachToComponent(BodyVisual, FAttachmentTransformRules::KeepWorldTransform);
+	// The tail, belly and head ride along on the body; the body becomes a free physics ball.
+	for (const TPair<TObjectPtr<USceneComponent>, FTransform>& Part : RideAlongParts)
+	{
+		Part.Key->AttachToComponent(BodyVisual, FAttachmentTransformRules::KeepWorldTransform);
+	}
 	BodyVisual->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	BodyVisual->SetWorldLocation(Ragdoll.Start, false, nullptr, ETeleportType::TeleportPhysics);
 	BodyVisual->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
@@ -906,8 +1014,11 @@ void ANBSquirrel::StopLocalRagdoll()
 	BodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	BodyVisual->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
 	BodyVisual->SetRelativeTransform(DefaultBodyTransform);
-	TailVisual->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
-	TailVisual->SetRelativeTransform(DefaultTailTransform);
+	for (const TPair<TObjectPtr<USceneComponent>, FTransform>& Part : RideAlongParts)
+	{
+		Part.Key->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
+		Part.Key->SetRelativeTransform(Part.Value);
+	}
 
 	RefreshAttachedState();
 }
@@ -955,6 +1066,10 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 	{
 		// The capsule (and camera) follow the tumbling body.
 		SetActorLocation(BodyVisual->GetComponentLocation());
+	}
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UpdateCharm(DeltaSeconds);
 	}
 }
 

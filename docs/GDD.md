@@ -51,8 +51,8 @@ The park-to-depot road is built in code (`ANBRoute`): about 3.5 km of greybox ro
 - **Bird steals a squirrel; pothole frenzy — Later (#22).**
 
 ## The squirrels
-- **Built:** made from primitives in C++ (a body and a tail), with a unique fur colour per player. No free, rigged, CC0 squirrel exists, and a stiff, wobbly primitive ragdolls funnier than a realistic one.
-- **Charm pass — Friend test (#7):** a head, big eyes with googly pupils, ears, a wobbly tail.
+- **Built:** made from primitives in C++, with a unique fur colour per player. No free, rigged, CC0 squirrel exists, and a stiff, wobbly primitive ragdolls funnier than a realistic one.
+- **Charm pass — Built (#7):** a head, big eyes with googly pupils (they sag under gravity, slosh with acceleration and bounce off the rim), cone ears, a cream belly, a pink nose, and a tail on a spring that lags behind acceleration and sways when idle. The head, belly and tail ride the tumbling body in a fall.
 - **Voice — Built, slots empty (#4):** a scream when thrown out, a thud each time the tumbling body hits something hard (louder for harder hits), a chatter when grabbing a part. The slots are on `BP_Squirrel`.
 - **Horn — Built, slot empty (#3):** any seated squirrel honks with H or gamepad Y (0.25 s cooldown). A "HONK!" pops over the car for 0.6 s, so viewers see it with the sound off.
 
@@ -64,9 +64,9 @@ Viewers can't hear game state, so every failure must read on screen in under 2 s
 - **No slow-mo:** time dilation is global in multiplayer and would slow everyone's physics. A camera punch does the job instead.
 - **Tuned for comedy** at the 2-PC test (#1): bigger ejection kicks, a wobblier door, more body roll.
 
-## Onboarding — Friend test (#8)
-- WHEEL / PEDALS labels float over empty seats until each is first used.
-- Signs in THE PARK teach E (take a seat, hop), Space (jump out) and LMB (fix).
+## Onboarding — Built (#8)
+- WHEEL ("steers") / PEDALS ("gas + brake") labels bob over the two driving seats until someone first sits in each (per map load).
+- Four boards on the left of THE PARK, in the order they are needed: "E: GET IN / HOP SEAT" (in view from the start), "LMB: FIX BROKEN PARTS", "SPACE: JUMP OUT", "H: HONK!". Keyboard only.
 - The controls hint stays on the HUD (Built).
 
 ## Co-op levers — Demo, if the playtest agrees
