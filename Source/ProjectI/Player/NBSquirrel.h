@@ -187,6 +187,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
 	TObjectPtr<UStaticMeshComponent> TailVisual;
 
+	/** The low-poly squirrel model (CC-BY, Poly Pizza), tinted with the fur colour. When it loads it
+	 *  replaces the primitive body, belly, head and ears; the googly eyes stay on it, and the tail
+	 *  cylinder only shows as the pedal-seat flag. BodyVisual stays as the (hidden) ragdoll ball. */
+	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
+	TObjectPtr<UStaticMeshComponent> ModelVisual;
+
+	/** Where the model sits on the capsule (it is 1 m tall before this scale). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	FTransform ModelTransform = FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, 2.f), FVector(0.48f));
+
+	/** With the model, HeadRoot (the googly eyes) moves here, onto the model's face. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	FVector ModelHeadOffset = FVector(8.f, 0.f, 14.f);
+
 	/** Cream patch on the front of the body. */
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
 	TObjectPtr<UStaticMeshComponent> BellyVisual;

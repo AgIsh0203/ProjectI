@@ -89,6 +89,18 @@ ANBSquirrel::ANBSquirrel()
 		PupilVisuals[Side]->SetCastShadow(false);
 	}
 
+	// The low-poly model, when it's in the project, stands in for the primitive body and head.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SquirrelMesh(TEXT("/Game/ThirdParty/PolyPizza/squirrel_n/StaticMeshes/SM_Squirrel.SM_Squirrel"));
+	if (SquirrelMesh.Succeeded())
+	{
+		ModelVisual = MakePart(TEXT("ModelVisual"), GetCapsuleComponent(), SquirrelMesh.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
+		// BodyVisual stays as the ragdoll's physics ball, unseen; visibility isn't inherited, so its riders still show.
+		for (UStaticMeshComponent* Part : {BodyVisual.Get(), BellyVisual.Get(), HeadVisual.Get(), NoseVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get()})
+		{
+			Part->SetVisibility(false);
+		}
+	}
+
 	VoiceTalker = CreateDefaultSubobject<UVOIPTalker>(TEXT("VoiceTalker"));
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -158,9 +170,12 @@ void ANBSquirrel::ApplyFurColor()
 	{
 		return;
 	}
-	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get(), HeadVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get()})
+	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get(), HeadVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get(), ModelVisual.Get()})
 	{
-		SetPartColor(Part, FurColors[ColorIndex]);
+		if (Part)
+		{
+			SetPartColor(Part, FurColors[ColorIndex]);
+		}
 	}
 }
 
@@ -771,6 +786,8 @@ void ANBSquirrel::RefreshTailPose()
 	const bool bOnPedals = CurrentSeat && CurrentSeat->Role == ENBSeatRole::Pedals;
 	TailBaseTransform = bOnPedals ? PedalTailTransform : DefaultTailTransform;
 	TailVisual->SetRelativeTransform(TailBaseTransform);
+	// The model has its own tail; the cylinder only comes out as the pedal-seat flag.
+	TailVisual->SetVisibility(!ModelVisual || bOnPedals);
 }
 
 FVector ANBSquirrel::SampleCharmAcceleration(float DeltaSeconds)
@@ -902,10 +919,19 @@ void ANBSquirrel::BeginPlay()
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
 	TailBaseTransform = DefaultTailTransform;
-	RideAlongParts.Reset();
-	for (USceneComponent* Part : {static_cast<USceneComponent*>(TailVisual.Get()), static_cast<USceneComponent*>(BellyVisual.Get()), HeadRoot.Get()})
+	if (ModelVisual)
 	{
-		RideAlongParts.Emplace(Part, Part->GetRelativeTransform());
+		// Applied here rather than in the constructor so BP_Squirrel's values win.
+		ModelVisual->SetRelativeTransform(ModelTransform);
+		HeadRoot->SetRelativeLocation(ModelHeadOffset);
+	}
+	RideAlongParts.Reset();
+	for (USceneComponent* Part : {static_cast<USceneComponent*>(TailVisual.Get()), static_cast<USceneComponent*>(BellyVisual.Get()), HeadRoot.Get(), static_cast<USceneComponent*>(ModelVisual.Get())})
+	{
+		if (Part)
+		{
+			RideAlongParts.Emplace(Part, Part->GetRelativeTransform());
+		}
 	}
 	SetPartColor(BellyVisual, FLinearColor(1.f, 0.88f, 0.68f));
 	SetPartColor(NoseVisual, FLinearColor(0.9f, 0.3f, 0.4f));

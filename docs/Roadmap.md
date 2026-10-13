@@ -119,6 +119,15 @@ Ranked within each tier. "Touches" says where the work lands, so a session can s
 | 15 | **Shorter run for clips** (e.g. 5 sections, ~4 min), if the 2-PC run dragged at 8:00 | Viewers should see a whole run. **Needs your OK: the 6–10 min run is in the locked plan.** | S | Segment list and `DeadlineSeconds` in `ANBRoute` |
 | 16 | **Crashes break parts**, if failures feel random in the playtest | The GDD always meant breakdowns to escalate with crash damage too, but today only the director's timer breaks parts. A hard crash breaking something gives viewers cause and effect. | S | `ANBCar`'s crash detection calls `Fail()` on a healthy part, within `UNBFailureDirector`'s concurrency cap |
 
+### Art upgrades the user asked for (14 Oct)
+- **A rigged squirrel.** The squirrel is now a static low-poly model (CC-BY, Poly Pizza #3). A rigged one would let it flail while flying and grip the wheel. No free rigged CC0/CC-BY squirrel has turned up yet (the Sketchfab ones are NC or detailed, and the itch one needs payment). Options: rig the current model in Blender (a spine, tail and 4 limbs is enough for a wobbly ragdoll), or buy a cheap licence. Effort M–L.
+- **A new car.** The buggy stays for the demo, but it has two problems: the door is a greybox panel bolted on (the template has no real door), and there is no bed to carry the nuts (the pile sits on the engine deck). The replacement should be an open-top pickup or a farm truck: a cab door that can really flap open, an open bed for the acorn pile, room for the 5 seats. Steps:
+  1. Pick a model: Kenney **Car Kit** (CC0, the "truck"/"pickup" bodies), Quaternius **LowPoly Cars** (CC0), or a Fab vehicle (kept in `ThirdParty_Private`).
+  2. Chaos needs a skeletal mesh with a bone per wheel: split the wheels off and add 4 wheel bones in Blender (the template's `SK_Offroad` is the reference for bone names and orientation), plus a physics asset.
+  3. Make a new BP from `BP_OffroadCar_Pawn` (reparented to `ANBCar`), swap the mesh, then re-measure the seats, part spots, `DoorHinge` and `AcornPileSlots` (the constructor's landmark comment says how).
+  4. Retune the Chaos wheels and engine, then a full 2-PC run before it replaces the buggy.
+  Effort L (6–10 h). After the demo, unless the playtest says the buggy is a blocker.
+
 ### Tier 3: after the demo
 | # | Item | Note |
 |---|---|---|

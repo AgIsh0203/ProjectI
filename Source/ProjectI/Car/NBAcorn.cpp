@@ -35,6 +35,18 @@ ANBAcorn::ANBAcorn()
 	{
 		Mesh->SetMaterial(0, ShapeMaterial.Object);
 	}
+
+	// The model is 1 m across like the sphere, so at the root's 0.14 scale it matches the ball.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> AcornMesh(TEXT("/Game/ThirdParty/PolyPizza/acorn_n/StaticMeshes/SM_Acorn.SM_Acorn"));
+	if (AcornMesh.Succeeded())
+	{
+		Visual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Visual"));
+		Visual->SetupAttachment(Mesh);
+		Visual->SetStaticMesh(AcornMesh.Object);
+		Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		// Hide only the sphere, not its child.
+		Mesh->SetVisibility(false, /*bPropagateToChildren*/ false);
+	}
 }
 
 ANBAcorn* ANBAcorn::SpawnSpilled(UWorld* World, const FVector& Location, const FVector& Velocity)

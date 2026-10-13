@@ -113,19 +113,16 @@ ANBCar::ANBCar()
 		DoorPanel->SetMaterial(0, ShapeMaterial.Object);
 	}
 
-	// The same spheres the spilled acorns use, so a spill visibly comes out of the pile.
+	// The same acorn mesh the spilled acorns use (CC-BY, 1 m across, so the slots' 0.14 scale makes
+	// 14 cm acorns), so a spill visibly comes out of the pile. Its own two materials (nut and cap) stay.
 	AcornPile = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("AcornPile"));
 	AcornPile->SetupAttachment(GetMesh());
 	AcornPile->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	AcornPile->SetCanEverAffectNavigation(false);
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	if (SphereMesh.Succeeded())
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> AcornMesh(TEXT("/Game/ThirdParty/PolyPizza/acorn_n/StaticMeshes/SM_Acorn.SM_Acorn"));
+	if (AcornMesh.Succeeded())
 	{
-		AcornPile->SetStaticMesh(SphereMesh.Object);
-	}
-	if (ShapeMaterial.Succeeded())
-	{
-		AcornPile->SetMaterial(0, ShapeMaterial.Object);
+		AcornPile->SetStaticMesh(AcornMesh.Object);
 	}
 
 	DoorPart = CreateDefaultSubobject<UNBDoorPart>(TEXT("DoorPart"));

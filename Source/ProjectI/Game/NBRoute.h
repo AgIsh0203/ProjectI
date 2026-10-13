@@ -133,6 +133,17 @@ private:
 	/** A roadside board at Distance along the road, sized to its text, facing oncoming cars. */
 	void AddSign(const FString& Text, float Distance, bool bLeftSide = false);
 
+	/** Dressing: Kenney trees, bushes, rocks, flowers either side of the road (fixed seed, never on any
+	 *  stretch of road), fences and lamps along THE PARK, lamps on the HOME STRETCH, cones at the corners.
+	 *  Decoration only: no collision, so nothing new to get stuck on. */
+	void AddProps(const FBox2D& GroundBounds);
+
+	/** One instanced layer per prop mesh, keeping the mesh's own materials. */
+	UInstancedStaticMeshComponent* PropLayer(int32 Kind);
+
+	/** Nearest distance (cm, XY) from Location to the road centreline anywhere along the route. */
+	float DistanceToRoad(const FVector& Location) const;
+
 	/** A cube instance: Size in cm, at Location (local) with Rotation. */
 	static void AddBox(UInstancedStaticMeshComponent* Mesh, const FVector& Location, const FRotator& Rotation, const FVector& Size);
 	UInstancedStaticMeshComponent* MakeLayer(const TCHAR* Name, const FLinearColor& Color, bool bCollision, bool bShadows);
@@ -145,6 +156,17 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> ShapeMaterial;
+
+	/** Prop meshes in the order of the table in NBRoute.cpp; null where an asset is missing. */
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMesh>> PropMeshes;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>> PropLayers;
+
+
+	/** Where the roadside boards stand (local XY) and, in Z, how far props keep clear of each. */
+	TArray<FVector> SignSpots;
 
 	UPROPERTY()
 	TObjectPtr<ANBFinishZone> FinishZone;

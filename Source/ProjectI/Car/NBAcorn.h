@@ -21,6 +21,11 @@ public:
 	static ANBAcorn* SpawnSpilled(UWorld* World, const FVector& Location, const FVector& Velocity);
 
 private:
+	/** The physics body: a plain sphere (simple, reliable collision), hidden. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Mesh;
+
+	/** What players see: the acorn model, riding on the sphere. */
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UStaticMeshComponent> Visual;
 };

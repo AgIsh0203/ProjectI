@@ -25,6 +25,44 @@ namespace
 	{
 		return FRotator(0.f, Yaw + 90.f, 0.f).Vector();
 	}
+
+	/** One kind of roadside prop (Kenney CC0 kits, in /Game/ThirdParty/Kenney). Kenney's units are
+	 *  small, so scales are big. Weight 0 = not scattered (placed by hand in AddProps). */
+	struct FPropKind
+	{
+		const TCHAR* Path;
+		float ScaleMin, ScaleMax;
+		float Weight;
+		/** Distance (cm) out from the road's edge. */
+		float BandMin, BandMax;
+		bool bShadows;
+	};
+
+	const FPropKind PropKinds[] = {
+		{TEXT("Nature/tree_default/StaticMeshes/SM_tree_default.SM_tree_default"),       4.5f, 6.f, 3.f, 500.f, 4500.f, true},
+		{TEXT("Nature/tree_oak/StaticMeshes/SM_tree_oak.SM_tree_oak"),                   4.5f, 6.f, 3.f, 500.f, 4500.f, true},
+		{TEXT("Nature/tree_pineTallA/StaticMeshes/SM_tree_pineTallA.SM_tree_pineTallA"), 4.f, 6.f, 2.f, 500.f, 4500.f, true},
+		{TEXT("Nature/tree_fat/StaticMeshes/SM_tree_fat.SM_tree_fat"),                   4.f, 5.5f, 2.f, 500.f, 4500.f, true},
+		{TEXT("Nature/tree_blocks/StaticMeshes/SM_tree_blocks.SM_tree_blocks"),          4.f, 5.f, 1.f, 500.f, 4500.f, true},
+		{TEXT("Nature/plant_bush/StaticMeshes/SM_plant_bush.SM_plant_bush"),             3.f, 4.5f, 3.f, 400.f, 2500.f, false},
+		{TEXT("Nature/plant_bushLarge/StaticMeshes/SM_plant_bushLarge.SM_plant_bushLarge"), 3.f, 4.5f, 2.f, 400.f, 2500.f, false},
+		{TEXT("Nature/rock_largeA/StaticMeshes/SM_rock_largeA.SM_rock_largeA"),          2.5f, 4.f, 1.5f, 500.f, 4000.f, true},
+		{TEXT("Nature/rock_largeB/StaticMeshes/SM_rock_largeB.SM_rock_largeB"),          2.5f, 4.f, 1.f, 500.f, 4000.f, true},
+		{TEXT("Nature/rock_tallA/StaticMeshes/SM_rock_tallA.SM_rock_tallA"),             2.f, 3.f, 0.7f, 700.f, 4000.f, true},
+		{TEXT("Nature/stump_round/StaticMeshes/SM_stump_round.SM_stump_round"),          3.f, 4.f, 1.f, 400.f, 3000.f, false},
+		{TEXT("Nature/log/StaticMeshes/SM_log.SM_log"),                                  3.f, 4.f, 1.f, 400.f, 3000.f, false},
+		{TEXT("Nature/flower_redA/StaticMeshes/SM_flower_redA.SM_flower_redA"),          3.f, 4.f, 2.f, 400.f, 1500.f, false},
+		{TEXT("Nature/flower_yellowA/StaticMeshes/SM_flower_yellowA.SM_flower_yellowA"), 3.f, 4.f, 2.f, 400.f, 1500.f, false},
+		{TEXT("Nature/mushroom_red/StaticMeshes/SM_mushroom_red.SM_mushroom_red"),       3.f, 4.f, 1.f, 400.f, 2000.f, false},
+		{TEXT("Nature/grass_large/StaticMeshes/SM_grass_large.SM_grass_large"),          3.f, 4.f, 3.f, 400.f, 2000.f, false},
+		// Placed by AddProps, not scattered.
+		{TEXT("Nature/fence_simple/StaticMeshes/SM_fence_simple.SM_fence_simple"),       3.f, 3.f, 0.f, 0.f, 0.f, false},
+		{TEXT("CityRoads/construction-cone/StaticMeshes/SM_construction_cone.SM_construction_cone"), 7.f, 7.f, 0.f, 0.f, 0.f, false},
+		{TEXT("CityRoads/construction-barrier/StaticMeshes/SM_construction_barrier.SM_construction_barrier"), 7.f, 7.f, 0.f, 0.f, 0.f, true},
+		{TEXT("CityRoads/construction-light/StaticMeshes/SM_construction_light.SM_construction_light"), 7.f, 7.f, 0.f, 0.f, 0.f, true},
+		{TEXT("CityRoads/light-square/StaticMeshes/SM_light_square.SM_light_square"),    10.f, 10.f, 0.f, 0.f, 0.f, true},
+	};
+	constexpr int32 FenceKind = 16, ConeKind = 17, BarrierKind = 18, WorkLightKind = 19, LampKind = 20;
 }
 
 ANBRoute::ANBRoute()
@@ -43,6 +81,13 @@ ANBRoute::ANBRoute()
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	CubeMesh = Cube.Object;
 	ShapeMaterial = Material.Object;
+
+	// /Game/ThirdParty is always cooked; only this constructor references the props.
+	for (const FPropKind& Kind : PropKinds)
+	{
+		ConstructorHelpers::FObjectFinder<UStaticMesh> Prop(*(FString(TEXT("/Game/ThirdParty/Kenney/")) + Kind.Path));
+		PropMeshes.Add(Prop.Object);
+	}
 
 	// Park to depot, about 3.5 km. A tidy crew at ~12 m/s needs ~5 min; breakdowns, flips and
 	// falls should push a typical run to 6-8 min (GDD: 6-10 min). Features sit on straights where
@@ -472,6 +517,7 @@ void ANBRoute::BuildGeometry()
 		SampleAt(TotalLength, Location, Yaw);
 		AddBox(Walls, Location + FRotator(0.f, Yaw, 0.f).Vector() * 1500.f + FVector(0.f, 0.f, 400.f), FRotator(0.f, Yaw, 0.f), FVector(1200.f, 3000.f, 800.f));
 	}
+	AddProps(Bounds);
 }
 
 void ANBRoute::AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistance, float Length, float RampLength, float Height, float Width, bool bKicker)
@@ -525,6 +571,8 @@ void ANBRoute::AddSign(const FString& Text, float Distance, bool bLeftSide)
 
 	AddBox(Walls, Location + Side + FVector(0.f, 0.f, 175.f), Facing, FVector(30.f, 30.f, 350.f));
 	AddBox(Markers, Location + Side + FVector(0.f, 0.f, 380.f), Facing, FVector(20.f, BoardWidth, 160.f));
+	// Props keep clear of the board: Z holds the clearance radius.
+	SignSpots.Add(FVector(FVector2D(Location + Side), BoardWidth * 0.5f + 500.f));
 
 	// Readable from the road behind it: text faces its local +X, so turn it to face oncoming cars.
 	UTextRenderComponent* Label = NewObject<UTextRenderComponent>(this);
@@ -538,4 +586,203 @@ void ANBRoute::AddSign(const FString& Text, float Distance, bool bLeftSide)
 	Label->SetText(FText::FromString(Text));
 	Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Label->RegisterComponent();
+}
+
+UInstancedStaticMeshComponent* ANBRoute::PropLayer(int32 Kind)
+{
+	if (!PropMeshes.IsValidIndex(Kind) || !PropMeshes[Kind])
+	{
+		return nullptr;
+	}
+	PropLayers.SetNum(PropMeshes.Num());
+	if (!PropLayers[Kind])
+	{
+		UInstancedStaticMeshComponent* Mesh = NewObject<UInstancedStaticMeshComponent>(this, *FString::Printf(TEXT("Prop%d"), Kind));
+		Mesh->SetMobility(EComponentMobility::Movable);
+		Mesh->SetupAttachment(GetRootComponent());
+		Mesh->SetStaticMesh(PropMeshes[Kind]);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Mesh->SetCanEverAffectNavigation(false);
+		Mesh->SetCastShadow(PropKinds[Kind].bShadows);
+		Mesh->RegisterComponent();
+		PropLayers[Kind] = Mesh;
+	}
+	return PropLayers[Kind];
+}
+
+float ANBRoute::DistanceToRoad(const FVector& Location) const
+{
+	double Best = TNumericLimits<double>::Max();
+	for (const FVector& Point : SamplePoints)
+	{
+		Best = FMath::Min(Best, FVector::DistSquaredXY(Point, Location));
+	}
+	return FMath::Sqrt(static_cast<float>(Best));
+}
+
+void ANBRoute::AddProps(const FBox2D& GroundBounds)
+{
+	// Same seed on every machine, like the rocks, so everyone sees the same trees.
+	FRandomStream Stream(Seed + 7);
+	const float HalfRoad = RoadWidth * 0.5f;
+	const FBox2D Inside = GroundBounds.ExpandBy(-400.f);
+
+	auto ClearOfSigns = [this](const FVector& Location)
+	{
+		return !SignSpots.ContainsByPredicate([&Location](const FVector& Spot) { return FVector2D::Distance(FVector2D(Spot), FVector2D(Location)) < Spot.Z; });
+	};
+	auto Add = [this](int32 Kind, const FVector& Location, float Yaw, float Scale)
+	{
+		if (UInstancedStaticMeshComponent* Mesh = PropLayer(Kind))
+		{
+			Mesh->AddInstance(FTransform(FRotator(0.f, Yaw, 0.f), Location, FVector(Scale)));
+		}
+	};
+
+	// Where each named section starts and ends, for the props that belong to one.
+	auto SectionRange = [this](const TCHAR* Name, float& OutStart, float& OutEnd)
+	{
+		float Distance = 0.f;
+		bool bInside = false;
+		OutStart = OutEnd = -1.f;
+		for (const FNBRouteSegment& Segment : Segments)
+		{
+			if (!Segment.Section.IsEmpty())
+			{
+				if (bInside)
+				{
+					break;
+				}
+				bInside = Segment.Section.Equals(Name);
+				if (bInside)
+				{
+					OutStart = Distance;
+				}
+			}
+			Distance += FMath::Max(Segment.Length, 10.f) * 100.f;
+			if (bInside)
+			{
+				OutEnd = Distance;
+			}
+		}
+	};
+
+	// Nature both sides of the whole road, one try every 7 m per side, picked by weight.
+	float TotalWeight = 0.f;
+	for (const FPropKind& Kind : PropKinds)
+	{
+		TotalWeight += Kind.Weight;
+	}
+	for (float D = 0.f; D < TotalLength; D += 700.f)
+	{
+		for (const float Side : {-1.f, 1.f})
+		{
+			float Pick = Stream.FRandRange(0.f, TotalWeight);
+			int32 Kind = 0;
+			while (Kind < UE_ARRAY_COUNT(PropKinds) - 1 && Pick > PropKinds[Kind].Weight)
+			{
+				Pick -= PropKinds[Kind].Weight;
+				++Kind;
+			}
+			const FPropKind& Prop = PropKinds[Kind];
+			FVector Location;
+			float Yaw;
+			SampleAt(D + Stream.FRandRange(-300.f, 300.f), Location, Yaw);
+			const float Band = Stream.FRandRange(Prop.BandMin, Prop.BandMax);
+			Location += RightOf(Yaw) * Side * (HalfRoad + Band);
+			Location.Z = 0.f;
+			// Never on the road, including the other legs of the hairpin and wiggles.
+			if (Prop.Weight <= 0.f || DistanceToRoad(Location) < HalfRoad + Prop.BandMin * 0.7f
+				|| !Inside.IsInside(FVector2D(Location)) || !ClearOfSigns(Location))
+			{
+				continue;
+			}
+			Add(Kind, Location, Stream.FRandRange(0.f, 360.f), Stream.FRandRange(Prop.ScaleMin, Prop.ScaleMax));
+		}
+	}
+
+	// THE PARK: a picket fence and street lamps either side.
+	float Start, End;
+	SectionRange(TEXT("THE PARK"), Start, End);
+	if (End > Start)
+	{
+		for (float D = Start; D < End; D += 300.f)
+		{
+			FVector Location;
+			float Yaw;
+			SampleAt(D, Location, Yaw);
+			for (const float Side : {-1.f, 1.f})
+			{
+				const FVector Spot = Location + RightOf(Yaw) * Side * (HalfRoad + 300.f);
+				if (ClearOfSigns(Spot))
+				{
+					Add(FenceKind, Spot, Yaw, PropKinds[FenceKind].ScaleMin);
+				}
+			}
+		}
+	}
+
+	// Street lamps along THE PARK and the HOME STRETCH, arms over the road.
+	for (const TCHAR* Section : {TEXT("THE PARK"), TEXT("HOME STRETCH")})
+	{
+		SectionRange(Section, Start, End);
+		for (float D = Start + 1000.f; D < End; D += 3000.f)
+		{
+			FVector Location;
+			float Yaw;
+			SampleAt(D, Location, Yaw);
+			for (const float Side : {-1.f, 1.f})
+			{
+				const FVector Spot = Location + RightOf(Yaw) * Side * (HalfRoad + 150.f);
+				// The lamp's arm points along its -Y: turn it to reach over the road.
+				if (ClearOfSigns(Spot))
+				{
+					Add(LampKind, Spot, Side > 0.f ? Yaw : Yaw + 180.f, PropKinds[LampKind].ScaleMin);
+				}
+			}
+		}
+	}
+
+	// Cones on both edges of every real corner, so the turns read from the chase cam.
+	float Distance = 0.f;
+	for (const FNBRouteSegment& Segment : Segments)
+	{
+		const float Length = FMath::Max(Segment.Length, 10.f) * 100.f;
+		if (FMath::Abs(Segment.TurnDegrees) >= 35.f)
+		{
+			for (float D = Distance + Length * 0.25f; D < Distance + Length * 0.8f; D += 600.f)
+			{
+				FVector Location;
+				float Yaw;
+				SampleAt(D, Location, Yaw);
+				for (const float Side : {-1.f, 1.f})
+				{
+					Add(ConeKind, Location + RightOf(Yaw) * Side * (HalfRoad + 60.f), Stream.FRandRange(0.f, 360.f), PropKinds[ConeKind].ScaleMin);
+				}
+			}
+		}
+		Distance += Length;
+	}
+
+	// Road-works at the SQUIRREL SLALOM and THE BIG JUMP: barriers and a flashing-light post each side.
+	for (const TCHAR* Section : {TEXT("SQUIRREL SLALOM"), TEXT("THE BIG JUMP")})
+	{
+		SectionRange(Section, Start, End);
+		if (End <= Start)
+		{
+			continue;
+		}
+		FVector Location;
+		float Yaw;
+		SampleAt(Start + 800.f, Location, Yaw);
+		for (const float Side : {-1.f, 1.f})
+		{
+			const FVector Edge = Location + RightOf(Yaw) * Side * (HalfRoad + 200.f);
+			for (int32 i = -1; i <= 1; ++i)
+			{
+				Add(BarrierKind, Edge + FRotator(0.f, Yaw, 0.f).Vector() * (i * 180.f), Yaw + 90.f, PropKinds[BarrierKind].ScaleMin);
+			}
+			Add(WorkLightKind, Edge + FRotator(0.f, Yaw, 0.f).Vector() * 400.f, Yaw, PropKinds[WorkLightKind].ScaleMin);
+		}
+	}
 }

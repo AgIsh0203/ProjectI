@@ -39,7 +39,7 @@ In priority order. Items 1–5 are for the friend test (download by Fri 16 Oct);
 | 4 | **Music**: two CC0 loops (menu, run) from FreePD, Kenney or OpenGameArt (imported 14 Oct, OpenGameArt) | CC0 → `ThirdParty/Music` | menu and run |
 | 5 | A chunky **font** (Lilita One: imported 13 Oct) and Kenney **Input Prompts** | OFL / CC0 → `ThirdParty/Fonts`, `ThirdParty/Kenney` | failure callouts, HUD, controls hints |
 | 6 | Kenney **Particle Pack** (downloaded 14 Oct, not used: VFX became code-built puffs) | CC0 → `ThirdParty/Kenney` | cartoon smoke, stars and sparks as Niagara sprites |
-| 7 | Kenney **Nature Kit** and **City Kit (Roads)** | CC0 → `ThirdParty/Kenney` | route and depot dressing (first thing cut) |
+| 7 | Kenney **Nature Kit** and **City Kit (Roads)** (imported 14 Oct: 17 nature and 4 road props, placed by `ANBRoute::AddProps`) | CC0 → `ThirdParty/Kenney` | route and depot dressing (first thing cut) |
 | 8 | Quaternius **LowPoly Animated Animals** (the pug) | CC0 → `ThirdParty/Quaternius` | the dog hazard (Roadmap #13), only if it's picked |
 
 ## Slot map
