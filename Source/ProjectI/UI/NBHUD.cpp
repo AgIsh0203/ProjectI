@@ -3,6 +3,9 @@
 #include "UI/NBHUD.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "CanvasItem.h"
 #include "Car/NBCar.h"
 #include "Car/NBSeatComponent.h"
@@ -56,6 +59,100 @@ ANBHUD::ANBHUD()
 	// /Game/ThirdParty is always cooked; only this constructor references the face.
 	static ConstructorHelpers::FObjectFinder<UFontFace> ShoutFace(TEXT("/Game/ThirdParty/Fonts/LilitaOne-Regular.LilitaOne-Regular"));
 	ShoutFontFace = ShoutFace.Object;
+
+	// The run's sounds, all CC0 (CREDITS.md). Like the font, only this constructor references them.
+	static ConstructorHelpers::FObjectFinder<USoundBase> MenuMusicFinder(TEXT("/Game/ThirdParty/OpenGameArt/Music/SW_Music_Menu.SW_Music_Menu"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> RunMusicFinder(TEXT("/Game/ThirdParty/OpenGameArt/Music/SW_Music_Run.SW_Music_Run"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> BeepFinder(TEXT("/Game/ThirdParty/Kenney/Sounds/SW_Countdown_Beep.SW_Countdown_Beep"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> GoFinder(TEXT("/Game/ThirdParty/Kenney/Sounds/SW_Countdown_Go.SW_Countdown_Go"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> DeliveredFinder(TEXT("/Game/ThirdParty/Kenney/Sounds/SW_Run_Delivered.SW_Run_Delivered"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> FailedFinder(TEXT("/Game/ThirdParty/Kenney/Sounds/SW_Run_Failed.SW_Run_Failed"));
+	MenuMusic = MenuMusicFinder.Object;
+	RunMusic = RunMusicFinder.Object;
+	CountdownBeep = BeepFinder.Object;
+	CountdownGo = GoFinder.Object;
+	DeliveredSound = DeliveredFinder.Object;
+	FailedSound = FailedFinder.Object;
+}
+
+void ANBHUD::PlayMusic(USoundBase* Music)
+{
+	if (Music == PlayingMusic)
+	{
+		return;
+	}
+	PlayingMusic = Music;
+	if (MusicComponent)
+	{
+		// Let the old track die away while the new one comes in.
+		MusicComponent->FadeOut(1.f, 0.f);
+		MusicComponent = nullptr;
+	}
+	if (Music)
+	{
+		// 2D; the music assets loop. Auto-destroyed once faded out.
+		MusicComponent = UGameplayStatics::CreateSound2D(this, Music, MusicVolume, 1.f, 0.f, nullptr, false, true);
+		if (MusicComponent)
+		{
+			MusicComponent->FadeIn(1.f, MusicVolume);
+		}
+	}
+}
+
+void ANBHUD::UpdateRunAudio()
+{
+	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
+	if (!State)
+	{
+		PlayMusic(MenuMusic);
+		return;
+	}
+	const ENBRunPhase Phase = State->GetPhase();
+	const bool bPhaseChanged = LastPhase != static_cast<uint8>(Phase);
+	// A late joiner (or the first frame) only takes the current state: no jingle for an old ending.
+	const bool bFirstFrame = LastPhase == 0xFF;
+	LastPhase = static_cast<uint8>(Phase);
+
+	switch (Phase)
+	{
+	case ENBRunPhase::Waiting:
+		PlayMusic(MenuMusic);
+		break;
+
+	case ENBRunPhase::Countdown:
+	{
+		// Music drops out so the beeps carry the tension.
+		PlayMusic(nullptr);
+		const int32 Second = FMath::CeilToInt(State->GetSecondsLeft());
+		if (Second != LastCountdownSecond && Second > 0)
+		{
+			UGameplayStatics::PlaySound2D(this, CountdownBeep, 0.7f);
+		}
+		LastCountdownSecond = Second;
+		break;
+	}
+
+	case ENBRunPhase::Driving:
+		if (bPhaseChanged && !bFirstFrame)
+		{
+			UGameplayStatics::PlaySound2D(this, CountdownGo, 0.8f);
+		}
+		PlayMusic(RunMusic);
+		break;
+
+	case ENBRunPhase::Finished:
+		if (bPhaseChanged && !bFirstFrame)
+		{
+			const bool bDelivered = State->GetResult() == ENBRunResult::Delivered;
+			UGameplayStatics::PlaySound2D(this, bDelivered ? DeliveredSound.Get() : FailedSound.Get(), 0.9f);
+		}
+		PlayMusic(nullptr);
+		break;
+	}
+	if (Phase != ENBRunPhase::Countdown)
+	{
+		LastCountdownSecond = -1;
+	}
 }
 
 UFont* ANBHUD::GetShoutFont() const
@@ -92,6 +189,11 @@ void ANBHUD::BeginPlay()
 
 void ANBHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (MusicComponent)
+	{
+		MusicComponent->Stop();
+		MusicComponent = nullptr;
+	}
 	if (Menu)
 	{
 		Menu->RemoveFromParent();
@@ -157,6 +259,8 @@ bool ANBHUD::IsMenuOpen() const
 void ANBHUD::DrawHUD()
 {
 	Super::DrawHUD();
+	// Before the pawn check: the menu music also plays while no squirrel is possessed yet.
+	UpdateRunAudio();
 
 	const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(GetOwningPawn());
 	if (!Squirrel || !Canvas)

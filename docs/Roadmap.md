@@ -8,7 +8,7 @@ Effort: **S** < 2 h, **M** 2–5 h, **L** > 5 h.
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
 - That build is a **1.04 GB download that installs to 3 GB**, though players need only about 0.7 GB of it ([Package size](#package-size-slim-it-before-the-playtest)).
-- Every sound and VFX slot is empty. The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
+- Every sound slot is filled with CC0 clips (14 Oct); every VFX slot is empty. The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
 
 ## Rules for the last two weeks
 1. **Playtest before adding anything.** Every number (spill threshold, failure rate, deadline, tire cling) is a guess until two people have played a run.
@@ -99,7 +99,7 @@ Ranked within each tier. "Touches" says where the work lands, so a session can s
 | # | Item | Why it's fun | Effort | Touches |
 |---|---|---|---|---|
 | 1 | **2-PC playtest of a full run, then tune** | Nothing has been felt by hand. Tune for comedy on purpose too: a bigger `EjectKick`, a wobblier door, more body roll. | S | [Playtest.md](Playtest.md); values that feel right go in the [GDD tuning table](GDD.md#tuning-table) |
-| 2 | **Fill the sound slots:** engine loop, crash, spill, break, fire loop, repair ding, flip, righted | Audio carries a stream. | S per slot, no code | `FNBFeedback` slots on BP_OffroadCar_Pawn and its part components ([slot map](Assets.md#slot-map)) |
+| 2 | **Fill the sound slots:** engine loop, crash, spill, break, fire loop, repair ding, flip, righted (done 14 Oct, plus music and run events; unheard) | Audio carries a stream. | S per slot, no code | `FNBFeedback` slots on BP_OffroadCar_Pawn and its part components ([slot map](Assets.md#slot-map)) |
 | 3 | **Horn** (code done 13 Oct) | Endless dumb fun, a "hey!" that cuts through voice chat, and something to spam while muted. | S | New input on `ANBSquirrel` (H / gamepad Y, seated only, short cooldown) → server RPC → `ANBCar::Multicast_Feedback` with a new `HornFeedback` slot |
 | 4 | **Squirrel screams and a landing thud** (plus a chatter when grabbing a part; code done 13 Oct, slots on BP_Squirrel) | A squirrel yelling as it flies out is the genre's funniest moment. | S–M | `FNBFeedback` UPROPERTYs on `ANBSquirrel`, played in `Eject` and when the ragdoll ends. Assigning assets needs a Blueprint child (`BP_Squirrel`) that the game mode loads with `FClassFinder` like the car; it must sit in an always-cooked directory ([Assets.md](Assets.md#where-files-go)) |
 | 5 | **Visible acorn pile in the bed** (code done 13 Oct) | Viewers can't see an integer. A shrinking pile makes spills readable from the chase cam. | S–M | `ANBCar::Acorns` becomes `ReplicatedUsing=OnRep_Acorns`; an ISM of acorns in the bed hides one instance per acorn lost. Header change |

@@ -40,6 +40,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Driving feels arcade, not sluggish. Any tire shimmer (TSR) left?
 - [ ] Horn: H (or pad Y) in any seat shows "HONK!" over the car on both PCs. Fun to spam, or annoying? (Not tested by script: Python can't press keys.)
 - [ ] Crash camera punch: noticeable on a hard hit without being sickening. Tune `CameraPunchDistance` / `CameraPunchRoll` on BP_Squirrel.
+- [ ] Sound (all CC0 placeholders, 14 Oct): engine loop pitch, crash, spill pops, part breaks, the fire loop on a broken engine, repair ding, flip thud, righted boing, bicycle horn, squirrel scream / landing thud / grab chatter, menu and run music, countdown beeps, end jingles. Which ones are wrong or annoying? The run music is a 32 s loop: does it grate over 8 minutes?
 - [ ] Charm pass: does the squirrel read as a squirrel from the chase cam? Do the googly pupils and tail wobble look lively, or jittery on the client (they run off replicated motion)? Tune "Squirrel|Charm" on BP_Squirrel.
 - [ ] Onboarding: the WHEEL / PEDALS labels show over the empty driving seats and vanish once each is used; the PARK boards are readable from the car. Did a new player find E without being told?
 

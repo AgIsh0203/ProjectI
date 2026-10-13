@@ -18,12 +18,12 @@
   - the code-built route, lobby menu, proximity voice, Acorn in Mouth + pings, and sound/VFX slots.
 - **Only M0 has been played by hand** (2-PC Steam test on 2026-10-07: host / invite / join, voice, no physics stutter). Everything since is verified only by Python in PIE.
 - The latest packaged build is the slim Development build of 2026-10-13 (`D:\Games-Unreal\ProjectI_Builds\2026-10-13\`, size phases A + B): a 254 MB zip that installs to 495 MB, down from 1.04 GB / 3 GB. It launches offline with no load errors; nobody has played it yet, and the no-Lumen look still needs your check. New builds go to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
-- Every sound/VFX slot is empty. The only third-party asset is the Lilita One font (OFL, `Content/ThirdParty/Fonts`).
+- Every sound slot is filled (2026-10-14) with CC0 clips from Kenney and OpenGameArt (list in `CREDITS.md`), plus menu/run music and run-event sounds on the HUD. Every VFX slot is still empty. The font is Lilita One (OFL). None of it has been heard in a build yet.
 - **Next** (details in `docs/Roadmap.md`):
   1. ~~Slim the package~~ (done: the 254 MB build above).
   2. 2-PC playtest with the slim build (Tue 13). That build predates item 3's code, so package a fresh one if the test should include it.
   3. Blockers from the playtest. All Tier 1 code was pulled forward and is done (2026-10-13): horn #3, squirrel sound slots #4, acorn pile #5, readable failures #6, charm pass #7, onboarding #8. The pile, callouts and charm parts are checked in 3-client PIE; the horn and the seat labels can't be (Python can't press keys or read the canvas). The #6 font (Lilita One) went in later the same day, compiled but not yet run. No build has any of this yet: the user skipped packaging and testing for now.
-  4. Sounds in the slots, VFX, private itch page (Sat 17 – Mon 19). All of it waits on the asset downloads.
+  4. ~~Sounds in the slots~~ (done 14 Oct, unheard). Still to do: VFX (the Kenney Particle Pack is downloaded to the scratchpad but needs Niagara systems built), Kenney input prompts on the HUD (downloaded, not imported), the private itch page (Sat 17 – Mon 19).
   5. **Friend test Tue 20 Oct**, then the top-3 fixes and Tier 2 picks.
   6. **Public itch demo Sat 24 Oct**, as a Shipping build ≤ 200 MB zipped.
 - **Budget:** about 65 h total; weekdays 2–3 h, weekends 5–6 h. About 41 h remain from Mon 12 by the plan's calendar.
@@ -95,10 +95,11 @@
   - Failure callouts: `UpdateCallouts` watches every part's `IsFailed()` and queues the part's `CalloutText` on each rising edge (a part seen for the first time only records its state). `DrawCallouts` draws them outlined (`DrawShoutText`, in Lilita One: the constructor finds the `UFontFace` and BeginPlay wraps it in a transient runtime `UFont`, because Python can't author a Font asset's typefaces; the engine large font is the fallback) for 2.4 s: newest big, at most 3.
   - `AlarmStackBottom`: the flip banner, the failure list and the wreck warning stack downward from the top, and the callouts start below them, so nothing overlaps.
   - "HONK!" floats over the car for 0.6 s after each honk.
+  - Run audio (`UpdateRunAudio`, every frame, before the pawn check): menu music outside a run, silence plus a beep per second in the countdown, a "go" sound and the run music while driving, then the delivered or failed jingle. Sounds come from `/Game/ThirdParty` via `FObjectFinder` in the constructor; `PlayMusic` cross-fades over 1 s at `MusicVolume` (0.35). A late joiner gets no edge sounds for an old phase.
   - Onboarding: `DrawSeatLabels` bobs WHEEL / PEDALS over each free driving seat until it's first seen occupied (`UsedSeats`, per HUD, so per map load).
 - `FX/NBFeedback` — `FNBFeedback` (optional sound + Niagara effect, volume/pitch/jitter/scale) and `NBFeedback::PlayAt` / `PlayAttached` / `StartLoop`. Every play sets the float param `Intensity` (0..1) on both. No-op on a dedicated server or with no assets, so events are wired in code and assets get dropped in later.
   - `Effect` is a `UNiagaraSystem`; legacy Cascade particle systems don't fit.
-  - The run events (countdown, delivered, wrecked) have no slots yet.
+  - The run events (countdown, delivered, wrecked) and the music aren't `FNBFeedback` slots: they're local 2D sounds on `ANBHUD` (below).
 - `Parts/NBCarPartComponent` — derives from the interactable: a part is its own repair spot.
   - Feedback slots on every part ("Part|Feedback"): `BreakFeedback`, `FailedLoopFeedback` (loops while broken, e.g. engine fire; its `Severity` param ramps 0→1 over `SeverityRampSeconds`, = stall/gone time for engine/brakes), `RepairFeedback`. One-shots only play for live changes, not the state a late joiner receives.
   - Replicated `bFailed`. While failed, the interactable is on and the subclass's `ApplyFailedEffect(seconds since failure)` escalates every tick. Completing the interaction repairs it.

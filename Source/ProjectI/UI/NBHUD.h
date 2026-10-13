@@ -88,6 +88,47 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<class UFont> ShoutFont;
 
+	// --- Run audio: local to each player, so it lives on the HUD. Assets in /Game/ThirdParty (always cooked). ---
+
+	/** Plays the menu music outside a run and the run music while driving, plus the countdown
+	 *  beeps and the end jingle. Called every frame. */
+	void UpdateRunAudio();
+	void PlayMusic(class USoundBase* Music);
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> MenuMusic;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> RunMusic;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	float MusicVolume = 0.35f;
+
+	/** Each whole second of the countdown. */
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> CountdownBeep;
+
+	/** The countdown hits zero and the car is free. */
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> CountdownGo;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> DeliveredSound;
+
+	/** Time up or a total wreck. */
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TObjectPtr<class USoundBase> FailedSound;
+
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> MusicComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<class USoundBase> PlayingMusic;
+
+	/** Last frame's phase and countdown second, to fire one-shots on the edges. */
+	uint8 LastPhase = 0xFF;
+	int32 LastCountdownSecond = -1;
+
 	/** The chunky font if it loaded, else the engine's large font. */
 	UFont* GetShoutFont() const;
 
