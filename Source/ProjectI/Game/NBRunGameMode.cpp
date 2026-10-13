@@ -201,6 +201,25 @@ void ANBRunGameMode::DevStartRun()
 	bForceStart = true;
 }
 
+void ANBRunGameMode::DevSoundTour()
+{
+	// Random breakdowns would play over the tour and muddle which sound is which.
+	Director->End();
+	if (Car)
+	{
+		Car->DevSoundTour();
+	}
+}
+
+void ANBRunGameMode::DevEndRun(ENBRunResult Result)
+{
+	const ANBRunGameState* State = GetRunState();
+	if (State && State->GetPhase() != ENBRunPhase::Finished)
+	{
+		EndRun(Result);
+	}
+}
+
 bool ANBRunGameMode::CanStartRun() const
 {
 	const ANBRunGameState* State = GetRunState();

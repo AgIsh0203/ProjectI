@@ -72,6 +72,10 @@ public:
 	/** Engine, Brakes, Door, TireFL/FR/BL/BR, Tire (random tire) or All. */
 	void DevFail(const FString& PartName);
 
+	/** Dev (NBSoundTour): plays every car, part and squirrel sound in turn, 4 s apart, naming each
+	 *  one on screen, so the sounds can be judged in the real mix. Server only. */
+	void DevSoundTour();
+
 	/** Dev: roll the car onto its roof so the flip-up can be tested. */
 	void DevFlip();
 
@@ -328,6 +332,9 @@ private:
 	void UpdateEngineState(float DeltaSeconds);
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
+	void SoundTourStep();
+	FTimerHandle SoundTourTimer;
+	int32 SoundTourIndex = 0;
 	void CheckFlipped();
 	void CheckSpill();
 	void SetFlipped(bool bNewFlipped);

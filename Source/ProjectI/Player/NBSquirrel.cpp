@@ -535,6 +535,37 @@ void ANBSquirrel::Server_DevStart_Implementation()
 	}
 }
 
+void ANBSquirrel::NBSoundTour()
+{
+	Server_DevSoundTour();
+}
+
+void ANBSquirrel::Server_DevSoundTour_Implementation()
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevSoundTour();
+	}
+}
+
+void ANBSquirrel::NBEnd(const FString& Result)
+{
+	Server_DevEnd(Result);
+}
+
+void ANBSquirrel::Server_DevEnd_Implementation(const FString& Result)
+{
+	ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>();
+	if (!Mode)
+	{
+		return;
+	}
+	const ENBRunResult Parsed = Result.Equals(TEXT("Wrecked"), ESearchCase::IgnoreCase) ? ENBRunResult::Wrecked
+		: Result.Equals(TEXT("TimeUp"), ESearchCase::IgnoreCase) ? ENBRunResult::TimeUp
+		: ENBRunResult::Delivered;
+	Mode->DevEndRun(Parsed);
+}
+
 void ANBSquirrel::Server_DevFlip_Implementation()
 {
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)

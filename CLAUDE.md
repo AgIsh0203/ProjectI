@@ -109,6 +109,7 @@
     - Tire ×4 (outside each wheel, Hold 3 s, `bRequiresOnFoot` + `bAttachUser`, so the squirrel clings and gets dragged): that wheel's grip drops to 30 %.
     - Door (passenger side, Mash 3 = slam): a greybox door panel on `DoorHinge` flaps open on all machines, and every 3 s above 300 cm/s it throws the passenger out (`EjectFromCar`).
   - Part ranges are tuned so the wheel/pedal seats reach nothing; each rider seat reaches exactly one part.
+  - Dev console: `NBSoundTour` plays every car, part and squirrel sound in turn, 4 s apart, labelled on screen (pauses the failure director; seats everyone so the flip throws them). `NBEnd Delivered|TimeUp|Wrecked` ends the run now (end jingle and end screen).
   - Dev console (server): `NBFail Engine|Brakes|Door|TireFL|…|Tire|All`, `NBChaos` toggles a random failure every 12 s, `NBFlip` rolls the car over, and `NBWarp` jumps the car to a route section.
 - `Dev/NBInteractTestPad` — throwaway labelled block with one interactable; re-arms 1.5 s after completing. Four of them (one per mode) sit in L_TestTrack at y = -550.
 - `Game/NBRunGameMode` — global default game mode; spawns the car from `/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn`. That Blueprint is **reparented to ANBCar** and holds the mesh, tire sockets and curves.

@@ -110,6 +110,7 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 |---|---|---|
 | Run | deadline 480 s (150 s on the test track); countdown 5 s; end screen 12 s | `ANBRoute::DeadlineSeconds`, `ANBRunGameMode` |
 | Score | 10 per acorn, 2 per second left, −25 per respawn; 0 on a bad ending | `ANBRunGameMode` |
+| Audio | engine loop asset volume 0.35 (✓ 14 Oct: the user found 1.0 too loud); music 0.35 | `SW_Engine_Loop` volume, `ANBHUD::MusicVolume` |
 | Total wreck | 3 parts failed for 10 s | `ANBRunGameMode` |
 | Failure director | first failure after 8 s; then every 14 s, easing to 6 s by the deadline; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s | `UNBFailureDirector` |
 | Engine | power fades to 35 % over 10 s, stalls at 16 s; repair: 14 presses (progress drains 0.2/s) | `UNBEnginePart` |

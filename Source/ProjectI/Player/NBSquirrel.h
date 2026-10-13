@@ -128,6 +128,17 @@ public:
 	UFUNCTION(Exec)
 	void NBFlip();
 
+	/** Dev: play every in-game sound once, in turn, labelled on screen (host). */
+	UFUNCTION(Exec)
+	void NBSoundTour();
+
+	/** Dev: end the run now: Delivered, TimeUp or Wrecked (host). */
+	UFUNCTION(Exec)
+	void NBEnd(const FString& Result);
+
+	/** Server only. Dev sound tour: the grab chatter, which is otherwise private to the squirrel. */
+	void DevPlayGrabFeedback() { Multicast_Grabbed(); }
+
 	/** Dev: start the countdown without waiting for a second squirrel. */
 	UFUNCTION(Exec)
 	void NBStart();
@@ -409,6 +420,12 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevStart();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevSoundTour();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevEnd(const FString& Result);
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevWarp(const FString& Section);

@@ -9,9 +9,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Car/NBAcorn.h"
+#include "Car/NBSeatComponent.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
@@ -632,4 +635,67 @@ void ANBCar::DevFlip()
 	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, 250.f), Roof, false, nullptr, ETeleportType::TeleportPhysics);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+}
+
+void ANBCar::DevSoundTour()
+{
+	check(HasAuthority());
+	// The flip only screams if someone is riding: seat every squirrel on foot.
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsSeated() && !It->IsRagdolled())
+		{
+			for (UNBSeatComponent* Seat : Seats)
+			{
+				if (Seat && Seat->IsFree())
+				{
+					It->EnterSeat(Seat);
+					break;
+				}
+			}
+		}
+	}
+	SoundTourIndex = 0;
+	SoundTourStep();
+}
+
+void ANBCar::SoundTourStep()
+{
+	ANBSquirrel* Squirrel = nullptr;
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		Squirrel = *It;
+		break;
+	}
+
+	// Each step: what the screen says, what it does, and how long until the next one.
+	FString Label;
+	float Wait = 4.f;
+	switch (SoundTourIndex++)
+	{
+	case 0:  Label = TEXT("ENGINE LOOP: full throttle"); SetSeatInput(ENBSeatRole::Pedals, 1.f); break;
+	case 1:  Label = TEXT("ENGINE LOOP: back to idle"); SetSeatInput(ENBSeatRole::Pedals, 0.f); break;
+	case 2:  Label = TEXT("HORN"); Honk(); Wait = 3.f; break;
+	case 3:  Label = TEXT("CRASH (light)"); Multicast_Feedback(ENBCarFeedback::Crash, 0.2f); Wait = 3.f; break;
+	case 4:  Label = TEXT("CRASH (hard)"); Multicast_Feedback(ENBCarFeedback::Crash, 1.f); Wait = 3.f; break;
+	case 5:  Label = TEXT("ACORN SPILL"); Multicast_Feedback(ENBCarFeedback::Spill, 0.6f); Wait = 3.f; break;
+	case 6:  Label = TEXT("ENGINE BREAKS: clang, then the fire loop"); EnginePart->Fail(); Wait = 6.f; break;
+	case 7:  Label = TEXT("ENGINE REPAIRED: ding"); EnginePart->Repair(); Wait = 3.f; break;
+	case 8:  Label = TEXT("BRAKES BREAK"); BrakePart->Fail(); Wait = 3.f; break;
+	case 9:  Label = TEXT("BRAKES REPAIRED"); BrakePart->Repair(); Wait = 3.f; break;
+	case 10: Label = TEXT("TIRE BREAKS"); TireFL->Fail(); Wait = 3.f; break;
+	case 11: Label = TEXT("TIRE REPAIRED"); TireFL->Repair(); Wait = 3.f; break;
+	case 12: Label = TEXT("DOOR BREAKS"); DoorPart->Fail(); Wait = 3.f; break;
+	case 13: Label = TEXT("DOOR REPAIRED"); DoorPart->Repair(); Wait = 3.f; break;
+	case 14: Label = TEXT("SQUIRREL GRABS A PART: chatter"); if (Squirrel) { Squirrel->DevPlayGrabFeedback(); } Wait = 3.f; break;
+	// The flip registers after ~1.5 s upside down: then the thud, the riders' screams and their landing thuds.
+	case 15: Label = TEXT("CAR FLIPS: thud, squirrel scream, landing thuds"); DevFlip(); Wait = 7.f; break;
+	case 16: Label = TEXT("CAR RIGHTED: boing"); HandleFlipPushed(nullptr); Wait = 4.f; break;
+	default:
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("SOUND TOUR DONE. End jingles: NBEnd Delivered, or NBEnd Wrecked"), true, FVector2D(1.6f));
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBSoundTour %d: %s"), SoundTourIndex, *Label);
+	GEngine->AddOnScreenDebugMessage(-1, Wait, FColor::Yellow, FString::Printf(TEXT("%d/17  %s"), SoundTourIndex, *Label), true, FVector2D(1.6f));
+	GetWorldTimerManager().SetTimer(SoundTourTimer, this, &ANBCar::SoundTourStep, Wait, false);
 }

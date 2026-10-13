@@ -42,6 +42,12 @@ public:
 	/** Dev: skip waiting for a crew and start the countdown now (NBStart, the menu's "Practice alone"). */
 	void DevStartRun();
 
+	/** Dev (NBSoundTour): stop random failures, then play every in-game sound in turn. */
+	void DevSoundTour();
+
+	/** Dev (NBEnd): end the run now with this result, for the end screen and its jingle. */
+	void DevEndRun(ENBRunResult Result);
+
 	/** The host has a crew of at least MinPlayers and the run hasn't started. */
 	bool CanStartRun() const;
 
