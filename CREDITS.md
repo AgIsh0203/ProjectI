@@ -15,7 +15,7 @@ CC0 and CC-BY only (rules: [docs/Assets.md](docs/Assets.md)). Add one line per p
 
 CC-BY lines must also appear on the itch page and in the game's credits.
 
-*None yet.*
+- `Lilita One` by Juan Montoreano (https://fonts.google.com/specimen/Lilita+One, from github.com/google/fonts), SIL Open Font License 1.1 (`Content/ThirdParty/Fonts/LilitaOne-OFL.txt`). Used for: the HUD's big shout text (failure callouts, HONK!, seat labels).
 
 ## Used in builds, not in this repo
 Fab, Sonniss and Pixabay files. They need no credit; they're listed so we always know what ships in a build.

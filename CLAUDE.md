@@ -18,11 +18,11 @@
   - the code-built route, lobby menu, proximity voice, Acorn in Mouth + pings, and sound/VFX slots.
 - **Only M0 has been played by hand** (2-PC Steam test on 2026-10-07: host / invite / join, voice, no physics stutter). Everything since is verified only by Python in PIE.
 - The latest packaged build is the slim Development build of 2026-10-13 (`D:\Games-Unreal\ProjectI_Builds\2026-10-13\`, size phases A + B): a 254 MB zip that installs to 495 MB, down from 1.04 GB / 3 GB. It launches offline with no load errors; nobody has played it yet, and the no-Lumen look still needs your check. New builds go to `D:\Games-Unreal\ProjectI_Builds\<date>\Windows\`.
-- Every sound/VFX slot is empty, and no third-party assets are in the project yet.
+- Every sound/VFX slot is empty. The only third-party asset is the Lilita One font (OFL, `Content/ThirdParty/Fonts`).
 - **Next** (details in `docs/Roadmap.md`):
   1. ~~Slim the package~~ (done: the 254 MB build above).
   2. 2-PC playtest with the slim build (Tue 13). That build predates item 3's code, so package a fresh one if the test should include it.
-  3. Blockers from the playtest. All Tier 1 code was pulled forward and is done (2026-10-13): horn #3, squirrel sound slots #4, acorn pile #5, readable failures #6, charm pass #7, onboarding #8. The pile, callouts and charm parts are checked in 3-client PIE; the horn and the seat labels can't be (Python can't press keys or read the canvas). Still open from #6: a chunky imported font.
+  3. Blockers from the playtest. All Tier 1 code was pulled forward and is done (2026-10-13): horn #3, squirrel sound slots #4, acorn pile #5, readable failures #6, charm pass #7, onboarding #8. The pile, callouts and charm parts are checked in 3-client PIE; the horn and the seat labels can't be (Python can't press keys or read the canvas). The #6 font (Lilita One) went in later the same day, compiled but not yet run. No build has any of this yet: the user skipped packaging and testing for now.
   4. Sounds in the slots, VFX, private itch page (Sat 17 – Mon 19). All of it waits on the asset downloads.
   5. **Friend test Tue 20 Oct**, then the top-3 fixes and Tier 2 picks.
   6. **Public itch demo Sat 24 Oct**, as a Shipping build ≤ 200 MB zipped.
@@ -92,7 +92,7 @@
 - `UI/NBLobbyMenu` — the lobby menu, a UMG widget built entirely in C++ (no widget asset). `ANBHUD` owns it, opens it by itself when standalone, and switches input to UI-only while it's open.
   - Offline: Host a game, Join a game, Practice alone (`DevStartRun`), Quit. Online: the crew list, Start the run (host, needs 2), Invite friends (Steam overlay invite dialog), Restart the run (host), Leave, Quit.
 - `UI/NBHUD` — greybox canvas HUD: a pulsing failure list at the top, a "!" marker over each broken part, prompt, progress bar, push count, timing ring with NICE/MISS, the run clock, banners and end screen, and a controls hint. Set as `HUDClass` in the game mode.
-  - Failure callouts: `UpdateCallouts` watches every part's `IsFailed()` and queues the part's `CalloutText` on each rising edge (a part seen for the first time only records its state). `DrawCallouts` draws them outlined (`DrawShoutText`, engine large font) for 2.4 s: newest big, at most 3.
+  - Failure callouts: `UpdateCallouts` watches every part's `IsFailed()` and queues the part's `CalloutText` on each rising edge (a part seen for the first time only records its state). `DrawCallouts` draws them outlined (`DrawShoutText`, in Lilita One: the constructor finds the `UFontFace` and BeginPlay wraps it in a transient runtime `UFont`, because Python can't author a Font asset's typefaces; the engine large font is the fallback) for 2.4 s: newest big, at most 3.
   - `AlarmStackBottom`: the flip banner, the failure list and the wreck warning stack downward from the top, and the callouts start below them, so nothing overlaps.
   - "HONK!" floats over the car for 0.6 s after each honk.
   - Onboarding: `DrawSeatLabels` bobs WHEEL / PEDALS over each free driving seat until it's first seen occupied (`UsedSeats`, per HUD, so per map load).
@@ -136,7 +136,7 @@
 - **The net driver is SteamSockets** (plugin enabled, `bUseSteamNetworking`, relays on). Without Steam (e.g. PIE) it falls back to IpNetDriver.
   - UE 5.7 no longer has `OnlineSubsystemSteam.SteamNetDriver`; the old config silently fell back to IP.
   - Voice is open mic (`bRequiresPushToTalk=false`).
-- **Packaging:** `/Game/VehicleTemplate/Blueprints/OffroadCar`, `/Game/Blueprints` (BP_Squirrel) and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them. Anything new that only C++ references (a HUD font, an imported mesh) needs the same treatment; `docs/Assets.md` has the folder plan.
+- **Packaging:** `/Game/VehicleTemplate/Blueprints/OffroadCar`, `/Game/Blueprints` (BP_Squirrel), `/Game/ThirdParty` (the HUD font) and `/Engine/BasicShapes` are always cooked, because only C++ constructors reference them. Anything new that only C++ references (a HUD font, an imported mesh) needs the same treatment; `docs/Assets.md` has the folder plan.
   - Package with: `RunUAT BuildCookRun -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -nodebuginfo -archive -archivedirectory=...`
   - Linking the monolithic `ProjectI.exe` with full debug info needs ~16 GB of RAM. With Firefox or a game open, UBA kills the link at its memory threshold and retries for ~20 min; close big apps before packaging. (`DebugInfoLineTablesOnly` in the Target.cs does nothing with MSVC; `DebugInfo = DebugInfoMode.ProjectOnly` would fix it at the cost of an engine recompile.)
   - `-nodebuginfo` keeps the 2.3 GB PDB out of the build. Copy the PDB from `Binaries/Win64` to `ProjectI_Builds\<date>\Symbols\` so crash dumps can still be read.

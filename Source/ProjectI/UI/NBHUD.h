@@ -19,6 +19,8 @@ class PROJECTI_API ANBHUD : public AHUD
 	GENERATED_BODY()
 
 public:
+	ANBHUD();
+
 	virtual void DrawHUD() override;
 
 	/** The lobby menu: shows the cursor and takes input until closed. */
@@ -77,6 +79,17 @@ private:
 
 	/** Driving seats someone has sat in; their labels are gone for good (until the map reloads). */
 	TSet<TWeakObjectPtr<const class UNBSeatComponent>> UsedSeats;
+
+	/** Lilita One (OFL, /Game/ThirdParty/Fonts) for DrawShoutText. An always-cooked FontFace asset;
+	 *  BeginPlay wraps it in a runtime UFont, since Python can't author a Font asset's typefaces. */
+	UPROPERTY()
+	TObjectPtr<class UFontFace> ShoutFontFace;
+
+	UPROPERTY(Transient)
+	TObjectPtr<class UFont> ShoutFont;
+
+	/** The chunky font if it loaded, else the engine's large font. */
+	UFont* GetShoutFont() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNBLobbyMenu> Menu;

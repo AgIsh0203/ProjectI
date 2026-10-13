@@ -24,7 +24,7 @@ What follows from that:
 - **Commit the imported `.uasset` files, not the raw downloads.** (`.gitignore` drops `*.obj` anyway, since it's also a compiler output.)
 - **Keep the download small** (the demo budget is ≤ 200 MB zipped; [Roadmap.md](Roadmap.md#package-size-slim-it-before-the-playtest)). Cap textures at 1024 px; Kenney's are far smaller. Music loops are the biggest audio files, so keep each under ~3 min. Check the zip size after each import batch.
 - **Credit on import.** Add the `CREDITS.md` line the day a file is imported, CC0 included, so the itch page can thank everyone.
-- **Cooking.** Assets assigned in a cooked Blueprint cook with it. BP_OffroadCar_Pawn and BP_Squirrel live in always-cooked directories (`/Game/VehicleTemplate/Blueprints/OffroadCar`, `/Game/Blueprints`), so their slots are covered. Anything else only C++ constructors reference (a HUD font, an imported mesh) must sit in a directory listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`. When the first file lands, add `/Game/ThirdParty` and `/Game/ThirdParty_Private` there.
+- **Cooking.** Assets assigned in a cooked Blueprint cook with it. BP_OffroadCar_Pawn and BP_Squirrel live in always-cooked directories (`/Game/VehicleTemplate/Blueprints/OffroadCar`, `/Game/Blueprints`), so their slots are covered. Anything else only C++ constructors reference (a HUD font, an imported mesh) must sit in a directory listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`. `/Game/ThirdParty` is listed (since the font, 13 Oct); add `/Game/ThirdParty_Private` when its first file lands.
 - **Public clones miss the private files.** Blueprints that point at them load with empty slots. `FNBFeedback` does nothing without assets, so the game still runs, just quieter. The second PC gets everything through the packaged build, not git.
 - **Fallback:** if the private folder becomes a hassle, go CC0-only. Kenney, Freesound CC0 and jsfxr cover every slot, at lower quality.
 
@@ -37,7 +37,7 @@ In priority order. Items 1–5 are for the friend test (download by Fri 16 Oct);
 | 2 | **Sonniss GDC Game Audio Bundle**: pick files, don't import it all | royalty-free → `ThirdParty_Private/Sonniss` | the engine loop (a rattly lawnmower or moped), metal clangs, fire crackle, tire squeal |
 | 3 | **Freesound**, filtered to CC0: squirrel chatter and squeaks, a scream, a cartoon boing, a silly horn | CC0 → `ThirdParty/Freesound` (CC-BY only with a credit line) | squirrel barks, horn, righted car |
 | 4 | **Music**: two CC0 loops (menu, run) from FreePD, Kenney or OpenGameArt | CC0 → `ThirdParty/Music` | menu and run |
-| 5 | A chunky **font** (Lilita One or Fredoka) and Kenney **Input Prompts** | OFL / CC0 → `ThirdParty/Fonts`, `ThirdParty/Kenney` | failure callouts, HUD, controls hints |
+| 5 | A chunky **font** (Lilita One: imported 13 Oct) and Kenney **Input Prompts** | OFL / CC0 → `ThirdParty/Fonts`, `ThirdParty/Kenney` | failure callouts, HUD, controls hints |
 | 6 | Kenney **Particle Pack** | CC0 → `ThirdParty/Kenney` | cartoon smoke, stars and sparks as Niagara sprites |
 | 7 | Kenney **Nature Kit** and **City Kit (Roads)** | CC0 → `ThirdParty/Kenney` | route and depot dressing (first thing cut) |
 | 8 | Quaternius **LowPoly Animated Animals** (the pug) | CC0 → `ThirdParty/Quaternius` | the dog hazard (Roadmap #13), only if it's picked |

@@ -60,7 +60,8 @@ The park-to-depot road is built in code (`ANBRoute`): about 3.5 km of greybox ro
 Viewers can't hear game state, so every failure must read on screen in under 2 s with the sound off.
 - **Built:** a pulsing failure list, "!" markers over broken parts, the timing ring with NICE / MISS, a "CAR FLIPPED!" banner, section banners, and sound/VFX slots on every car and part event (all still empty).
 - **Built (#5, #6):** a big outlined callout per failure ("ENGINE ON FIRE!", "THE BRAKES ARE GOING!", "FLAT TIRE!", "THE DOOR FLEW OPEN!") that slams in, shakes and fades over 2.4 s, newest biggest, at most 3. A camera punch on crashes: full for riders, fading out to 25 m for squirrels on foot. An acorn pile on the engine deck, one sphere per acorn, that empties from the top as acorns spill.
-- **Friend test:** sound in every slot (#2); a chunky imported font for the callouts (they use the engine's large font for now); VFX for engine fire, crash sparks and spills.
+- **Built:** the callouts, "HONK!" and the seat labels use Lilita One, a chunky OFL font.
+- **Friend test:** sound in every slot (#2); VFX for engine fire, crash sparks and spills.
 - **No slow-mo:** time dilation is global in multiplayer and would slow everyone's physics. A camera punch does the job instead.
 - **Tuned for comedy** at the 2-PC test (#1): bigger ejection kicks, a wobblier door, more body roll.
 
@@ -84,7 +85,7 @@ Built for screenshots.
 - **Art:** Kenney and Quaternius CC0 low-poly (flat colour) to dress the route and the depot. The Epic offroad buggy stays. It's M3a work and the first thing cut.
 - **Lighting:** a sky light and sun with regular shadow maps. Lumen, ray tracing and virtual shadow maps go if the Mon 12 look check agrees: they cost download size and frame rate, and flat-colour art doesn't need bounce light.
 - **Audio:** one cheap, rattly engine loop pitched by RPM (a lawnmower or moped beats a real car); impacts, clangs, fire crackle, repair dings, acorn pops. Music is CC0 / CC-BY with no Content ID, so streams stay unmuted.
-- **UI:** a chunky rounded font (Lilita One or Fredoka) and Kenney input prompts.
+- **UI:** a chunky rounded font (Lilita One, in for the shout text; the rest of the HUD still uses the engine font) and Kenney input prompts.
 - **Proximity voice — Built** (Steam VOIP): full volume within 8 m, silent about 25 m further.
 
 ## Online

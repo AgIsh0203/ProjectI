@@ -47,7 +47,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] The HUD shows the failure list, the "!" markers over broken parts, prompts, the progress bar, the push count, and the timing ring with NICE / MISS.
 - [ ] Engine (mash 14 times), brakes (3 timing-ring hits), tire (hold 3 s outside the car, clinging while it drags you), door (slam: 3 presses). Is each one readable, and fun?
 - [ ] An open door throws the passenger out every 3 s above 300 cm/s.
-- [ ] Each break shows its big callout ("ENGINE ON FIRE!"...). Readable at a glance with the sound off? Does it cover anything you needed to see?
+- [ ] Each break shows its big callout ("ENGINE ON FIRE!"...). Readable at a glance with the sound off? Does it cover anything you needed to see? The callouts are in Lilita One now: check the size and outline still look right (the font face is new, untested in a build).
 - [ ] Failure rate (one every 14 s, ramping to one every 6 s): too calm, or too busy? Do failures feel random (Roadmap #16)?
 - [ ] Total wreck: 3 parts failed for 10 s ends the run.
 

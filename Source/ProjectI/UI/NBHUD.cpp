@@ -12,6 +12,7 @@
 #include "Parts/NBCarPartComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/FontFace.h"
 #include "Engine/GameInstance.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
@@ -21,6 +22,7 @@
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
 #include "UI/NBLobbyMenu.h"
+#include "UObject/ConstructorHelpers.h"
 
 namespace
 {
@@ -49,9 +51,31 @@ namespace
 	}
 }
 
+ANBHUD::ANBHUD()
+{
+	// /Game/ThirdParty is always cooked; only this constructor references the face.
+	static ConstructorHelpers::FObjectFinder<UFontFace> ShoutFace(TEXT("/Game/ThirdParty/Fonts/LilitaOne-Regular.LilitaOne-Regular"));
+	ShoutFontFace = ShoutFace.Object;
+}
+
+UFont* ANBHUD::GetShoutFont() const
+{
+	return ShoutFont ? ShoutFont.Get() : GEngine->GetLargeFont();
+}
+
 void ANBHUD::BeginPlay()
 {
 	Super::BeginPlay();
+	if (ShoutFontFace && !ShoutFont)
+	{
+		// A runtime (composite) font draws through the Slate font cache at any size. LegacyFontSize
+		// matches the engine's large font, so the shout scales stay the same.
+		ShoutFont = NewObject<UFont>(this, TEXT("ShoutFont"), RF_Transient);
+		ShoutFont->FontCacheType = EFontCacheType::Runtime;
+		ShoutFont->LegacyFontSize = 24;
+		FTypefaceEntry& Regular = ShoutFont->GetMutableInternalCompositeFont().DefaultTypeface.Fonts.Emplace_GetRef(TEXT("Regular"));
+		Regular.Font = FFontData(ShoutFontFace);
+	}
 	if (!PlayerOwner || !PlayerOwner->IsLocalController())
 	{
 		return;
@@ -301,7 +325,7 @@ void ANBHUD::DrawSeatLabels()
 
 void ANBHUD::DrawShoutText(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float Scale)
 {
-	UFont* Font = GEngine->GetLargeFont();
+	UFont* Font = GetShoutFont();
 	float W = 0.f, H = 0.f;
 	GetTextSize(Text, W, H, Font, Scale);
 	FCanvasTextItem Item(FVector2D(CenterX - W * 0.5f, Y - H * 0.5f), FText::FromString(Text), Font, Color);
