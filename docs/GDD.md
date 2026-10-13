@@ -61,7 +61,7 @@ Viewers can't hear game state, so every failure must read on screen in under 2 s
 - **Built:** a pulsing failure list, "!" markers over broken parts, the timing ring with NICE / MISS, a "CAR FLIPPED!" banner, section banners, and sound/VFX slots on every car and part event (sounds filled 14 Oct with CC0 clips; VFX still empty), menu and run music, countdown beeps and end jingles.
 - **Built (#5, #6):** a big outlined callout per failure ("ENGINE ON FIRE!", "THE BRAKES ARE GOING!", "FLAT TIRE!", "THE DOOR FLEW OPEN!") that slams in, shakes and fades over 2.4 s, newest biggest, at most 3. A camera punch on crashes: full for riders, fading out to 25 m for squirrels on foot. An acorn pile on the engine deck, one sphere per acorn, that empties from the top as acorns spill.
 - **Built:** the callouts, "HONK!" and the seat labels use Lilita One, a chunky OFL font.
-- **Friend test:** VFX for engine fire, crash sparks and spills. (Sound in every slot, #2, is in.)
+- **Built (14 Oct):** toon VFX from code-built spheres and cubes: crash sparks and dust, an acorn-brown spill puff, flip dust, "righted" stars, engine fire with a smoke column (bigger as it gets worse), brake sparks while the brakes are failing, tire smoke, green repair stars, a landing puff. Sound is in every slot (#2).
 - **No slow-mo:** time dilation is global in multiplayer and would slow everyone's physics. A camera punch does the job instead.
 - **Tuned for comedy** at the 2-PC test (#1): bigger ejection kicks, a wobblier door, more body roll.
 

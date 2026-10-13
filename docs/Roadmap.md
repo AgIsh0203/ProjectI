@@ -8,7 +8,7 @@ Effort: **S** < 2 h, **M** 2–5 h, **L** > 5 h.
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
 - That build is a **1.04 GB download that installs to 3 GB**, though players need only about 0.7 GB of it ([Package size](#package-size-slim-it-before-the-playtest)).
-- Every sound slot is filled with CC0 clips (14 Oct); every VFX slot is empty. The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
+- Every sound slot is filled with CC0 clips (14 Oct); VFX are code-built toon puffs (14 Oct). The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
 
 ## Rules for the last two weeks
 1. **Playtest before adding anything.** Every number (spill threshold, failure rate, deadline, tire cling) is a guess until two people have played a run.

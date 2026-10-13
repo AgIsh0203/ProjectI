@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
+#include "FX/NBPuffFX.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -57,6 +58,10 @@ namespace
 				Effect->SetVariableFloat(NBFeedback::IntensityParam, Intensity);
 			}
 		}
+		if (Feedback.HasPuffs())
+		{
+			Result.Puffs = ANBPuffFX::Spawn(AttachTo->GetWorld(), Feedback.Puffs, FVector::ZeroVector, AttachTo, RelativeLocation, Intensity, bLoop);
+		}
 		if (!bLoop)
 		{
 			Result = FNBFeedbackLoop();
@@ -71,6 +76,10 @@ void FNBFeedbackLoop::SetFloat(FName Name, float Value) const
 	{
 		AudioComponent->SetFloatParameter(Name, Value);
 	}
+	if (ANBPuffFX* PuffFX = Puffs.Get())
+	{
+		PuffFX->SetStrength(Value);
+	}
 	if (UNiagaraComponent* EffectComponent = Effect.Get())
 	{
 		EffectComponent->SetVariableFloat(Name, Value);
@@ -84,6 +93,11 @@ void FNBFeedbackLoop::Stop()
 		// Fade rather than cut, so a repaired engine's sizzle doesn't click off.
 		AudioComponent->FadeOut(0.25f, 0.f);
 	}
+	if (ANBPuffFX* PuffFX = Puffs.Get())
+	{
+		// Same idea: the last flames and smoke finish, then the actor goes.
+		PuffFX->StopLoop();
+	}
 	if (UNiagaraComponent* EffectComponent = Effect.Get())
 	{
 		// Lets live particles (smoke) finish instead of popping; auto-destroys once done.
@@ -91,6 +105,7 @@ void FNBFeedbackLoop::Stop()
 	}
 	Audio.Reset();
 	Effect.Reset();
+	Puffs.Reset();
 }
 
 void NBFeedback::PlayAt(const UObject* WorldContext, const FNBFeedback& Feedback, const FVector& Location, const FRotator& Rotation, float Intensity)
@@ -114,6 +129,10 @@ void NBFeedback::PlayAt(const UObject* WorldContext, const FNBFeedback& Feedback
 		{
 			Effect->SetVariableFloat(IntensityParam, Intensity);
 		}
+	}
+	if (Feedback.HasPuffs())
+	{
+		ANBPuffFX::Spawn(World, Feedback.Puffs, Location, nullptr, FVector::ZeroVector, Intensity, /*bLoop*/ false);
 	}
 }
 
