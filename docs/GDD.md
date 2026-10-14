@@ -68,7 +68,7 @@ Viewers can't hear game state, so every failure must read on screen in under 2 s
 ## Onboarding — Built (#8)
 - WHEEL ("steers") / PEDALS ("gas + brake") labels bob over the two driving seats until someone first sits in each (per map load).
 - Four boards on the left of THE PARK, in the order they are needed: "E: GET IN / HOP SEAT" (in view from the start), "LMB: FIX BROKEN PARTS", "SPACE: JUMP OUT", "H: HONK!". Keyboard only.
-- The controls hint stays on the HUD (Built).
+- The controls hint stays on the HUD (Built), as key or Xbox button icons that follow whichever device was used last (14 Oct).
 
 ## Co-op levers — Demo, if the playtest agrees
 - **The pedal squirrel can't see the road (#9).** Its camera sits low in the footwell, so the WHEEL squirrel has to shout GAS / BRAKE. Asymmetric information forces talking, and talking is what makes streams funny. **Not decided:** it bends the locked chase-camera rule for one seat.

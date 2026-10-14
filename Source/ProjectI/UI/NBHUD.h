@@ -8,6 +8,19 @@
 
 class UNBInteractableComponent;
 class UNBLobbyMenu;
+class UTexture2D;
+
+/** The game's buttons, as the HUD names them: a key or a gamepad button depending on what was used last. */
+enum class ENBPrompt : uint8
+{
+	Interact, // E / X: get in, hop seat
+	Jump,     // Space / A: jump, jump out, let go
+	Work,     // LMB / B: repair, push
+	Horn,     // H / Y
+	Menu,     // Esc / Menu (Start)
+	Count
+};
+static_assert(static_cast<int32>(ENBPrompt::Count) == 5, "KeyIcons / PadIcons in ANBHUD are sized 5");
 
 /**
  * Greybox HUD drawn on the canvas: the focused interactable's prompt and progress
@@ -50,6 +63,24 @@ private:
 	void DrawRing(const UNBInteractableComponent& Interactable, const FVector2D& Center, float Radius);
 	void DrawBar(float X, float Y, float Width, float Height, float Fill, const FLinearColor& Color);
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
+
+	// --- Input prompts (Kenney Input Prompts, CC0, /Game/ThirdParty/Kenney/InputPrompts). ---
+
+	/** Switches the prompts to gamepad buttons on any pad input, back to keys on any key or mouse input. */
+	void UpdateInputDevice();
+	UTexture2D* PromptIcon(ENBPrompt Prompt) const;
+	/** For text-only places: "LMB" or "B". */
+	const TCHAR* PromptName(ENBPrompt Prompt) const;
+	/** A centred row of [icon] label pairs. */
+	void DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color);
+
+	UPROPERTY()
+	TObjectPtr<UTexture2D> KeyIcons[5];
+
+	UPROPERTY()
+	TObjectPtr<UTexture2D> PadIcons[5];
+
+	bool bUsingGamepad = false;
 
 	/** Queues a callout for each part that broke since the last frame. */
 	void UpdateCallouts();

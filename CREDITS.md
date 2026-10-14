@@ -26,6 +26,7 @@ CC-BY lines must also appear on the itch page and in the game's credits.
 - `Recorder Jam` by Of Far Different Nature (https://opengameart.org/content/recorder-jam), CC0. Used for: the run music.
 - `Squirrel` by Poly by Google (https://poly.pizza/m/64Yw0UoayhC), **CC-BY 3.0**. Used for: the squirrel body (re-centred, stood upright and tinted per player). Must be credited on the itch page and in game.
 - `Acorn` by Poly by Google (https://poly.pizza/m/cBjPyNgvJ3Q), **CC-BY 3.0**. Used for: the acorn pile and spilled acorns (re-centred). Must be credited on the itch page and in game.
+- `Input Prompts` by Kenney (https://kenney.nl/assets/input-prompts), CC0. Used for: the HUD's key and Xbox button icons (10 of them).
 - `Nature Kit` and `City Kit (Roads)` by Kenney (https://kenney.nl), CC0. Used for: trees, bushes, rocks, flowers, fences, street lamps, cones and road-works along the route.
 
 ## Used in builds, not in this repo

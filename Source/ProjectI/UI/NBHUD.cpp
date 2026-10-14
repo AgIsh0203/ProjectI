@@ -16,6 +16,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/FontFace.h"
+#include "Engine/Texture2D.h"
 #include "Engine/GameInstance.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
@@ -73,6 +74,116 @@ ANBHUD::ANBHUD()
 	CountdownGo = GoFinder.Object;
 	DeliveredSound = DeliveredFinder.Object;
 	FailedSound = FailedFinder.Object;
+
+	// Button icons in ENBPrompt order: keyboard/mouse, then Xbox (the common pad layout on PC).
+	static const TCHAR* const KeyNames[] = {TEXT("keyboard_e"), TEXT("keyboard_space"), TEXT("mouse_left"), TEXT("keyboard_h"), TEXT("keyboard_escape")};
+	static const TCHAR* const PadNames[] = {TEXT("xbox_button_color_x"), TEXT("xbox_button_color_a"), TEXT("xbox_button_color_b"), TEXT("xbox_button_color_y"), TEXT("xbox_button_menu")};
+	for (int32 i = 0; i < UE_ARRAY_COUNT(KeyNames); ++i)
+	{
+		ConstructorHelpers::FObjectFinder<UTexture2D> Key(*FString::Printf(TEXT("/Game/ThirdParty/Kenney/InputPrompts/T_%s.T_%s"), KeyNames[i], KeyNames[i]));
+		ConstructorHelpers::FObjectFinder<UTexture2D> Pad(*FString::Printf(TEXT("/Game/ThirdParty/Kenney/InputPrompts/T_%s.T_%s"), PadNames[i], PadNames[i]));
+		KeyIcons[i] = Key.Object;
+		PadIcons[i] = Pad.Object;
+	}
+}
+
+void ANBHUD::UpdateInputDevice()
+{
+	if (!PlayerOwner)
+	{
+		return;
+	}
+	static const FKey PadButtons[] = {EKeys::Gamepad_FaceButton_Bottom, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_FaceButton_Left,
+		EKeys::Gamepad_FaceButton_Top, EKeys::Gamepad_Special_Right, EKeys::Gamepad_Special_Left, EKeys::Gamepad_LeftShoulder,
+		EKeys::Gamepad_RightShoulder, EKeys::Gamepad_LeftTrigger, EKeys::Gamepad_RightTrigger, EKeys::Gamepad_DPad_Up,
+		EKeys::Gamepad_DPad_Down, EKeys::Gamepad_DPad_Left, EKeys::Gamepad_DPad_Right};
+	static const FKey PadSticks[] = {EKeys::Gamepad_LeftX, EKeys::Gamepad_LeftY, EKeys::Gamepad_RightX, EKeys::Gamepad_RightY};
+	static const FKey KeyboardKeys[] = {EKeys::W, EKeys::A, EKeys::S, EKeys::D, EKeys::E, EKeys::SpaceBar, EKeys::H, EKeys::Escape,
+		EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four};
+
+	for (const FKey& Key : PadButtons)
+	{
+		if (PlayerOwner->IsInputKeyDown(Key))
+		{
+			bUsingGamepad = true;
+			return;
+		}
+	}
+	for (const FKey& Stick : PadSticks)
+	{
+		// Past the dead zone, so a drifting stick doesn't steal the prompts back.
+		if (FMath::Abs(PlayerOwner->GetInputAnalogKeyState(Stick)) > 0.35f)
+		{
+			bUsingGamepad = true;
+			return;
+		}
+	}
+	float MouseX = 0.f, MouseY = 0.f;
+	PlayerOwner->GetInputMouseDelta(MouseX, MouseY);
+	if (FMath::Abs(MouseX) + FMath::Abs(MouseY) > 0.5f)
+	{
+		bUsingGamepad = false;
+		return;
+	}
+	for (const FKey& Key : KeyboardKeys)
+	{
+		if (PlayerOwner->IsInputKeyDown(Key))
+		{
+			bUsingGamepad = false;
+			return;
+		}
+	}
+}
+
+UTexture2D* ANBHUD::PromptIcon(ENBPrompt Prompt) const
+{
+	const int32 Index = static_cast<int32>(Prompt);
+	return Index < 5 ? (bUsingGamepad ? PadIcons[Index] : KeyIcons[Index]).Get() : nullptr;
+}
+
+const TCHAR* ANBHUD::PromptName(ENBPrompt Prompt) const
+{
+	static const TCHAR* const KeyNames[] = {TEXT("E"), TEXT("Space"), TEXT("LMB"), TEXT("H"), TEXT("Esc")};
+	static const TCHAR* const PadNames[] = {TEXT("X"), TEXT("A"), TEXT("B"), TEXT("Y"), TEXT("Menu")};
+	const int32 Index = static_cast<int32>(Prompt);
+	return Index < 5 ? (bUsingGamepad ? PadNames[Index] : KeyNames[Index]) : TEXT("?");
+}
+
+void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float IconSize = 30.f * Scale;
+	const float IconGap = 6.f * Scale;
+	const float ItemGap = 26.f * Scale;
+
+	// Measure first so the row centres.
+	TArray<float> TextWidths;
+	float Total = 0.f;
+	for (const TPair<ENBPrompt, FString>& Item : Items)
+	{
+		float W = 0.f, H = 0.f;
+		GetTextSize(Item.Value, W, H, Font, Scale);
+		TextWidths.Add(W);
+		Total += IconSize + IconGap + W;
+	}
+	Total += ItemGap * FMath::Max(Items.Num() - 1, 0);
+
+	float X = (Canvas->ClipX - Total) * 0.5f;
+	for (int32 i = 0; i < Items.Num(); ++i)
+	{
+		if (UTexture2D* Icon = PromptIcon(Items[i].Key))
+		{
+			DrawTextureSimple(Icon, X, Y - IconSize * 0.5f, IconSize / FMath::Max(Icon->GetSizeX(), 1));
+		}
+		else
+		{
+			// No icon asset: fall back to the key's name in brackets.
+			DrawText(FString::Printf(TEXT("[%s]"), PromptName(Items[i].Key)), Color, X, Y - 9.f * Scale, Font, Scale);
+		}
+		X += IconSize + IconGap;
+		DrawText(Items[i].Value, Color, X, Y - 9.f * Scale, Font, Scale);
+		X += TextWidths[i] + ItemGap;
+	}
 }
 
 void ANBHUD::PlayMusic(USoundBase* Music)
@@ -261,6 +372,7 @@ void ANBHUD::DrawHUD()
 	Super::DrawHUD();
 	// Before the pawn check: the menu music also plays while no squirrel is possessed yet.
 	UpdateRunAudio();
+	UpdateInputDevice();
 
 	const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(GetOwningPawn());
 	if (!Squirrel || !Canvas)
@@ -293,10 +405,20 @@ void ANBHUD::DrawHUD()
 		DrawInteractable(*Interactable, Interactable->IsUsedBy(Squirrel));
 	}
 
-	const FString Hint = Squirrel->IsClinging() ? TEXT("Keep holding LMB    Space: let go")
-		: Squirrel->IsSeated() ? TEXT("E: hop seat    Space: jump out    LMB: work    H: horn")
-		: TEXT("E: get in    Space: jump    LMB: work");
-	DrawCenteredText(Hint, Canvas->ClipY - 36.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 1.f);
+	TArray<TPair<ENBPrompt, FString>> Hint;
+	if (Squirrel->IsClinging())
+	{
+		Hint = {{ENBPrompt::Work, TEXT("keep holding")}, {ENBPrompt::Jump, TEXT("let go")}};
+	}
+	else if (Squirrel->IsSeated())
+	{
+		Hint = {{ENBPrompt::Interact, TEXT("hop seat")}, {ENBPrompt::Jump, TEXT("jump out")}, {ENBPrompt::Work, TEXT("work")}, {ENBPrompt::Horn, TEXT("horn")}};
+	}
+	else
+	{
+		Hint = {{ENBPrompt::Interact, TEXT("get in")}, {ENBPrompt::Jump, TEXT("jump")}, {ENBPrompt::Work, TEXT("work")}};
+	}
+	DrawPromptRow(Hint, Canvas->ClipY - 30.f, 1.f, FLinearColor(1.f, 1.f, 1.f, 0.8f));
 }
 
 void ANBHUD::DrawCarStatus()
@@ -310,7 +432,7 @@ void ANBHUD::DrawCarStatus()
 	{
 		if (It->IsFlipped())
 		{
-			DrawCenteredText(TEXT("CAR FLIPPED!  Two squirrels: hold LMB next to it"), ListY, Alarm, 1.7f);
+			DrawCenteredText(FString::Printf(TEXT("CAR FLIPPED!  Two squirrels: hold %s next to it"), PromptName(ENBPrompt::Work)), ListY, Alarm, 1.7f);
 			ListY += 36.f;
 		}
 		for (const UNBCarPartComponent* Part : It->GetParts())
@@ -402,6 +524,9 @@ void ANBHUD::DrawHornBubble()
 void ANBHUD::DrawSeatLabels()
 {
 	const float Bob = 6.f * FMath::Sin(GetWorld()->GetTimeSeconds() * 4.f);
+	// They're for squirrels still choosing a seat; once seated they'd only cover the repair panel.
+	const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(GetOwningPawn());
+	const bool bShow = !Squirrel || !Squirrel->IsSeated();
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
 		for (const UNBSeatComponent* Seat : It->GetSeats())
@@ -416,7 +541,7 @@ void ANBHUD::DrawSeatLabels()
 				continue;
 			}
 			FVector2D Screen;
-			if (!PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(Seat->GetComponentLocation() + FVector(0.f, 0.f, 45.f), Screen))
+			if (!bShow || !PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(Seat->GetComponentLocation() + FVector(0.f, 0.f, 45.f), Screen))
 			{
 				continue;
 			}
@@ -471,7 +596,7 @@ void ANBHUD::DrawRunStatus()
 		const int32 Players = State->PlayerArray.Num();
 		const FString Waiting = Players < 2 ? TEXT("Waiting for another squirrel...")
 			: GetNetMode() == NM_Client ? TEXT("Waiting for the host to start...")
-			: TEXT("Everyone here? Esc: start the run");
+			: FString::Printf(TEXT("Everyone here? %s: start the run"), PromptName(ENBPrompt::Menu));
 		DrawCenteredText(Waiting, Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
 		break;
 	}
@@ -667,13 +792,13 @@ void ANBHUD::DrawNetStatus()
 	switch (GetNetMode())
 	{
 	case NM_Standalone:
-		Line = TEXT("OFFLINE    Esc: menu");
+		Line = FString::Printf(TEXT("OFFLINE    %s: menu"), PromptName(ENBPrompt::Menu));
 		break;
 	case NM_ListenServer:
-		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    Esc: menu"), Players);
+		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    %s: menu"), Players, PromptName(ENBPrompt::Menu));
 		break;
 	default:
-		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels    Esc: menu"), Players);
+		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels    %s: menu"), Players, PromptName(ENBPrompt::Menu));
 		break;
 	}
 	if (Sessions)
@@ -696,8 +821,8 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 	const float PanelY = Canvas->ClipY - 70.f - PanelH;
 	DrawRect(PanelColor, PanelX, PanelY, PanelW, PanelH);
 
-	const FString Title = FString::Printf(TEXT("[LMB] %s  %s"), VerbFor(Interactable.Mode), *Interactable.Prompt.ToString());
-	DrawCenteredText(Title, PanelY + 10.f, bUsing ? ProgressColor : FLinearColor::White, 1.4f);
+	const FString Title = FString::Printf(TEXT("%s  %s"), VerbFor(Interactable.Mode), *Interactable.Prompt.ToString());
+	DrawPromptRow({{ENBPrompt::Work, Title}}, PanelY + 22.f, 1.4f, bUsing ? ProgressColor : FLinearColor::White);
 
 	float Y = PanelY + 50.f;
 	if (Interactable.Mode == ENBInteractMode::Push2)
