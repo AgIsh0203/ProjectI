@@ -74,7 +74,9 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - Any value that felt wrong, for the [GDD tuning table](GDD.md#tuning-table).
 - If something broke: each PC's log, in the build folder under `ProjectI/Saved/Logs/ProjectI.log`.
 
-## Friend test (Tue 20 Oct)
+## Friend test (moved up to the weekend of 17–18 Oct)
+- Host run sheet: https://claude.ai/artifact/HhHUPpK2G5D7fsctMVJHRY (ticks and notes, then a summary to paste back to Claude).
+- Friends' questionnaire: a Google Form made by `Tools/Playtest/FeedbackForm.gs` (run it once at script.google.com; answers land in a Google Sheet). Fallback: https://claude.ai/artifact/Gv6LbW984RDA3HLJGRddvF (same questions; copy-to-Discord for anyone who can't save there).
 - Friends play the private itch build and record themselves (OBS/Discord), or you record them on Discord.
 - Afterwards, 3 questions: *Play again with this group? / Funniest moment? / Most annoying thing?*
 - **Go signal for full production:** most groups want another run, and the recordings have clips that are funny with the sound off.
