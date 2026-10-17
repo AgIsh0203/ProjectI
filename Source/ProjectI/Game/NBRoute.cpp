@@ -36,31 +36,34 @@ namespace
 		/** Distance (cm) out from the road's edge. */
 		float BandMin, BandMax;
 		bool bShadows;
+		/** Collision: an invisible box this share of the mesh's footprint (a tree's trunk, most of a rock), full height.
+		 *  0 = drive through it (bushes, flowers, cones). Friend test 1: the car drove through trees. */
+		float Block;
 	};
 
 	const FPropKind PropKinds[] = {
-		{TEXT("Nature/tree_default/StaticMeshes/SM_tree_default.SM_tree_default"),       4.5f, 6.f, 3.f, 500.f, 4500.f, true},
-		{TEXT("Nature/tree_oak/StaticMeshes/SM_tree_oak.SM_tree_oak"),                   4.5f, 6.f, 3.f, 500.f, 4500.f, true},
-		{TEXT("Nature/tree_pineTallA/StaticMeshes/SM_tree_pineTallA.SM_tree_pineTallA"), 4.f, 6.f, 2.f, 500.f, 4500.f, true},
-		{TEXT("Nature/tree_fat/StaticMeshes/SM_tree_fat.SM_tree_fat"),                   4.f, 5.5f, 2.f, 500.f, 4500.f, true},
-		{TEXT("Nature/tree_blocks/StaticMeshes/SM_tree_blocks.SM_tree_blocks"),          4.f, 5.f, 1.f, 500.f, 4500.f, true},
-		{TEXT("Nature/plant_bush/StaticMeshes/SM_plant_bush.SM_plant_bush"),             3.f, 4.5f, 3.f, 400.f, 2500.f, false},
-		{TEXT("Nature/plant_bushLarge/StaticMeshes/SM_plant_bushLarge.SM_plant_bushLarge"), 3.f, 4.5f, 2.f, 400.f, 2500.f, false},
-		{TEXT("Nature/rock_largeA/StaticMeshes/SM_rock_largeA.SM_rock_largeA"),          2.5f, 4.f, 1.5f, 500.f, 4000.f, true},
-		{TEXT("Nature/rock_largeB/StaticMeshes/SM_rock_largeB.SM_rock_largeB"),          2.5f, 4.f, 1.f, 500.f, 4000.f, true},
-		{TEXT("Nature/rock_tallA/StaticMeshes/SM_rock_tallA.SM_rock_tallA"),             2.f, 3.f, 0.7f, 700.f, 4000.f, true},
-		{TEXT("Nature/stump_round/StaticMeshes/SM_stump_round.SM_stump_round"),          3.f, 4.f, 1.f, 400.f, 3000.f, false},
-		{TEXT("Nature/log/StaticMeshes/SM_log.SM_log"),                                  3.f, 4.f, 1.f, 400.f, 3000.f, false},
-		{TEXT("Nature/flower_redA/StaticMeshes/SM_flower_redA.SM_flower_redA"),          3.f, 4.f, 2.f, 400.f, 1500.f, false},
-		{TEXT("Nature/flower_yellowA/StaticMeshes/SM_flower_yellowA.SM_flower_yellowA"), 3.f, 4.f, 2.f, 400.f, 1500.f, false},
-		{TEXT("Nature/mushroom_red/StaticMeshes/SM_mushroom_red.SM_mushroom_red"),       3.f, 4.f, 1.f, 400.f, 2000.f, false},
-		{TEXT("Nature/grass_large/StaticMeshes/SM_grass_large.SM_grass_large"),          3.f, 4.f, 3.f, 400.f, 2000.f, false},
+		{TEXT("Nature/tree_default/StaticMeshes/SM_tree_default.SM_tree_default"),       4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f},
+		{TEXT("Nature/tree_oak/StaticMeshes/SM_tree_oak.SM_tree_oak"),                   4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f},
+		{TEXT("Nature/tree_pineTallA/StaticMeshes/SM_tree_pineTallA.SM_tree_pineTallA"), 4.f, 6.f, 2.f, 500.f, 4500.f, true, 0.14f},
+		{TEXT("Nature/tree_fat/StaticMeshes/SM_tree_fat.SM_tree_fat"),                   4.f, 5.5f, 2.f, 500.f, 4500.f, true, 0.16f},
+		{TEXT("Nature/tree_blocks/StaticMeshes/SM_tree_blocks.SM_tree_blocks"),          4.f, 5.f, 1.f, 500.f, 4500.f, true, 0.16f},
+		{TEXT("Nature/plant_bush/StaticMeshes/SM_plant_bush.SM_plant_bush"),             3.f, 4.5f, 3.f, 400.f, 2500.f, false, 0.f},
+		{TEXT("Nature/plant_bushLarge/StaticMeshes/SM_plant_bushLarge.SM_plant_bushLarge"), 3.f, 4.5f, 2.f, 400.f, 2500.f, false, 0.f},
+		{TEXT("Nature/rock_largeA/StaticMeshes/SM_rock_largeA.SM_rock_largeA"),          2.5f, 4.f, 1.5f, 500.f, 4000.f, true, 0.75f},
+		{TEXT("Nature/rock_largeB/StaticMeshes/SM_rock_largeB.SM_rock_largeB"),          2.5f, 4.f, 1.f, 500.f, 4000.f, true, 0.75f},
+		{TEXT("Nature/rock_tallA/StaticMeshes/SM_rock_tallA.SM_rock_tallA"),             2.f, 3.f, 0.7f, 700.f, 4000.f, true, 0.7f},
+		{TEXT("Nature/stump_round/StaticMeshes/SM_stump_round.SM_stump_round"),          3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.7f},
+		{TEXT("Nature/log/StaticMeshes/SM_log.SM_log"),                                  3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.85f},
+		{TEXT("Nature/flower_redA/StaticMeshes/SM_flower_redA.SM_flower_redA"),          3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f},
+		{TEXT("Nature/flower_yellowA/StaticMeshes/SM_flower_yellowA.SM_flower_yellowA"), 3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f},
+		{TEXT("Nature/mushroom_red/StaticMeshes/SM_mushroom_red.SM_mushroom_red"),       3.f, 4.f, 1.f, 400.f, 2000.f, false, 0.f},
+		{TEXT("Nature/grass_large/StaticMeshes/SM_grass_large.SM_grass_large"),          3.f, 4.f, 3.f, 400.f, 2000.f, false, 0.f},
 		// Placed by AddProps, not scattered.
-		{TEXT("Nature/fence_simple/StaticMeshes/SM_fence_simple.SM_fence_simple"),       3.f, 3.f, 0.f, 0.f, 0.f, false},
-		{TEXT("CityRoads/construction-cone/StaticMeshes/SM_construction_cone.SM_construction_cone"), 7.f, 7.f, 0.f, 0.f, 0.f, false},
-		{TEXT("CityRoads/construction-barrier/StaticMeshes/SM_construction_barrier.SM_construction_barrier"), 7.f, 7.f, 0.f, 0.f, 0.f, true},
-		{TEXT("CityRoads/construction-light/StaticMeshes/SM_construction_light.SM_construction_light"), 7.f, 7.f, 0.f, 0.f, 0.f, true},
-		{TEXT("CityRoads/light-square/StaticMeshes/SM_light_square.SM_light_square"),    10.f, 10.f, 0.f, 0.f, 0.f, true},
+		{TEXT("Nature/fence_simple/StaticMeshes/SM_fence_simple.SM_fence_simple"),       3.f, 3.f, 0.f, 0.f, 0.f, false, 1.f},
+		{TEXT("CityRoads/construction-cone/StaticMeshes/SM_construction_cone.SM_construction_cone"), 7.f, 7.f, 0.f, 0.f, 0.f, false, 0.f},
+		{TEXT("CityRoads/construction-barrier/StaticMeshes/SM_construction_barrier.SM_construction_barrier"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 0.9f},
+		{TEXT("CityRoads/construction-light/StaticMeshes/SM_construction_light.SM_construction_light"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 0.3f},
+		{TEXT("CityRoads/light-square/StaticMeshes/SM_light_square.SM_light_square"),    10.f, 10.f, 0.f, 0.f, 0.f, true, 0.15f},
 	};
 	constexpr int32 FenceKind = 16, ConeKind = 17, BarrierKind = 18, WorkLightKind = 19, LampKind = 20;
 }
@@ -89,9 +92,10 @@ ANBRoute::ANBRoute()
 		PropMeshes.Add(Prop.Object);
 	}
 
-	// Park to depot, about 3.5 km. A tidy crew at ~12 m/s needs ~5 min; breakdowns, flips and
-	// falls should push a typical run to 6-8 min (GDD: 6-10 min). Features sit on straights where
-	// they need to (hills, bridge, jump).
+	// Park to depot, about 5.4 km (3.5 km until friend test 1, where run 1 finished with half the
+	// deadline left and everyone called it too short). Features sit on straights where they need
+	// to (hills, bridge, jumps). Checked for self-crossing: the road never comes within ~90 m of
+	// another stretch of itself.
 	auto Add = [this](const TCHAR* Section, float Length, float Turn, ENBRouteFeature Feature = ENBRouteFeature::None, float Height = 0.f)
 	{
 		FNBRouteSegment& Segment = Segments.AddDefaulted_GetRef();
@@ -109,22 +113,51 @@ ANBRoute::ANBRoute()
 	Add(TEXT("ACORN HILL"), 60.f, 0.f);
 	Add(TEXT(""), 200.f, 0.f, ENBRouteFeature::Hill, 800.f);
 	Add(TEXT(""), 60.f, 0.f);
+	Add(TEXT("PINE PASS"), 160.f, -50.f, ENBRouteFeature::Rocks);
+	Add(TEXT(""), 160.f, 70.f);
+	Add(TEXT(""), 140.f, -20.f, ENBRouteFeature::Rocks);
 	Add(TEXT("THE HAIRPIN"), 150.f, 170.f);
 	Add(TEXT(""), 100.f, 0.f);
 	Add(TEXT("THE BRIDGE"), 40.f, 0.f);
 	Add(TEXT(""), 200.f, 0.f, ENBRouteFeature::Bridge, 150.f);
 	Add(TEXT(""), 60.f, 0.f);
+	Add(TEXT("THE HUMPS"), 60.f, 0.f);
+	Add(TEXT(""), 130.f, 0.f, ENBRouteFeature::Hill, 400.f);
+	Add(TEXT(""), 60.f, 0.f);
+	Add(TEXT(""), 130.f, 0.f, ENBRouteFeature::Hill, 500.f);
+	Add(TEXT(""), 60.f, 0.f);
 	Add(TEXT("ROCKY ROAD"), 120.f, -40.f, ENBRouteFeature::Rocks);
 	Add(TEXT(""), 220.f, 0.f, ENBRouteFeature::Rocks);
 	Add(TEXT("SQUIRREL SLALOM"), 260.f, 0.f, ENBRouteFeature::Slalom);
 	Add(TEXT("THE BIG JUMP"), 160.f, 0.f, ENBRouteFeature::Jump, 220.f);
+	Add(TEXT("LITTLE JUMPS"), 80.f, 0.f);
+	Add(TEXT(""), 100.f, 0.f, ENBRouteFeature::Jump, 140.f);
+	Add(TEXT(""), 60.f, 0.f);
+	Add(TEXT(""), 100.f, 0.f, ENBRouteFeature::Jump, 160.f);
+	Add(TEXT(""), 60.f, 20.f);
 	Add(TEXT("WIGGLY ROAD"), 110.f, -60.f);
 	Add(TEXT(""), 110.f, 60.f);
 	Add(TEXT(""), 110.f, -60.f, ENBRouteFeature::Bumps);
 	Add(TEXT(""), 110.f, 60.f);
-	Add(TEXT("HOME STRETCH"), 180.f, -100.f);
+	Add(TEXT(""), 110.f, -60.f);
+	Add(TEXT(""), 110.f, 60.f, ENBRouteFeature::Bumps);
+	Add(TEXT("COBBLE CURVE"), 360.f, -90.f, ENBRouteFeature::Bumps);
+	Add(TEXT("HOME STRETCH"), 180.f, -10.f);
 	Add(TEXT(""), 450.f, 0.f, ENBRouteFeature::Rocks);
 	Add(TEXT("THE DEPOT"), 120.f, 0.f);
+}
+
+void ANBRoute::BuildGeometryNow()
+{
+	// An editor world never calls PostInitializeComponents, so the centreline isn't there yet.
+	BuildCentreline();
+	BuildGeometry();
+}
+
+float ANBRoute::GetPropBlockFraction(const UStaticMesh* Mesh) const
+{
+	const int32 Kind = PropMeshes.IndexOfByKey(Mesh);
+	return Kind != INDEX_NONE && Kind < UE_ARRAY_COUNT(PropKinds) ? PropKinds[Kind].Block : 0.f;
 }
 
 void ANBRoute::PostInitializeComponents()
@@ -137,7 +170,10 @@ void ANBRoute::BeginPlay()
 {
 	Super::BeginPlay();
 
-	BuildGeometry();
+	if (bBuildGeometry)
+	{
+		BuildGeometry();
+	}
 
 	if (HasAuthority() && TotalLength > 0.f)
 	{
@@ -631,11 +667,25 @@ void ANBRoute::AddProps(const FBox2D& GroundBounds)
 	{
 		return !SignSpots.ContainsByPredicate([&Location](const FVector& Spot) { return FVector2D::Distance(FVector2D(Spot), FVector2D(Location)) < Spot.Z; });
 	};
-	auto Add = [this](int32 Kind, const FVector& Location, float Yaw, float Scale)
+	// Solid props get an invisible box in one collision layer (the Kenney meshes' own collision is
+	// canopy-sized, and the visible layers stay collision-free).
+	UInstancedStaticMeshComponent* Blockers = MakeLayer(TEXT("PropBlockers"), FLinearColor::White, true, false);
+	Blockers->SetHiddenInGame(true);
+	Blockers->SetVisibility(false);
+	auto Add = [this, Blockers](int32 Kind, const FVector& Location, float Yaw, float Scale)
 	{
-		if (UInstancedStaticMeshComponent* Mesh = PropLayer(Kind))
+		UInstancedStaticMeshComponent* Mesh = PropLayer(Kind);
+		if (!Mesh)
 		{
-			Mesh->AddInstance(FTransform(FRotator(0.f, Yaw, 0.f), Location, FVector(Scale)));
+			return;
+		}
+		const FTransform Transform(FRotator(0.f, Yaw, 0.f), Location, FVector(Scale));
+		Mesh->AddInstance(Transform);
+		if (PropKinds[Kind].Block > 0.f)
+		{
+			const FBoxSphereBounds Bounds = PropMeshes[Kind]->GetBounds();
+			const FVector Size(Bounds.BoxExtent.X * 2.f * PropKinds[Kind].Block, Bounds.BoxExtent.Y * 2.f * PropKinds[Kind].Block, Bounds.BoxExtent.Z * 2.f);
+			AddBox(Blockers, Transform.TransformPosition(Bounds.Origin), Transform.Rotator(), Size * Scale);
 		}
 	};
 

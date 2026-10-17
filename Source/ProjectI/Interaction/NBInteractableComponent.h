@@ -125,6 +125,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool IsUsedBy(const ANBSquirrel* Squirrel) const { return Users.Contains(Squirrel); }
 
+	/** Squirrels currently holding (Hold / Push2). */
+	const TArray<TObjectPtr<ANBSquirrel>>& GetUsers() const { return Users; }
+
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool IsInRangeOf(const ANBSquirrel* Squirrel) const;
 

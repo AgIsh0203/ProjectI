@@ -100,6 +100,9 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Flat tires pull and cap speed, the door throws people or loses acorns, failed brakes lurch, the engine shows MASH LMB! / N MORE!. Do they matter now, without being unfair?
 - [ ] The damage meter (top right, CAR %): do players read it and fix things before they break?
 - [ ] THE BIG JUMP: a clean landing keeps the acorns and shows AIR TIME! +N; the end screen lists the Air bonus.
+- [ ] The 5.4 km route (L_Route): how long did a run take against 9:00? Too long now?
+- [ ] Trees, rocks, fences and lamps are solid: fun obstacles, or annoying?
+- [ ] Calm and storm: does the quiet stretch feel like a breather, and the storm like a storm?
 - [ ] Failures: does fixing one buy a breather now? Does driving flat out break the engine more, and steering hard the front tires? Note the director log lines (`NBDirector: ...`) from the host's log.
 
 ## Friend test (moved up to the weekend of 17–18 Oct)

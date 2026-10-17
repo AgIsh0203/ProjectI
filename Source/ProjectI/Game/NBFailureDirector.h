@@ -66,6 +66,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Director|Wear", meta = (ClampMin = "0", ClampMax = "1"))
 	float WearHazardPerSecond = 0.08f;
 
+	// --- Calm and storm (friend test 1: "I'd prefer a cruising phase ... calm before the storm"). ---
+
+	/** A storm: timed failures at StormIntervalScale x the usual interval. The run opens with one. */
+	UPROPERTY(EditAnywhere, Category = "Director|Pacing")
+	float StormSeconds = 25.f;
+
+	UPROPERTY(EditAnywhere, Category = "Director|Pacing")
+	float StormIntervalScale = 0.7f;
+
+	/** A calm between storms: no timed failures. It shortens from the first value to the second over the run. */
+	UPROPERTY(EditAnywhere, Category = "Director|Pacing")
+	float CalmSecondsStart = 40.f;
+
+	UPROPERTY(EditAnywhere, Category = "Director|Pacing")
+	float CalmSecondsEnd = 20.f;
+
+	/** During a calm only a part worn past this can still break, so reckless driving still costs. */
+	UPROPERTY(EditAnywhere, Category = "Director|Pacing", meta = (ClampMin = "0", ClampMax = "1"))
+	float CalmHazardWear = 0.85f;
+
 	/** No two failures closer together than this. */
 	UPROPERTY(EditAnywhere, Category = "Director")
 	float MinGap = 3.f;
@@ -86,6 +106,9 @@ private:
 
 	/** Nothing breaks before this, not even a worn part. */
 	float QuietUntil = 0.f;
+
+	bool bStorm = true;
+	float PhaseEndsAt = 0.f;
 
 	/** The limit was reached; the next free slot (a repair) restarts the interval. */
 	bool bWasFull = false;

@@ -78,6 +78,20 @@ public:
 
 	float GetDeadlineSeconds() const { return DeadlineSeconds; }
 
+	/** Bake tool (Tools/Route/BakeRoute.py): builds the road, features, signs and props now, in whatever
+	 *  world this is (the editor's), so the script can copy them into level actors. */
+	UFUNCTION(BlueprintCallable, Category = "Route|Bake")
+	void BuildGeometryNow();
+
+	/** Bake tool: the collision share (FPropKind::Block) of the prop table entry using this mesh; 0 if none. */
+	UFUNCTION(BlueprintCallable, Category = "Route|Bake")
+	float GetPropBlockFraction(const UStaticMesh* Mesh) const;
+
+	/** Off in a baked level (L_Route): its geometry is saved in the map as ordinary actors you can edit,
+	 *  and this actor only supplies the centreline (progress, sections, the finish gate). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route")
+	bool bBuildGeometry = true;
+
 	/** Total road length in cm. */
 	float GetLength() const { return TotalLength; }
 
@@ -107,7 +121,7 @@ protected:
 
 	/** Time to reach the drop-off along this route. The game mode uses it as the run deadline. */
 	UPROPERTY(EditAnywhere, Category = "Route")
-	float DeadlineSeconds = 480.f;
+	float DeadlineSeconds = 540.f;
 
 	UPROPERTY(EditAnywhere, Category = "Route")
 	float RoadWidth = 1400.f;

@@ -18,7 +18,7 @@ namespace
 	/** Tags our lobbies so a search on the shared dev AppID 480 only finds Squirrel Wheels. */
 	const FName GameKey(TEXT("NBGAME"));
 	const FString GameValue(TEXT("SquirrelWheels"));
-	const TCHAR* RunMap = TEXT("/Game/Maps/L_TestTrack");
+	const TCHAR* RunMap = TEXT("/Game/Maps/L_Route");
 	constexpr int32 MaxPlayers = 4;
 }
 

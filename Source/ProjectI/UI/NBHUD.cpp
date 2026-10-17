@@ -1017,6 +1017,25 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 	const float PanelY = Canvas->ClipY - 70.f - PanelH;
 	DrawRect(PanelColor, PanelX, PanelY, PanelW, PanelH);
 
+	// Someone else is on it (Hold / Push2 track their users): say so, dimmed, so the bar filling up
+	// doesn't read as your own repair (friend test 1: "the widgets are getting shared").
+	const ANBSquirrel* Other = nullptr;
+	for (const ANBSquirrel* User : Interactable.GetUsers())
+	{
+		if (User && User != GetOwningPawn())
+		{
+			Other = User;
+			break;
+		}
+	}
+	const APlayerState* OtherPlayer = Other ? Other->GetPlayerState() : nullptr;
+	if (!bUsing && OtherPlayer && Interactable.Mode != ENBInteractMode::Push2)
+	{
+		DrawCenteredText(FString::Printf(TEXT("%s IS ON IT"), *OtherPlayer->GetPlayerName().ToUpper()), PanelY + 12.f, Other->GetFurColor(), 1.4f);
+		DrawBar(PanelX + 20.f, PanelY + 50.f, PanelW - 40.f, 18.f, Interactable.GetProgress(), FLinearColor(1.f, 1.f, 1.f, 0.35f));
+		return;
+	}
+
 	const FString Title = FString::Printf(TEXT("%s  %s"), VerbFor(Interactable.Mode), *Interactable.Prompt.ToString());
 	DrawPromptRow({{ENBPrompt::Work, Title}}, PanelY + 22.f, 1.4f, bUsing ? ProgressColor : FLinearColor::White);
 

@@ -20,6 +20,8 @@ void UNBFailureDirector::Begin(ANBCar* InCar, float RunSeconds)
 	NextFailureAt = FirstFailureDelay;
 	QuietUntil = 0.f;
 	bWasFull = false;
+	bStorm = true;
+	PhaseEndsAt = StormSeconds;
 	bActive = Car != nullptr;
 	SetComponentTickEnabled(bActive);
 }
@@ -55,6 +57,18 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	Elapsed += DeltaTime;
 	const float Progress = FMath::Clamp(Elapsed / RunLength, 0.f, 1.f);
 	const float Now = GetWorld()->GetTimeSeconds();
+
+	if (Elapsed >= PhaseEndsAt)
+	{
+		bStorm = !bStorm;
+		PhaseEndsAt = Elapsed + (bStorm ? StormSeconds : FMath::Lerp(CalmSecondsStart, CalmSecondsEnd, Progress));
+		if (bStorm)
+		{
+			// The storm hits straight away rather than an interval later.
+			NextFailureAt = FMath::Min(NextFailureAt, Elapsed + 2.f);
+		}
+		UE_LOG(LogTemp, Log, TEXT("NBDirector: %s for %.0f s"), bStorm ? TEXT("storm") : TEXT("calm"), PhaseEndsAt - Elapsed);
+	}
 
 	int32 NumBlocking = 0;
 	TArray<UNBCarPartComponent*, TInlineAllocator<8>> Candidates;
@@ -93,7 +107,8 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	// A badly worn part can go before the timer says so.
 	for (UNBCarPartComponent* Part : Candidates)
 	{
-		const float Over = (Part->GetWear() - WearHazardStart) / (1.f - WearHazardStart);
+		const float HazardStart = bStorm ? WearHazardStart : CalmHazardWear;
+		const float Over = (Part->GetWear() - HazardStart) / (1.f - HazardStart);
 		if (Over > 0.f && FMath::FRand() < WearHazardPerSecond * Over * Over * DeltaTime)
 		{
 			FailPart(Part, Progress, TEXT("worn out"));
@@ -101,7 +116,7 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 	}
 
-	if (Elapsed < NextFailureAt)
+	if (!bStorm || Elapsed < NextFailureAt)
 	{
 		return;
 	}
@@ -127,6 +142,6 @@ void UNBFailureDirector::FailPart(UNBCarPartComponent* Part, float Progress, con
 {
 	UE_LOG(LogTemp, Log, TEXT("NBDirector: %s fails at %.0f s (%s, wear %.2f)"), *Part->PartName.ToString(), Elapsed, Why, Part->GetWear());
 	Part->Fail();
-	NextFailureAt = Elapsed + NextInterval(Progress);
+	NextFailureAt = Elapsed + NextInterval(Progress) * (bStorm ? StormIntervalScale : 1.f);
 	QuietUntil = Elapsed + MinGap;
 }
