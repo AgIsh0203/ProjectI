@@ -65,6 +65,10 @@ void ANBRunGameMode::InitGame(const FString& MapName, const FString& Options, FS
 	{
 		bUseRoute = UGameplayStatics::GetIntOption(Options, TEXT("Route"), 1) != 0;
 	}
+	if (UGameplayStatics::HasOption(Options, TEXT("Autopilot")))
+	{
+		Auto.Speed = UGameplayStatics::GetIntOption(Options, TEXT("Autopilot"), 1600);
+	}
 }
 
 ANBRoute* ANBRunGameMode::EnsureRoute()
@@ -285,6 +289,133 @@ void ANBRunGameMode::TravelToRestart()
 	}
 }
 
+void ANBRunGameMode::DevAutopilot(float Speed)
+{
+	Auto = FNBAutopilot();
+	Auto.Speed = FMath::Max(Speed, 0.f);
+	if (Auto.Speed <= 0.f)
+	{
+		if (Car)
+		{
+			Car->SetSeatInput(ENBSeatRole::Wheel, 0.f);
+			Car->SetSeatInput(ENBSeatRole::Pedals, 0.f);
+		}
+		UE_LOG(LogTemp, Log, TEXT("NBAuto: off"));
+		return;
+	}
+	Director->End();
+	const ANBRunGameState* State = GetRunState();
+	if (State && State->GetPhase() == ENBRunPhase::Waiting)
+	{
+		bForceStart = true;
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBAuto: on at %.0f cm/s"), Auto.Speed);
+}
+
+void ANBRunGameMode::LogAutopilotSection(const TCHAR* Why)
+{
+	if (!Route || Auto.Section == INDEX_NONE)
+	{
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBAuto: %-16s %5.1f s  speed %4.0f-%4.0f cm/s  slowest climbing %4.0f  max tilt %4.1f deg  acorns lost %d  air +%d  stuck %d  (%s)"),
+		*Route->GetSectionName(Auto.Section), Now() - Auto.SectionStart, Auto.MinSpeed, Auto.MaxSpeed,
+		Auto.ClimbMinSpeed < TNumericLimits<float>::Max() ? Auto.ClimbMinSpeed : -1.f, Auto.MaxTilt,
+		Auto.Acorns - Car->GetAcorns(), Car->GetAirPoints() - Auto.AirPoints, Auto.Stucks, Why);
+}
+
+void ANBRunGameMode::TickAutopilot(float DeltaSeconds)
+{
+	if (!Route || !Car)
+	{
+		return;
+	}
+	const FVector Location = Car->GetActorLocation();
+	const float Along = Route->GetDistanceAlong(Location);
+	const float Speed = Car->GetForwardSpeed();
+
+	const int32 Section = Route->GetSectionAt(Along);
+	if (Section != Auto.Section)
+	{
+		LogAutopilotSection(TEXT("next"));
+		if (Auto.Section == INDEX_NONE)
+		{
+			Auto.RunStart = Now();
+		}
+		const int32 TotalStucks = Auto.TotalStucks + Auto.Stucks;
+		const float AutoSpeed = Auto.Speed;
+		const double RunStart = Auto.RunStart;
+		Auto = FNBAutopilot();
+		Auto.Speed = AutoSpeed;
+		Auto.RunStart = RunStart;
+		Auto.TotalStucks = TotalStucks;
+		Auto.Section = Section;
+		Auto.SectionStart = Now();
+		Auto.MinSpeed = Auto.ClimbMinSpeed = TNumericLimits<float>::Max();
+		Auto.Acorns = Car->GetAcorns();
+		Auto.AirPoints = Car->GetAirPoints();
+	}
+	Auto.LastAlong = Along;
+	if (Now() - Auto.SectionStart > 1.0)
+	{
+		Auto.MinSpeed = FMath::Min(Auto.MinSpeed, Speed);
+	}
+	Auto.MaxSpeed = FMath::Max(Auto.MaxSpeed, Speed);
+	if (Route->GetRoadGrade(Along) > 0.04f)
+	{
+		Auto.ClimbMinSpeed = FMath::Min(Auto.ClimbMinSpeed, Speed);
+	}
+	Auto.MaxTilt = FMath::Max(Auto.MaxTilt, FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Car->GetActorUpVector().Z, -1.f, 1.f))));
+
+	if (Car->IsFlipped())
+	{
+		// Put it back on the road a little further on, like a crew pushing it upright.
+		UE_LOG(LogTemp, Warning, TEXT("NBAuto: FLIPPED at %.0f m (%s)"), Along / 100.f, *Route->GetSectionName(Section));
+		++Auto.Stucks;
+		Car->SetActorTransform(Route->GetTransformAt(Along + 1000.f, 150.f), false, nullptr, ETeleportType::TeleportPhysics);
+		Car->GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		Car->GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		return;
+	}
+
+	// Aim at the centreline further ahead the faster we go; slow down for the bends coming up.
+	const float LookAhead = FMath::Clamp(FMath::Abs(Speed) * 1.2f, 1200.f, 3000.f);
+	const FVector Target = Route->GetTransformAt(Along + LookAhead).GetLocation();
+	const float AimYaw = (Target - Location).Rotation().Yaw;
+	const float Error = FMath::FindDeltaAngleDegrees(Car->GetActorRotation().Yaw, AimYaw);
+	const float Bend = FMath::Abs(FMath::FindDeltaAngleDegrees(Route->GetTransformAt(Along).Rotator().Yaw, Route->GetTransformAt(Along + 5000.f).Rotator().Yaw));
+	const float Desired = Auto.Speed * (Bend > 90.f ? 0.4f : Bend > 45.f ? 0.6f : Bend > 25.f ? 0.8f : 1.f);
+
+	float Steer = FMath::Clamp(Error / 25.f, -1.f, 1.f);
+	float Throttle = FMath::Clamp((Desired - Speed) / 400.f, -1.f, 1.f);
+
+	// Stuck: under 1.5 m/s for 4 s. Back out with the wheel the other way for 1.5 s, then carry on.
+	if (Auto.ReverseSeconds > 0.f)
+	{
+		Auto.ReverseSeconds -= DeltaSeconds;
+		Steer = -Steer;
+		Throttle = -1.f;
+	}
+	else if (FMath::Abs(Speed) < 150.f)
+	{
+		Auto.SlowSeconds += DeltaSeconds;
+		if (Auto.SlowSeconds > 4.f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("NBAuto: STUCK at %.0f m (%s), z %.0f, grade %.1f %%"),
+				Along / 100.f, *Route->GetSectionName(Section), Location.Z, Route->GetRoadGrade(Along) * 100.f);
+			++Auto.Stucks;
+			Auto.SlowSeconds = 0.f;
+			Auto.ReverseSeconds = 1.5f;
+		}
+	}
+	else
+	{
+		Auto.SlowSeconds = 0.f;
+	}
+	Car->SetSeatInput(ENBSeatRole::Wheel, Steer);
+	Car->SetSeatInput(ENBSeatRole::Pedals, Throttle);
+}
+
 void ANBRunGameMode::DevWarp(const FString& Section)
 {
 	if (!Route || !Car || Route->GetNumSections() == 0)
@@ -351,6 +482,10 @@ void ANBRunGameMode::Tick(float DeltaSeconds)
 		break;
 	case ENBRunPhase::Driving:
 		TickDriving(DeltaSeconds);
+		if (Auto.Speed > 0.f && GetRunState()->GetPhase() == ENBRunPhase::Driving)
+		{
+			TickAutopilot(DeltaSeconds);
+		}
 		break;
 	case ENBRunPhase::Finished:
 		if (State->GetSecondsLeft() <= 0.f)
@@ -381,7 +516,11 @@ void ANBRunGameMode::BeginDriving()
 	WreckTimer = 0.f;
 	NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	Car->SetRunLocked(false);
-	Director->Begin(Car, Deadline);
+	// The autopilot drives with no breakdowns, so its log shows the road, not the director.
+	if (Auto.Speed <= 0.f)
+	{
+		Director->Begin(Car, Deadline);
+	}
 }
 
 void ANBRunGameMode::TickDriving(float DeltaSeconds)
@@ -440,6 +579,17 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 {
 	ANBRunGameState* State = GetRunState();
 	const float SecondsLeft = State->GetSecondsLeft();
+
+	if (Auto.Speed > 0.f && Auto.Section != INDEX_NONE)
+	{
+		LogAutopilotSection(TEXT("end"));
+		UE_LOG(LogTemp, Log, TEXT("NBAuto: run over: %s after %.1f s at %.0f m of %.0f, %d acorns left, %d stuck/flipped"),
+			*UEnum::GetValueAsString(Result), Now() - Auto.RunStart, Auto.LastAlong / 100.f, Route ? Route->GetLength() / 100.f : 0.f,
+			Car ? Car->GetAcorns() : 0, Auto.TotalStucks + Auto.Stucks);
+		Car->SetSeatInput(ENBSeatRole::Wheel, 0.f);
+		Car->SetSeatInput(ENBSeatRole::Pedals, 0.f);
+		Auto.Section = INDEX_NONE;
+	}
 
 	int32 Delivered = 0;
 	int32 TimeBonus = 0;

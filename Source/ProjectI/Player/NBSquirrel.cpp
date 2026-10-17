@@ -16,6 +16,7 @@
 #include "Player/NBPlayerState.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+#include "Game/NBRoute.h"
 #include "Game/NBRunGameMode.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -533,6 +534,19 @@ void ANBSquirrel::NBStart()
 void ANBSquirrel::NBWarp(const FString& Section)
 {
 	Server_DevWarp(Section);
+}
+
+void ANBSquirrel::NBAuto(float Speed)
+{
+	Server_DevAutopilot(Speed);
+}
+
+void ANBSquirrel::Server_DevAutopilot_Implementation(float Speed)
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevAutopilot(Speed);
+	}
 }
 
 void ANBSquirrel::Server_DevWarp_Implementation(const FString& Section)
@@ -1136,10 +1150,38 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 		// The capsule (and camera) follow the tumbling body.
 		SetActorLocation(BodyVisual->GetComponentLocation());
 	}
+	if (HasAuthority() && !IsSeated() && !Ragdoll.bActive)
+	{
+		UpdateRiver();
+	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		UpdateCharm(DeltaSeconds);
 	}
+}
+
+void ANBSquirrel::UpdateRiver()
+{
+	const ANBRoute* Route = ANBRoute::Find(GetWorld());
+	if (!Route)
+	{
+		return;
+	}
+	// Measured over the ground, not at the feet: standing on a hidden pebble in a ford still counts.
+	FVector Flow;
+	const FVector Location = GetActorLocation();
+	const float Ground = Route->GetGroundHeight(Location.X, Location.Y);
+	const float Feet = Location.Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	if (Feet > Ground + 150.f || Route->GetWaterDepth(FVector(Location.X, Location.Y, Ground), Flow) < SweepDepth)
+	{
+		return;
+	}
+	// Tumbling off downstream (the scream plays with the ragdoll), then back in a seat before getting up in the water.
+	UE_LOG(LogTemp, Log, TEXT("NBRiver: %s swept away"), *GetName());
+	Eject(Flow * SweepSpeed + FVector(0.f, 0.f, 250.f));
+	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ANBSquirrel::RespawnAtCar, SweptRespawnDelay);
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	RespawnServerTime = (GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds()) + SweptRespawnDelay;
 }
 
 void ANBSquirrel::Recover()

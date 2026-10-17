@@ -13,6 +13,18 @@ class ANBRoute;
 class APlayerStart;
 class UNBFailureDirector;
 
+/** ANBRunGameMode::DevAutopilot's state. */
+struct FNBAutopilot
+{
+	float Speed = 0.f;
+	int32 Section = INDEX_NONE;
+	double RunStart = 0.0, SectionStart = 0.0;
+	float MinSpeed = 0.f, MaxSpeed = 0.f, ClimbMinSpeed = 0.f, MaxTilt = 0.f;
+	int32 Acorns = 0, AirPoints = 0, Stucks = 0, TotalStucks = 0;
+	float SlowSeconds = 0.f, ReverseSeconds = 0.f;
+	float LastAlong = 0.f;
+};
+
 /**
  * One run: squirrels spawn near the shared car, wait in the lobby until the host starts,
  * count down, then drive the acorns to the drop-off before the deadline while the failure
@@ -61,6 +73,14 @@ public:
 
 	/** Dev: move the car to the start of a route section, by number (1-based) or name (NBWarp). */
 	void DevWarp(const FString& Section);
+
+	/**
+	 * Dev (NBAuto, ?Autopilot=<cm/s> in the URL): the server drives the car down the route's centreline at
+	 * up to Speed cm/s, with no random failures, logging each section ("NBAuto: ..."). Starts the run if it's
+	 * waiting. 0 stops it. For checking the whole route drives with no stuck points.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Run|Dev")
+	void DevAutopilot(float Speed);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
@@ -184,4 +204,12 @@ private:
 
 	double Now() const;
 	ANBRunGameState* GetRunState() const;
+
+	/** DevAutopilot: steer toward the centreline ahead, slow for bends, back out when stuck, log per section. */
+	void TickAutopilot(float DeltaSeconds);
+	/** Logs the section the autopilot just left (or the run's end). */
+	void LogAutopilotSection(const TCHAR* Why);
+
+	FNBAutopilot Auto;
+
 };

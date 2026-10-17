@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Car/NBAcorn.h"
 #include "Car/NBSeatComponent.h"
+#include "Game/NBRoute.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
@@ -169,6 +170,9 @@ void ANBCar::BeginPlay()
 	Parts = {EnginePart, BrakePart, TireFL, TireFR, TireBL, TireBR, DoorPart};
 	DoorPart->Hinge = DoorHinge;
 
+	// The wheels drive through river water to the riverbed, never on top of it.
+	GetChaosVehicleMovement()->SetWheelTraceResponseToChannel(NBCollision::Water, ECR_Ignore);
+
 	if (HasAuthority())
 	{
 		FlipSpot->SetInteractEnabled(false);
@@ -277,6 +281,30 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 		if (SecondsWithoutBraking > BrakeIdleSeconds)
 		{
 			BrakePart->AddWear(BrakeIdleWearRate * DeltaSeconds);
+		}
+	}
+
+	// Fording: the water holds the car back and the stones nobody can see chew the tyres.
+	if (const ANBRoute* Route = ANBRoute::Find(GetWorld()))
+	{
+		FVector Flow;
+		// How deep the water is over the ground under the car.
+		const FVector Location = GetActorLocation();
+		const float Depth = Route->GetWaterDepth(FVector(Location.X, Location.Y, Route->GetGroundHeight(Location.X, Location.Y)), Flow);
+		const float Wet = FMath::Clamp(Depth / RiverFullDepth, 0.f, 1.f);
+		if (Wet > 0.f)
+		{
+			const float Moving = FMath::Clamp(Speed / 800.f, 0.25f, 1.f);
+			for (UNBCarPartComponent* Tire : {TireFL, TireFR, TireBL, TireBR})
+			{
+				Tire->AddWear(RiverTireWearRate * Wet * Moving * DeltaSeconds);
+			}
+			GetMesh()->AddForce(-GetVelocity() * RiverDrag * Wet, NAME_None, /*bAccelChange=*/true);
+		}
+		if ((Wet > 0.f) != bInRiver)
+		{
+			bInRiver = Wet > 0.f;
+			UE_LOG(LogTemp, Log, TEXT("NBRiver: car %s the water (depth %.0f cm)"), bInRiver ? TEXT("enters") : TEXT("leaves"), Depth);
 		}
 	}
 }

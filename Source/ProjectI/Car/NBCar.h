@@ -353,6 +353,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
 	float WearRecoveryRate = 0.006f;
 
+	/** Fording a river: every tyre wears this much per second on the hidden stones (at full depth and speed)... */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RiverTireWearRate = 0.05f;
+
+	/** ...and the water slows the car: velocity lost per second at full depth (0..1). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RiverDrag = 0.5f;
+
+	/** Water this deep (cm) over the ground under the car is "full depth". */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RiverFullDepth = 60.f;
+
 	// --- Sound and VFX. All optional: assign assets in BP_OffroadCar_Pawn. ---
 
 	/** Plays the engine loop at the engine deck. Add attenuation on this component in the Blueprint. */
@@ -445,6 +457,8 @@ private:
 
 	/** Seconds driven above BrakeIdleMinSpeed since the brakes were last used. */
 	float SecondsWithoutBraking = 0.f;
+	/** Server: the car was in a river last tick (for the NBRiver log). */
+	bool bInRiver = false;
 
 	/** Bit per flat tire: FL, FR, BL, BR. */
 	uint8 FlatWheels = 0;

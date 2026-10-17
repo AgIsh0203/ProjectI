@@ -14,6 +14,16 @@
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Algo/BinarySearch.h"
+#include "Algo/Reverse.h"
+#include "Async/ParallelFor.h"
+#include "EngineUtils.h"
+#include "Landscape.h"
+#include "LandscapeInfo.h"
+#include "LandscapeLayerInfoObject.h"
+#include "LandscapeProxy.h"
+#if WITH_EDITOR
+#include "LandscapeUtils.h"
+#endif
 
 namespace
 {
@@ -22,6 +32,12 @@ namespace
 
 	/** How many samples either side of the last answer GetDistanceAlong searches (±300 m). */
 	constexpr int32 SearchWindow = 60;
+
+	/** Grid cell (cm) for GroundZ's road lookup: bigger than the road's reach (half road + shoulder + blend). */
+	constexpr float GridCell = 5000.f;
+
+	/** The bridge deck's ramps at each end (cm). */
+	constexpr float BridgeRampLength = 1500.f;
 
 	FVector RightOf(float Yaw)
 	{
@@ -113,7 +129,8 @@ ANBRoute::ANBRoute()
 	Add(TEXT("THE PARK"), 200.f, 0.f);
 	Add(TEXT(""), 100.f, 45.f);
 	Add(TEXT(""), 100.f, -45.f);
-	Add(TEXT("COBBLE LANE"), 160.f, 0.f, ENBRouteFeature::Bumps);
+	Add(TEXT("SQUIRREL CREEK"), 120.f, 0.f, ENBRouteFeature::Ford);
+	Add(TEXT("COBBLE LANE"), 40.f, 0.f, ENBRouteFeature::Bumps);
 	Add(TEXT(""), 120.f, 35.f, ENBRouteFeature::Bumps);
 	Add(TEXT("ACORN HILL"), 60.f, 0.f);
 	Add(TEXT(""), 200.f, 0.f, ENBRouteFeature::Hill, 800.f);
@@ -148,7 +165,9 @@ ANBRoute::ANBRoute()
 	Add(TEXT(""), 110.f, 60.f, ENBRouteFeature::Bumps);
 	Add(TEXT("COBBLE CURVE"), 360.f, -90.f, ENBRouteFeature::Bumps);
 	Add(TEXT("HOME STRETCH"), 180.f, -10.f);
-	Add(TEXT(""), 450.f, 0.f, ENBRouteFeature::Rocks);
+	Add(TEXT(""), 270.f, 0.f, ENBRouteFeature::Rocks);
+	Add(TEXT("THE WASH"), 120.f, 0.f, ENBRouteFeature::Ford);
+	Add(TEXT(""), 60.f, 0.f);
 	Add(TEXT("THE DEPOT"), 120.f, 0.f);
 }
 
@@ -174,6 +193,12 @@ bool ANBRoute::GetPropBlockAtPivot(const UStaticMesh* Mesh) const
 void ANBRoute::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+	BuildCentreline();
+}
+
+void ANBRoute::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
 	BuildCentreline();
 }
 
@@ -239,7 +264,747 @@ void ANBRoute::BuildCentreline()
 		Distance += Length;
 	}
 	TotalLength = Distance;
+	BuildProfile();
 }
+
+// ---------------------------------------------------------------------------------------------
+// Terrain: one deterministic height model, so every machine and every bake agree
+
+namespace
+{
+	/** River centre points this far apart (cm). */
+	constexpr float RiverStep = 1000.f;
+
+	/** Water boxes and the "swept away" check stop this far (cm) short of a river's ends, where it runs dry. */
+	constexpr float RiverDryEnd = 1500.f;
+
+	float Smooth01(float X)
+	{
+		X = FMath::Clamp(X, 0.f, 1.f);
+		return X * X * (3.f - 2.f * X);
+	}
+}
+
+float ANBRoute::TerrainZ(float X, float Y) const
+{
+	// The offsets keep the samples off the lattice points (where Perlin noise is always 0) and come from the seed.
+	const float Offset = (Seed % 1000) * 0.0137f;
+	auto Noise = [X, Y, Offset](float Wavelength, float Shift)
+	{
+		return FMath::PerlinNoise2D(FVector2D(X / Wavelength + Offset + Shift, Y / Wavelength - Offset + Shift * 0.61f));
+	};
+	// Big mountains, hills, smaller hills, lumps: mostly within -0.4..0.4.
+	const float Base = (Noise(90000.f, 17.31f) + 0.7f * Noise(35000.f, 41.73f) + 0.3f * Noise(14000.f, 73.17f) + 0.1f * Noise(5000.f, 5.91f)) / 2.1f;
+	// Sharp crests where a slower noise crosses zero: ridges.
+	const float Ridge = FMath::Square(1.f - FMath::Abs(Noise(30000.f, 29.3f)));
+	float Height = TerrainMaxHeight * FMath::Clamp(0.5f + Base * TerrainContrast + (Ridge - 0.5f) * 0.4f, 0.f, 1.f);
+	// Benches with steep faces between them: the cliffs. A slow noise shifts the steps up and down, so the
+	// faces wander across the slopes instead of following the contours.
+	if (TerraceHeight > 0.f && TerraceStrength > 0.f)
+	{
+		const float Shift = 0.8f * Noise(20000.f, 61.7f);
+		const float Steps = Height / TerraceHeight + Shift;
+		const float Terraced = (FMath::FloorToFloat(Steps) + Smooth01((FMath::Frac(Steps) - 0.3f) / 0.4f) - Shift) * TerraceHeight;
+		Height = FMath::Lerp(Height, Terraced, TerraceStrength);
+	}
+	return Height;
+}
+
+float ANBRoute::GradeLimitAt(float Distance) const
+{
+	// The car spawns at 10 m; the finish gate and depot sit in the last 120 m.
+	if (Distance < 6000.f || Distance > TotalLength - 12000.f)
+	{
+		return 0.02f;
+	}
+	float Limit = MaxGrade;
+	float Start = 0.f;
+	FString Section;
+	for (const FNBRouteSegment& Segment : Segments)
+	{
+		const float Length = FMath::Max(Segment.Length, 10.f) * 100.f;
+		if (!Segment.Section.IsEmpty())
+		{
+			Section = Segment.Section;
+		}
+		if (Segment.Feature == ENBRouteFeature::Bridge && Distance >= Start - 1000.f && Distance <= Start + Length + 1000.f)
+		{
+			return 0.f;
+		}
+		if (Segment.Feature == ENBRouteFeature::Jump && Distance >= Start - 3000.f && Distance <= Start + Length + 3000.f)
+		{
+			Limit = FMath::Min(Limit, 0.03f);
+		}
+		if (Distance >= Start && Distance <= Start + Length && (Section == TEXT("THE HAIRPIN") || Section == TEXT("SQUIRREL SLALOM")))
+		{
+			Limit = FMath::Min(Limit, 0.1f);
+		}
+		// THE PARK is where everyone learns the controls: gentle.
+		if (Distance >= Start && Distance <= Start + Length && Section == TEXT("THE PARK"))
+		{
+			Limit = FMath::Min(Limit, 0.06f);
+		}
+		Start += Length;
+	}
+	return Limit;
+}
+
+void ANBRoute::BuildProfile()
+{
+	Rivers.Reset();
+	StepGrid.Reset();
+	const int32 Num = SamplePoints.Num();
+	SampleRoughness.Init(0.f, Num);
+	SampleCamber.Init(0.f, Num);
+	if (!bUseTerrain || Num < 2)
+	{
+		return;
+	}
+
+	struct FSpan { float Start, End; ENBRouteFeature Feature; float Height; };
+	TArray<FSpan> Spans;
+	{
+		float Start = 0.f;
+		for (const FNBRouteSegment& Segment : Segments)
+		{
+			const float Length = FMath::Max(Segment.Length, 10.f) * 100.f;
+			Spans.Add({Start, Start + Length, Segment.Feature, Segment.Height});
+			Start += Length;
+		}
+	}
+	auto Smooth = [Num](TArray<float>& Values, int32 HalfWindow, const TArray<bool>* Keep = nullptr)
+	{
+		TArray<double> Sum;
+		Sum.SetNumZeroed(Num + 1);
+		for (int32 i = 0; i < Num; ++i)
+		{
+			Sum[i + 1] = Sum[i] + Values[i];
+		}
+		for (int32 i = 0; i < Num; ++i)
+		{
+			if (Keep && (*Keep)[i])
+			{
+				continue;
+			}
+			const int32 A = FMath::Max(0, i - HalfWindow), B = FMath::Min(Num - 1, i + HalfWindow);
+			Values[i] = static_cast<float>((Sum[B + 1] - Sum[A]) / (B - A + 1));
+		}
+	};
+
+	// 1. The mountains under the centreline, averaged over ProfileSmoothing.
+	TArray<float> Heights;
+	Heights.SetNum(Num);
+	for (int32 i = 0; i < Num; ++i)
+	{
+		Heights[i] = TerrainZ(SamplePoints[i].X, SamplePoints[i].Y);
+	}
+	Smooth(Heights, FMath::Max(1, FMath::RoundToInt(ProfileSmoothing * 0.5f / SampleSpacing)));
+
+	// 2. ACORN HILL and THE HUMPS: bumps on the profile.
+	for (const FSpan& Span : Spans)
+	{
+		if (Span.Feature != ENBRouteFeature::Hill)
+		{
+			continue;
+		}
+		for (int32 i = 0; i < Num; ++i)
+		{
+			const float T = (SampleDistances[i] - Span.Start) / (Span.End - Span.Start);
+			if (T > 0.f && T < 1.f)
+			{
+				Heights[i] += Span.Height * 0.5f * (1.f - FMath::Cos(T * UE_TWO_PI));
+			}
+		}
+	}
+
+	// 3. Limit the grade both ways (each step to its zone's limit), round off the kinks, and limit again.
+	//    Pinned samples (the fords, later) hold their height and the others give way.
+	TArray<float> Limits;
+	Limits.SetNum(Num);
+	for (int32 i = 1; i < Num; ++i)
+	{
+		Limits[i] = GradeLimitAt((SampleDistances[i - 1] + SampleDistances[i]) * 0.5f);
+	}
+	TArray<bool> Pinned;
+	Pinned.Init(false, Num);
+	auto LimitGrades = [&]()
+	{
+		for (int32 i = 1; i < Num; ++i)
+		{
+			const float Rise = Limits[i] * (SampleDistances[i] - SampleDistances[i - 1]);
+			if (!Pinned[i])
+			{
+				Heights[i] = FMath::Clamp(Heights[i], Heights[i - 1] - Rise, Heights[i - 1] + Rise);
+			}
+		}
+		for (int32 i = Num - 2; i >= 0; --i)
+		{
+			const float Rise = Limits[i + 1] * (SampleDistances[i + 1] - SampleDistances[i]);
+			if (!Pinned[i])
+			{
+				Heights[i] = FMath::Clamp(Heights[i], Heights[i + 1] - Rise, Heights[i + 1] + Rise);
+			}
+		}
+	};
+	LimitGrades();
+	Smooth(Heights, 2);
+	LimitGrades();
+	for (int32 i = 0; i < Num; ++i)
+	{
+		SamplePoints[i].Z = Heights[i];
+	}
+
+	// 4. Rivers: one across each ford and under the bridge, wandering off either side of the trail.
+	for (int32 SpanIndex = 0; SpanIndex < Spans.Num(); ++SpanIndex)
+	{
+		const FSpan& Span = Spans[SpanIndex];
+		if (Span.Feature != ENBRouteFeature::Ford && Span.Feature != ENBRouteFeature::Bridge)
+		{
+			continue;
+		}
+		FRiver& River = Rivers.AddDefaulted_GetRef();
+		River.bFord = Span.Feature == ENBRouteFeature::Ford;
+		River.Crossing = (Span.Start + Span.End) * 0.5f;
+		FVector Centre;
+		float Yaw;
+		SampleAt(River.Crossing, Centre, Yaw);
+		// A ford is a dip: its water is at the lowest the trail gets near the crossing, so both approaches come
+		// down into it. The bridge's river runs in a gorge under the deck.
+		if (River.bFord)
+		{
+			River.Level = Centre.Z;
+			for (int32 i = 0; i < Num; ++i)
+			{
+				if (FMath::Abs(SampleDistances[i] - River.Crossing) <= RiverHalfWidth + RiverBank + 1000.f)
+				{
+					River.Level = FMath::Min(River.Level, SamplePoints[i].Z);
+				}
+			}
+		}
+		else
+		{
+			River.Level = Centre.Z - BridgeClearance;
+		}
+		const int32 CrossingSample = FMath::Clamp(Algo::UpperBound(SampleDistances, River.Crossing), 0, Num - 1);
+
+		const FVector2D Across(RightOf(Yaw)), Along(FRotator(0.f, Yaw, 0.f).Vector());
+		FRandomStream Stream(Seed + 101 * SpanIndex);
+		const float Phase = Stream.FRandRange(0.f, 10.f);
+		auto PointAt = [&](float S)
+		{
+			// Straight across the trail, then wandering.
+			const float Wander = 3000.f * FMath::Sin(S / 12000.f + Phase) - 3000.f * FMath::Sin(Phase);
+			return FVector2D(Centre) + Across * S + Along * Wander * Smooth01((FMath::Abs(S) - 2000.f) / 6000.f);
+		};
+		// Out to RiverReach each way, stopping short of any other stretch of trail.
+		const float KeepClear = RoadWidth * 0.5f + ShoulderWidth + BlendWidth + RiverHalfWidth + RiverBank;
+		auto Reach = [&](float Direction)
+		{
+			float S = 0.f;
+			while (S + RiverStep <= RiverReach)
+			{
+				const FVector2D P = PointAt(Direction * (S + RiverStep));
+				bool bBlocked = false;
+				for (int32 i = 0; i < Num && !bBlocked; ++i)
+				{
+					bBlocked = FMath::Abs(i - CrossingSample) > 12 && FVector2D::DistSquared(FVector2D(SamplePoints[i]), P) < FMath::Square(KeepClear);
+				}
+				if (bBlocked)
+				{
+					break;
+				}
+				S += RiverStep;
+			}
+			return FMath::Max(S, KeepClear);
+		};
+		// Downstream is the way the ground falls away.
+		const float Ends[2] = {-Reach(-1.f), Reach(1.f)};
+		const int32 Down = TerrainZ(PointAt(Ends[1]).X, PointAt(Ends[1]).Y) < TerrainZ(PointAt(Ends[0]).X, PointAt(Ends[0]).Y) ? 1 : 0;
+		const float DownSign = Down == 1 ? 1.f : -1.f;
+		// The water is level at the crossing. Downstream it follows the ground down (never up); upstream it
+		// climbs gently toward the ground, and the river starts where the ground no longer rises above it.
+		auto LevelAlong = [&](float Direction, float End, TArray<TPair<FVector2D, float>>& Out)
+		{
+			float Level = River.Level;
+			for (float S = RiverStep; S <= FMath::Abs(End) + 1.f; S += RiverStep)
+			{
+				const FVector2D P = PointAt(Direction * S);
+				const float Ground = TerrainZ(P.X, P.Y) - 150.f;
+				if (S > KeepClear)
+				{
+					if (Direction == DownSign)
+					{
+						Level = FMath::Min(Level, Ground);
+					}
+					else if (Ground < Level)
+					{
+						break;
+					}
+					else
+					{
+						Level = FMath::Min(Ground, Level + RiverStep * 0.06f);
+					}
+				}
+				Out.Add({P, Level});
+			}
+		};
+		TArray<TPair<FVector2D, float>> Upstream, Downstream;
+		LevelAlong(-DownSign, Ends[1 - Down], Upstream);
+		LevelAlong(DownSign, Ends[Down], Downstream);
+		for (int32 i = Upstream.Num() - 1; i >= 0; --i)
+		{
+			River.Points.Add(Upstream[i].Key);
+			River.Levels.Add(Upstream[i].Value);
+		}
+		River.Points.Add(FVector2D(Centre));
+		River.Levels.Add(River.Level);
+		for (const TPair<FVector2D, float>& Point : Downstream)
+		{
+			River.Points.Add(Point.Key);
+			River.Levels.Add(Point.Value);
+		}
+		if (River.bFord)
+		{
+			// The trail dips into the water across the channel and climbs out again.
+			for (int32 i = 0; i < Num; ++i)
+			{
+				if (FMath::Abs(SampleDistances[i] - River.Crossing) <= RiverHalfWidth)
+				{
+					Heights[i] = River.Level - FordDepth;
+					Pinned[i] = true;
+				}
+			}
+		}
+	}
+	if (Pinned.Contains(true))
+	{
+		LimitGrades();
+		for (int32 i = 0; i < Num; ++i)
+		{
+			SamplePoints[i].Z = Heights[i];
+		}
+	}
+
+	// 5. How rough the trail is and how it leans: calm where the car starts and stops, at the jumps and on the
+	//    bridge; extra lumpy on the cobbles and the stony fords.
+	for (int32 i = 0; i < Num; ++i)
+	{
+		const float D = SampleDistances[i];
+		float Rough = 1.f;
+		for (const FSpan& Span : Spans)
+		{
+			const bool bInside = D >= Span.Start && D <= Span.End;
+			if (bInside && Span.Feature == ENBRouteFeature::Bumps)
+			{
+				Rough = 2.5f;
+			}
+			else if (bInside && Span.Feature == ENBRouteFeature::Ford)
+			{
+				Rough = 1.5f;
+			}
+			if ((Span.Feature == ENBRouteFeature::Jump && D >= Span.Start - 3000.f && D <= Span.End + 3000.f)
+				|| (Span.Feature == ENBRouteFeature::Bridge && D >= Span.Start - 1000.f && D <= Span.End + 1000.f))
+			{
+				Rough = 0.f;
+				break;
+			}
+		}
+		if (D < 6000.f || D > TotalLength - 12000.f)
+		{
+			Rough = 0.f;
+		}
+		SampleRoughness[i] = Rough;
+	}
+	Smooth(SampleRoughness, 4);
+	const float Offset = (Seed % 1000) * 0.0137f;
+	for (int32 i = 0; i < Num; ++i)
+	{
+		SampleCamber[i] = TrailCamber * FMath::Clamp(1.6f * FMath::PerlinNoise1D(SampleDistances[i] / 6000.f + Offset + 3.3f), -1.f, 1.f)
+			* FMath::Min(SampleRoughness[i], 1.f);
+	}
+
+	for (int32 i = 0; i + 1 < Num; ++i)
+	{
+		StepGrid.FindOrAdd(FIntPoint(FMath::FloorToInt(SamplePoints[i].X / GridCell), FMath::FloorToInt(SamplePoints[i].Y / GridCell))).Add(i);
+	}
+}
+
+float ANBRoute::RiverDistance(const FRiver& River, const FVector2D& P, FVector2D* OutFlow, float* OutFromEnd, float* OutLevel) const
+{
+	float Best = TNumericLimits<float>::Max();
+	const float Total = (River.Points.Num() - 1) * RiverStep;
+	for (int32 i = 0; i + 1 < River.Points.Num(); ++i)
+	{
+		const FVector2D A = River.Points[i], AB = River.Points[i + 1] - A;
+		const float T = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1.0), 0.0, 1.0);
+		const float Dist = FVector2D::Distance(A + AB * T, P);
+		if (Dist < Best)
+		{
+			Best = Dist;
+			if (OutFlow)
+			{
+				*OutFlow = AB.GetSafeNormal();
+			}
+			if (OutFromEnd)
+			{
+				const float Along = (i + T) * RiverStep;
+				*OutFromEnd = FMath::Min(Along, Total - Along);
+			}
+			if (OutLevel)
+			{
+				*OutLevel = FMath::Lerp(River.Levels[i], River.Levels[i + 1], T);
+			}
+		}
+	}
+	return Best;
+}
+
+ANBRoute::FGroundSample ANBRoute::SampleGround(float X, float Y) const
+{
+	FGroundSample Out;
+	if (!bUseTerrain)
+	{
+		return Out;
+	}
+	const float Terrain = TerrainZ(X, Y);
+	Out.Z = Terrain;
+	if (StepGrid.IsEmpty())
+	{
+		return Out;
+	}
+	const FVector2D P(X, Y);
+	const float HalfRoad = RoadWidth * 0.5f;
+	const float Inner = HalfRoad + ShoulderWidth;
+	const float Outer = Inner + BlendWidth;
+	// Lumps in the trail: two scales of noise, a few metres across.
+	const float Lumps = TrailRoughness * 1.6f * (0.6f * FMath::PerlinNoise2D(FVector2D(X / 600.f + 0.37f, Y / 600.f + 0.71f))
+		+ 0.4f * FMath::PerlinNoise2D(FVector2D(X / 350.f + 5.13f, Y / 350.f + 2.29f)));
+
+	// The nearest point of each separate stretch of trail within reach (the hairpin's legs, the wiggles).
+	struct FHit { int32 Step; float Dist; float Z; };
+	TArray<FHit, TInlineAllocator<32>> Hits;
+	const FIntPoint Cell(FMath::FloorToInt(X / GridCell), FMath::FloorToInt(Y / GridCell));
+	for (int32 DX = -1; DX <= 1; ++DX)
+	{
+		for (int32 DY = -1; DY <= 1; ++DY)
+		{
+			const TArray<int32>* Steps = StepGrid.Find(Cell + FIntPoint(DX, DY));
+			if (!Steps)
+			{
+				continue;
+			}
+			for (const int32 i : *Steps)
+			{
+				const FVector2D A(SamplePoints[i]), B(SamplePoints[i + 1]);
+				const FVector2D AB = B - A;
+				const float T = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1.0), 0.0, 1.0);
+				const FVector2D Nearest = A + AB * T;
+				const float Dist = FVector2D::Distance(Nearest, P);
+				if (Dist < Outer)
+				{
+					// The trail's own surface: its profile, leaning by its camber (the shoulders carry on the lean), plus lumps.
+					const float Lateral = FMath::Clamp(FVector2D::CrossProduct(AB.GetSafeNormal(), P - Nearest), -Inner, Inner);
+					const float Z = FMath::Lerp(SamplePoints[i].Z, SamplePoints[i + 1].Z, static_cast<double>(T))
+						+ Lateral * FMath::Lerp(SampleCamber[i], SampleCamber[i + 1], T)
+						+ Lumps * FMath::Lerp(SampleRoughness[i], SampleRoughness[i + 1], T);
+					Hits.Add({i, Dist, Z});
+				}
+			}
+		}
+	}
+	Hits.Sort([](const FHit& L, const FHit& R) { return L.Step < R.Step; });
+
+	float Height = Terrain;
+	float RoadWeight = 0.f;
+	if (!Hits.IsEmpty())
+	{
+		// Steps less than ~20 m apart along the trail are the same stretch: keep its nearest.
+		TArray<FHit, TInlineAllocator<4>> Stretches;
+		for (const FHit& Hit : Hits)
+		{
+			if (!Stretches.IsEmpty() && Hit.Step - Stretches.Last().Step <= 4)
+			{
+				FHit& Last = Stretches.Last();
+				if (Hit.Dist < Last.Dist)
+				{
+					Last.Dist = Hit.Dist;
+					Last.Z = Hit.Z;
+				}
+				Last.Step = Hit.Step;
+				continue;
+			}
+			Stretches.Add(Hit);
+		}
+		// Each stretch pulls the ground to its height, fully across the trail and shoulders, fading out over
+		// BlendWidth. Where two overlap they share; where none reaches, the mountains show.
+		float WeightSum = 0.f, Pulled = 0.f;
+		for (const FHit& Stretch : Stretches)
+		{
+			const float Weight = 1.f - Smooth01((Stretch.Dist - Inner) / (Outer - Inner));
+			WeightSum += Weight;
+			Pulled += Weight * Stretch.Z;
+			Out.Trail = FMath::Max(Out.Trail, 1.f - Smooth01((Stretch.Dist - HalfRoad + 50.f) / 250.f));
+		}
+		Height = WeightSum >= 1.f ? Pulled / WeightSum : Pulled + (1.f - WeightSum) * Terrain;
+		RoadWeight = FMath::Min(WeightSum, 1.f);
+	}
+
+	for (const FRiver& River : Rivers)
+	{
+		FVector2D Flow;
+		float FromEnd, Level;
+		const float Dist = RiverDistance(River, P, &Flow, &FromEnd, &Level);
+		const float Reach = RiverHalfWidth + RiverBank;
+		if (Dist > Reach + BlendWidth)
+		{
+			continue;
+		}
+		// The channel shallows to nothing over the last 30 m of each end.
+		const float Taper = Smooth01(FromEnd / 3000.f);
+		// Banks at least a little above the water, so it never spills over a dip (the trail fords it instead).
+		const float Levee = (1.f - Smooth01((Dist - Reach) / BlendWidth)) * Taper * (River.bFord ? 1.f - RoadWeight : 1.f);
+		Height = FMath::Max(Height, FMath::Lerp(Height, Level + 30.f, Levee));
+		// The channel: shallow where the trail fords it, deep elsewhere and in the gorge under the bridge.
+		const float Depth = River.bFord ? FMath::Lerp(RiverDepth, FordDepth, RoadWeight) : RiverDepth;
+		// At a ford the trail's own profile is the riverbed: the banks don't cut into it.
+		const float Cut = (1.f - Smooth01((Dist - RiverHalfWidth) / RiverBank)) * (River.bFord ? 1.f - RoadWeight : 1.f);
+		Height = FMath::Min(Height, FMath::Lerp(Height, Level - Depth * Taper + (River.bFord ? Lumps * RoadWeight * 1.5f : 0.f), Cut));
+	}
+	Out.Z = Height;
+	return Out;
+}
+
+float ANBRoute::WaterDepthAt(const FVector& Local, FVector2D* OutFlow) const
+{
+	for (const FRiver& River : Rivers)
+	{
+		FVector2D Flow;
+		float FromEnd, Level;
+		if (RiverDistance(River, FVector2D(Local), &Flow, &FromEnd, &Level) <= RiverHalfWidth + RiverBank && FromEnd > RiverDryEnd && Level > Local.Z)
+		{
+			if (OutFlow)
+			{
+				*OutFlow = Flow;
+			}
+			return Level - Local.Z;
+		}
+	}
+	return 0.f;
+}
+
+float ANBRoute::GetWaterDepth(const FVector& WorldLocation, FVector& OutFlow) const
+{
+	FVector2D Flow(ForceInitToZero);
+	const float Depth = WaterDepthAt(GetActorTransform().InverseTransformPosition(WorldLocation), &Flow);
+	OutFlow = GetActorTransform().TransformVectorNoScale(FVector(Flow, 0.f));
+	return Depth;
+}
+
+ANBRoute* ANBRoute::Find(const UWorld* World)
+{
+	static TWeakObjectPtr<ANBRoute> Cached;
+	if (Cached.IsValid() && Cached->GetWorld() == World)
+	{
+		return Cached.Get();
+	}
+	for (TActorIterator<ANBRoute> It(World); It; ++It)
+	{
+		Cached = *It;
+		return *It;
+	}
+	return nullptr;
+}
+
+FVector ANBRoute::GroundNormal(float X, float Y) const
+{
+	constexpr float Step = 100.f;
+	const float DX = GroundZ(X + Step, Y) - GroundZ(X - Step, Y);
+	const float DY = GroundZ(X, Y + Step) - GroundZ(X, Y - Step);
+	return FVector(-DX, -DY, 2.f * Step).GetSafeNormal();
+}
+
+float ANBRoute::GetRoadHeight(float Distance) const
+{
+	FVector Location;
+	float Yaw;
+	SampleAt(Distance, Location, Yaw);
+	return GetActorTransform().TransformPosition(Location).Z;
+}
+
+float ANBRoute::GetRoadGrade(float Distance) const
+{
+	FVector A, B;
+	float Yaw;
+	SampleAt(Distance - SampleSpacing * 0.5f, A, Yaw);
+	SampleAt(Distance + SampleSpacing * 0.5f, B, Yaw);
+	const float Run = FVector::DistXY(A, B);
+	return Run > 1.f ? (B.Z - A.Z) / Run : 0.f;
+}
+
+float ANBRoute::GetGroundHeight(float X, float Y) const
+{
+	const FVector Local = GetActorTransform().InverseTransformPosition(FVector(X, Y, 0.f));
+	return GetActorTransform().TransformPosition(FVector(Local.X, Local.Y, GroundZ(Local.X, Local.Y))).Z;
+}
+
+float ANBRoute::GetTerrainHeight(float X, float Y) const
+{
+	const FVector Local = GetActorTransform().InverseTransformPosition(FVector(X, Y, 0.f));
+	return GetActorTransform().TransformPosition(FVector(Local.X, Local.Y, TerrainZ(Local.X, Local.Y))).Z;
+}
+
+bool ANBRoute::GetLandscapeHeight(float X, float Y, float& OutZ) const
+{
+	for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
+	{
+		const TOptional<float> Height = It->GetHeightAtLocation(FVector(X, Y, 0.f));
+		if (Height.IsSet())
+		{
+			OutZ = Height.GetValue();
+			return true;
+		}
+	}
+	return false;
+}
+
+FString ANBRoute::CheckProfile() const
+{
+	FString Report;
+	int32 Problems = 0;
+	float MinZ = TNumericLimits<float>::Max(), MaxZ = TNumericLimits<float>::Lowest();
+	for (int32 Section = 0; Section < SectionNames.Num(); ++Section)
+	{
+		const float Start = SectionStarts[Section];
+		const float End = SectionStarts.IsValidIndex(Section + 1) ? SectionStarts[Section + 1] : TotalLength;
+		float MaxUp = 0.f, MaxDown = 0.f, Low = TNumericLimits<float>::Max(), High = TNumericLimits<float>::Lowest();
+		for (int32 i = 1; i < SamplePoints.Num(); ++i)
+		{
+			const float Mid = (SampleDistances[i - 1] + SampleDistances[i]) * 0.5f;
+			if (Mid < Start || Mid >= End)
+			{
+				continue;
+			}
+			const float Run = SampleDistances[i] - SampleDistances[i - 1];
+			const float Grade = (SamplePoints[i].Z - SamplePoints[i - 1].Z) / Run;
+			const float Limit = GradeLimitAt(Mid);
+			MaxUp = FMath::Max(MaxUp, Grade);
+			MaxDown = FMath::Min(MaxDown, Grade);
+			Low = FMath::Min(Low, SamplePoints[i].Z);
+			High = FMath::Max(High, SamplePoints[i].Z);
+			if (FMath::Abs(Grade) > Limit + 0.001f)
+			{
+				Report += FString::Printf(TEXT("  OVER LIMIT at %.0f m: %.1f %% (limit %.1f %%)\n"), Mid / 100.f, Grade * 100.f, Limit * 100.f);
+				++Problems;
+			}
+		}
+		MinZ = FMath::Min(MinZ, Low);
+		MaxZ = FMath::Max(MaxZ, High);
+		Report += FString::Printf(TEXT("%-16s %5.0f-%5.0f m  climbs %4.1f %%  descents %5.1f %%  height %5.1f-%5.1f m\n"),
+			*SectionNames[Section], Start / 100.f, End / 100.f, MaxUp * 100.f, MaxDown * 100.f, Low / 100.f, High / 100.f);
+	}
+	for (const FRiver& River : Rivers)
+	{
+		Report += FString::Printf(TEXT("river (%s) at %.0f m: water at %.1f m there, %.1f-%.1f m along it, %.0f m long\n"), River.bFord ? TEXT("ford") : TEXT("bridge"),
+			River.Crossing / 100.f, River.Level / 100.f, FMath::Min(River.Levels) / 100.f, FMath::Max(River.Levels) / 100.f, (River.Points.Num() - 1) * RiverStep / 100.f);
+	}
+	Report += FString::Printf(TEXT("trail height %.1f-%.1f m, %d steps over their limit\n"), MinZ / 100.f, MaxZ / 100.f, Problems);
+	return Report;
+}
+
+UObject* ANBRoute::CreateTrailLayerInfo(const FString& PackagePath)
+{
+#if WITH_EDITOR
+	if (ULandscapeLayerInfoObject* Existing = LoadObject<ULandscapeLayerInfoObject>(nullptr, *PackagePath, nullptr, LOAD_NoWarn | LOAD_Quiet))
+	{
+		return Existing;
+	}
+	FString Path, Name;
+	PackagePath.Split(TEXT("/"), &Path, &Name, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	ULandscapeLayerInfoObject* LayerInfo = UE::Landscape::CreateTargetLayerInfo(FName(TEXT("Trail")), Path, Name);
+	// Painted on its own, not traded off against other layers.
+	LayerInfo->SetBlendMethod(ELandscapeTargetLayerBlendMethod::None, false);
+	return LayerInfo;
+#else
+	return nullptr;
+#endif
+}
+
+AActor* ANBRoute::BuildLandscape(UMaterialInterface* Material, UObject* TrailLayerInfo, float QuadSize, float Margin)
+{
+#if WITH_EDITOR
+	UWorld* World = GetWorld();
+	if (!World || SamplePoints.Num() < 2 || QuadSize < 50.f)
+	{
+		return nullptr;
+	}
+	// Components of 127 quads, one section each; enough of them to cover the trail plus Margin.
+	constexpr int32 QuadsPerComponent = 127;
+	constexpr float ScaleZ = 100.f; // 65536 steps of 100/128 cm: +-256 m around the actor's Z
+	FBox2D Bounds(ForceInit);
+	for (const FVector& Point : SamplePoints)
+	{
+		Bounds += FVector2D(GetActorTransform().TransformPosition(Point));
+	}
+	Bounds = Bounds.ExpandBy(Margin);
+	const int32 ComponentsX = FMath::CeilToInt(Bounds.GetSize().X / (QuadSize * QuadsPerComponent));
+	const int32 ComponentsY = FMath::CeilToInt(Bounds.GetSize().Y / (QuadSize * QuadsPerComponent));
+	const int32 VertsX = ComponentsX * QuadsPerComponent + 1;
+	const int32 VertsY = ComponentsY * QuadsPerComponent + 1;
+	const FVector Origin(Bounds.GetCenter() - FVector2D(VertsX - 1, VertsY - 1) * QuadSize * 0.5f, GetActorLocation().Z);
+
+	TArray<uint16> Heights;
+	Heights.SetNumUninitialized(VertsX * VertsY);
+	TArray<uint8> Trail;
+	Trail.SetNumUninitialized(VertsX * VertsY);
+	ParallelFor(VertsY, [&](int32 Y)
+	{
+		for (int32 X = 0; X < VertsX; ++X)
+		{
+			const FVector Local = GetActorTransform().InverseTransformPosition(Origin + FVector(X * QuadSize, Y * QuadSize, 0.f));
+			const FGroundSample Ground = SampleGround(Local.X, Local.Y);
+			const float Z = GetActorTransform().TransformPosition(FVector(Local.X, Local.Y, Ground.Z)).Z - Origin.Z;
+			Heights[Y * VertsX + X] = static_cast<uint16>(FMath::Clamp(FMath::RoundToInt(32768.f + Z * 128.f / ScaleZ), 0, 65535));
+			Trail[Y * VertsX + X] = static_cast<uint8>(FMath::RoundToInt(Ground.Trail * 255.f));
+		}
+	});
+
+	ALandscape* Landscape = World->SpawnActor<ALandscape>(Origin, FRotator::ZeroRotator);
+	if (!Landscape)
+	{
+		return nullptr;
+	}
+	Landscape->LandscapeMaterial = Material;
+	Landscape->SetActorRelativeScale3D(FVector(QuadSize, QuadSize, ScaleZ));
+	Landscape->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((VertsX * VertsY) / (2048 * 2048) + 1), (uint32)2);
+
+	ULandscapeLayerInfoObject* LayerInfo = Cast<ULandscapeLayerInfoObject>(TrailLayerInfo);
+	TMap<FGuid, TArray<uint16>> HeightData;
+	HeightData.Add(FGuid(), MoveTemp(Heights));
+	TMap<FGuid, TArray<FLandscapeImportLayerInfo>> ImportLayers;
+	TArray<FLandscapeImportLayerInfo>& TrailLayers = ImportLayers.Add(FGuid());
+	if (LayerInfo)
+	{
+		FLandscapeImportLayerInfo& Layer = TrailLayers.Emplace_GetRef(LayerInfo->GetLayerName());
+		Layer.LayerInfo = LayerInfo;
+		Layer.LayerData = MoveTemp(Trail);
+	}
+	Landscape->Import(FGuid::NewGuid(), 0, 0, VertsX - 1, VertsY - 1, 1, QuadsPerComponent, HeightData, TEXT(""), ImportLayers,
+		ELandscapeImportAlphamapType::Additive, TArrayView<const FLandscapeLayer>());
+	if (LayerInfo)
+	{
+		Landscape->AddTargetLayer(LayerInfo->GetLayerName(), FLandscapeTargetLayerSettings(LayerInfo));
+		if (ULandscapeInfo* Info = Landscape->GetLandscapeInfo())
+		{
+			Info->UpdateLayerInfoMap(Landscape);
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBRoute: landscape %d x %d vertices (%d x %d components) at %.0f cm per quad"), VertsX, VertsY, ComponentsX, ComponentsY, QuadSize);
+	return Landscape;
+#else
+	return nullptr;
+#endif
+}
+
 
 void ANBRoute::SampleAt(float Distance, FVector& OutLocation, float& OutYaw) const
 {
@@ -264,7 +1029,8 @@ FTransform ANBRoute::GetTransformAt(float Distance, float Lift) const
 	FVector Location;
 	float Yaw;
 	SampleAt(Distance, Location, Yaw);
-	return FTransform(FRotator(0.f, Yaw, 0.f), Location + FVector(0.f, 0.f, Lift)) * GetActorTransform();
+	const float Pitch = FMath::RadiansToDegrees(FMath::Atan(GetRoadGrade(Distance)));
+	return FTransform(FRotator(Pitch, Yaw, 0.f), Location + FVector(0.f, 0.f, Lift)) * GetActorTransform();
 }
 
 FTransform ANBRoute::GetStartTransform() const
@@ -406,8 +1172,21 @@ void ANBRoute::BuildGeometry()
 	Planks  = MakeLayer(TEXT("Planks"),  FLinearColor(0.45f, 0.28f, 0.14f), true,  true);
 	Markers = MakeLayer(TEXT("Markers"), FLinearColor(0.85f, 0.1f, 0.1f),   false, true);
 	Walls   = MakeLayer(TEXT("Walls"),   FLinearColor(0.5f, 0.5f, 0.55f),   true,  true);
+	Pebbles = MakeLayer(TEXT("Pebbles"), FLinearColor(0.3f, 0.27f, 0.24f), true,  false);
+	if (bUseTerrain)
+	{
+		// The landscape is the ground; the edge of the world is an invisible wall, so the hills beyond stay in view.
+		Boundary = MakeLayer(TEXT("Boundary"), FLinearColor::White, true, false);
+		Boundary->SetHiddenInGame(true);
+		Boundary->SetVisibility(false);
+	}
+	else
+	{
+		Boundary = Walls;
+	}
 
-	// Ground slab under the whole road (top at z = 0), walled in so nothing drives off the world.
+	// Without terrain, a ground slab under the whole road (top at z = 0). Either way, walled in so nothing
+	// drives off the world.
 	FBox2D Bounds(ForceInit);
 	for (const FVector& Point : SamplePoints)
 	{
@@ -416,14 +1195,21 @@ void ANBRoute::BuildGeometry()
 	Bounds = Bounds.ExpandBy(GroundMargin);
 	const FVector2D Centre = Bounds.GetCenter();
 	const FVector2D Size = Bounds.GetSize();
-	AddBox(Ground, FVector(Centre, -100.f), FRotator::ZeroRotator, FVector(Size, 200.f));
-	constexpr float WallHeight = 400.f, WallThick = 200.f;
-	AddBox(Walls, FVector(Bounds.Min.X, Centre.Y, WallHeight * 0.5f), FRotator::ZeroRotator, FVector(WallThick, Size.Y, WallHeight));
-	AddBox(Walls, FVector(Bounds.Max.X, Centre.Y, WallHeight * 0.5f), FRotator::ZeroRotator, FVector(WallThick, Size.Y, WallHeight));
-	AddBox(Walls, FVector(Centre.X, Bounds.Min.Y, WallHeight * 0.5f), FRotator::ZeroRotator, FVector(Size.X, WallThick, WallHeight));
-	AddBox(Walls, FVector(Centre.X, Bounds.Max.Y, WallHeight * 0.5f), FRotator::ZeroRotator, FVector(Size.X, WallThick, WallHeight));
+	if (!bUseTerrain)
+	{
+		AddBox(Ground, FVector(Centre, -100.f), FRotator::ZeroRotator, FVector(Size, 200.f));
+	}
+	// With terrain the walls reach from below the lowest ground to well above the highest hill.
+	const float WallHeight = bUseTerrain ? TerrainMaxHeight + 2500.f : 400.f;
+	const float WallZ = bUseTerrain ? WallHeight * 0.5f - 1000.f : WallHeight * 0.5f;
+	constexpr float WallThick = 200.f;
+	AddBox(Boundary, FVector(Bounds.Min.X, Centre.Y, WallZ), FRotator::ZeroRotator, FVector(WallThick, Size.Y, WallHeight));
+	AddBox(Boundary, FVector(Bounds.Max.X, Centre.Y, WallZ), FRotator::ZeroRotator, FVector(WallThick, Size.Y, WallHeight));
+	AddBox(Boundary, FVector(Centre.X, Bounds.Min.Y, WallZ), FRotator::ZeroRotator, FVector(Size.X, WallThick, WallHeight));
+	AddBox(Boundary, FVector(Centre.X, Bounds.Max.Y, WallZ), FRotator::ZeroRotator, FVector(Size.X, WallThick, WallHeight));
 
-	// Road surface (visual only; the ground slab is what the wheels touch), edge lines and a dashed centre line.
+	// Road surface (visual only; the ground slab or the landscape is what the wheels touch), edge lines and a
+	// dashed centre line. Each piece runs from sample to sample, so on terrain it takes the road's pitch.
 	auto AddStrip = [this](UInstancedStaticMeshComponent* Mesh, int32 A, int32 B, float Offset, float Width, float Z, float Overlap)
 	{
 		const FVector Start = SamplePoints[A] + RightOf(SampleYaws[A]) * Offset;
@@ -432,23 +1218,27 @@ void ANBRoute::BuildGeometry()
 		AddBox(Mesh, (Start + End) * 0.5f + FVector(0.f, 0.f, Z), Delta.Rotation(), FVector(Delta.Size() + Overlap, Width, 2.f));
 	};
 	const float EdgeOffset = RoadWidth * 0.5f - 40.f;
-	for (int32 i = 0; i + 1 < SamplePoints.Num(); ++i)
+	// A landscape is a mesh of 2 m quads, not a perfect plane: sit a little higher on it.
+	const float RoadZ = bUseTerrain ? 3.f : 1.f, LineZ = RoadZ + 1.5f;
+	// With terrain the trail is the landscape itself, painted dirt (its "Trail" layer): no strip, no lines.
+	for (int32 i = 0; i + 1 < SamplePoints.Num() && !bUseTerrain; ++i)
 	{
-		AddStrip(Road, i, i + 1, 0.f, RoadWidth, 1.f, 80.f);
-		AddStrip(Lines, i, i + 1, -EdgeOffset, 30.f, 2.5f, 20.f);
-		AddStrip(Lines, i, i + 1, EdgeOffset, 30.f, 2.5f, 20.f);
+		AddStrip(Road, i, i + 1, 0.f, RoadWidth, RoadZ, 80.f);
+		AddStrip(Lines, i, i + 1, -EdgeOffset, 30.f, LineZ, 20.f);
+		AddStrip(Lines, i, i + 1, EdgeOffset, 30.f, LineZ, 20.f);
 		if (i % 2 == 0)
 		{
-			AddStrip(Lines, i, i + 1, 0.f, 20.f, 2.5f, -150.f);
+			AddStrip(Lines, i, i + 1, 0.f, 20.f, LineZ, -150.f);
 		}
 	}
 
 	// Start line.
+	if (!bUseTerrain)
 	{
 		FVector Location;
 		float Yaw;
 		SampleAt(1500.f, Location, Yaw);
-		AddBox(Lines, Location + FVector(0.f, 0.f, 2.5f), FRotator(0.f, Yaw, 0.f), FVector(60.f, RoadWidth, 2.f));
+		AddBox(Lines, Location + FVector(0.f, 0.f, LineZ), FRotator(0.f, Yaw, 0.f), FVector(60.f, RoadWidth, 2.f));
 	}
 
 	// Per-segment features, corner markers on the outside of bends, and a sign at each section.
@@ -466,7 +1256,9 @@ void ANBRoute::BuildGeometry()
 				FVector Location;
 				float Yaw;
 				SampleAt(D, Location, Yaw);
-				AddBox(Markers, Location + RightOf(Yaw) * Side * (RoadWidth * 0.5f + 150.f) + FVector(0.f, 0.f, 75.f), FRotator(0.f, Yaw, 0.f), FVector(40.f, 40.f, 150.f));
+				Location += RightOf(Yaw) * Side * (RoadWidth * 0.5f + 150.f);
+				Location.Z = GroundZ(Location.X, Location.Y) - (bUseTerrain ? 10.f : 0.f);
+				AddBox(Markers, Location + FVector(0.f, 0.f, 75.f), FRotator(0.f, Yaw, 0.f), FVector(40.f, 40.f, 150.f));
 			}
 		}
 
@@ -474,8 +1266,9 @@ void ANBRoute::BuildGeometry()
 		switch (Segment.Feature)
 		{
 		case ENBRouteFeature::Bumps:
-			// Ridges with 45-degree faces, ~14 cm tall: enough to rattle acorns loose at speed.
-			for (float D = Distance + 600.f; D < Distance + Length - 300.f; D += 900.f)
+			// Ridges with 45-degree faces, ~14 cm tall: enough to rattle acorns loose at speed. On terrain the
+			// cobbles are extra lumps in the trail instead (BuildProfile).
+			for (float D = Distance + 600.f; D < Distance + Length - 300.f && !bUseTerrain; D += 900.f)
 			{
 				FVector Location;
 				float Yaw;
@@ -495,6 +1288,7 @@ void ANBRoute::BuildGeometry()
 				Location += RightOf(Yaw) * RoadWidth * Stream.FRandRange(-0.42f, 0.42f);
 				const FRotator Tumble(Stream.FRandRange(-10.f, 10.f), Stream.FRandRange(0.f, 360.f), Stream.FRandRange(-10.f, 10.f));
 				const FVector RockSize(Stream.FRandRange(80.f, 180.f), Stream.FRandRange(80.f, 180.f), Stream.FRandRange(30.f, 55.f));
+				Location.Z = GroundZ(Location.X, Location.Y);
 				AddBox(Rocks, Location, Tumble, RockSize);
 			}
 			break;
@@ -508,26 +1302,56 @@ void ANBRoute::BuildGeometry()
 				FVector Location;
 				float Yaw;
 				SampleAt(D, Location, Yaw);
-				AddBox(Pillars, Location + RightOf(Yaw) * Side * RoadWidth * 0.22f + FVector(0.f, 0.f, 160.f), FRotator(0.f, Yaw, 0.f), FVector(120.f, 120.f, 320.f));
+				Location += RightOf(Yaw) * Side * RoadWidth * 0.22f;
+				Location.Z = GroundZ(Location.X, Location.Y) - (bUseTerrain ? 30.f : 0.f);
+				AddBox(Pillars, Location + FVector(0.f, 0.f, 160.f), FRotator(0.f, Yaw, 0.f), FVector(120.f, 120.f, 320.f));
 				Side = -Side;
 			}
 			break;
 		}
 
 		case ENBRouteFeature::Hill:
-			AddRaised(Hills, Distance, Length, Length * 0.3f, Segment.Height, RoadWidth + 600.f, false);
+			// With terrain the hill is a smooth bump in the road's profile (BuildProfile) instead.
+			if (!bUseTerrain)
+			{
+				AddRaised(Hills, Distance, Length, Length * 0.3f, Segment.Height, RoadWidth + 600.f, false);
+			}
 			break;
 
 		case ENBRouteFeature::Bridge:
 		{
-			constexpr float RampLength = 1500.f;
-			AddRaised(Planks, Distance, Length, RampLength, Segment.Height, BridgeWidth, false);
-			// A "river" across the ground under the deck (visual only; falling in just lands on grass).
-			FVector Location;
-			float Yaw;
-			SampleAt(Distance + Length * 0.5f, Location, Yaw);
-			UInstancedStaticMeshComponent* Water = MakeLayer(*FString::Printf(TEXT("Water%d"), Index), FLinearColor(0.1f, 0.3f, 0.7f), false, false);
-			AddBox(Water, Location + FVector(0.f, 0.f, 4.f), FRotator(0.f, Yaw, 0.f), FVector(Length - RampLength * 2.f - 400.f, 8000.f, 2.f));
+			AddRaised(Planks, Distance, Length, BridgeRampLength, Segment.Height, BridgeWidth, false);
+			// On terrain a river runs in a gorge under the deck (its water is added with the other rivers below).
+			if (!bUseTerrain)
+			{
+				// A "river" across the ground under the deck (visual only; falling in just lands on grass).
+				FVector Location;
+				float Yaw;
+				SampleAt(Distance + Length * 0.5f, Location, Yaw);
+				UInstancedStaticMeshComponent* Water = MakeLayer(*FString::Printf(TEXT("Water%d"), Index), FLinearColor(0.1f, 0.3f, 0.7f), false, false);
+				AddBox(Water, Location + FVector(0.f, 0.f, 4.f), FRotator(0.f, Yaw, 0.f), FVector(Length - BridgeRampLength * 2.f - 400.f, 8000.f, 2.f));
+			}
+			break;
+		}
+
+		case ENBRouteFeature::Ford:
+		{
+			// Pebbles hidden in the water across the trail: unseen jolts, spilled acorns, worn tyres.
+			const FRiver* River = Rivers.FindByPredicate([Distance, Length](const FRiver& R) { return R.Crossing > Distance && R.Crossing < Distance + Length; });
+			if (!River)
+			{
+				break;
+			}
+			for (int32 i = 0; i < 18; ++i)
+			{
+				FVector Location;
+				float Yaw;
+				SampleAt(River->Crossing + RiverHalfWidth * Stream.FRandRange(-0.85f, 0.85f), Location, Yaw);
+				Location += RightOf(Yaw) * RoadWidth * Stream.FRandRange(-0.45f, 0.45f);
+				Location.Z = GroundZ(Location.X, Location.Y);
+				const FRotator Tumble(Stream.FRandRange(-15.f, 15.f), Stream.FRandRange(0.f, 360.f), Stream.FRandRange(-15.f, 15.f));
+				AddBox(Pebbles, Location, Tumble, FVector(Stream.FRandRange(35.f, 70.f), Stream.FRandRange(35.f, 70.f), Stream.FRandRange(25.f, 40.f)));
+			}
 			break;
 		}
 
@@ -548,6 +1372,24 @@ void ANBRoute::BuildGeometry()
 			AddSign(Segment.Section, Distance + 300.f);
 		}
 		Distance += Length;
+	}
+
+	// The rivers' water: flat boxes along each river at its level, as wide as the channel and its banks
+	// (the banks rise above it). Opaque, so the pebbles stay hidden.
+	if (!Rivers.IsEmpty())
+	{
+		UInstancedStaticMeshComponent* Water = MakeLayer(TEXT("Water"), FLinearColor(0.12f, 0.27f, 0.3f), false, false);
+		Water->SetCollisionProfileName(NBCollision::WaterProfile);
+		for (const FRiver& River : Rivers)
+		{
+			const int32 Skip = FMath::CeilToInt(RiverDryEnd / RiverStep);
+			for (int32 i = Skip; i + 1 + Skip < River.Points.Num(); ++i)
+			{
+				// Each piece runs from one point's level to the next, so the water runs downhill.
+				const FVector A(River.Points[i], River.Levels[i] - 1.f), B(River.Points[i + 1], River.Levels[i + 1] - 1.f);
+				AddBox(Water, (A + B) * 0.5f, (B - A).Rotation(), FVector(RiverStep + 300.f, (RiverHalfWidth + RiverBank) * 2.f, 2.f));
+			}
+		}
 	}
 
 	// THE PARK teaches the controls on the left, in the order they're needed. The car starts at 10 m;
@@ -577,7 +1419,11 @@ void ANBRoute::AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistanc
 	FVector Origin;
 	float Yaw;
 	SampleAt(StartDistance, Origin, Yaw);
-	const FVector Forward = FRotator(0.f, Yaw, 0.f).Vector();
+	// Tilted to the road's grade where it starts (the profile keeps these stretches nearly level).
+	const float Pitch = FMath::RadiansToDegrees(FMath::Atan(GetRoadGrade(StartDistance)));
+	const FRotationMatrix Frame(FRotator(Pitch, Yaw, 0.f));
+	const FVector Forward = Frame.GetUnitAxis(EAxis::X);
+	const FVector Up = Frame.GetUnitAxis(EAxis::Z);
 
 	const float SlopeDegrees = FMath::RadiansToDegrees(FMath::Atan2(Height, RampLength));
 	const float SlopeLength = FMath::Sqrt(FMath::Square(RampLength) + FMath::Square(Height));
@@ -587,8 +1433,8 @@ void ANBRoute::AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistanc
 	// A slab whose top face runs from (Along, 0) to (Along + RampLength, Height), or back down.
 	auto AddRamp = [&](float Along, bool bUp)
 	{
-		const FRotator Rotation(bUp ? SlopeDegrees : -SlopeDegrees, Yaw, 0.f);
-		const FVector TopCentre = Origin + Forward * (Along + RampLength * 0.5f) + FVector(0.f, 0.f, Height * 0.5f);
+		const FRotator Rotation(Pitch + (bUp ? SlopeDegrees : -SlopeDegrees), Yaw, 0.f);
+		const FVector TopCentre = Origin + Forward * (Along + RampLength * 0.5f) + Up * (Height * 0.5f);
 		const FVector Normal = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Z);
 		AddBox(Mesh, TopCentre - Normal * Thickness * 0.5f, Rotation, FVector(SlopeLength, Width, Thickness));
 	};
@@ -601,7 +1447,7 @@ void ANBRoute::AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistanc
 	const float Top = FMath::Max(Length - RampLength * 2.f, 0.f);
 	if (Top > 0.f)
 	{
-		AddBox(Mesh, Origin + Forward * (RampLength + Top * 0.5f) + FVector(0.f, 0.f, Height * 0.5f), FRotator(0.f, Yaw, 0.f), FVector(Top, Width, Height));
+		AddBox(Mesh, Origin + Forward * (RampLength + Top * 0.5f) + Up * (Height * 0.5f), FRotator(Pitch, Yaw, 0.f), FVector(Top, Width, Height));
 	}
 	AddRamp(RampLength + Top, false);
 }
@@ -615,6 +1461,8 @@ void ANBRoute::AddSign(const FString& Text, float Distance, bool bLeftSide)
 	const float BoardWidth = FMath::Max(760.f, Text.Len() * 55.f + 120.f);
 	const FVector Side = RightOf(Yaw) * (RoadWidth * 0.5f + 100.f + BoardWidth * 0.5f) * (bLeftSide ? -1.f : 1.f);
 	const FRotator Facing(0.f, Yaw, 0.f);
+	// The post stands on the ground beside the road, not at the road's height.
+	Location.Z = GroundZ(Location.X + Side.X, Location.Y + Side.Y);
 
 	AddBox(Walls, Location + Side + FVector(0.f, 0.f, 175.f), Facing, FVector(30.f, 30.f, 350.f));
 	AddBox(Markers, Location + Side + FVector(0.f, 0.f, 380.f), Facing, FVector(20.f, BoardWidth, 160.f));
@@ -683,14 +1531,23 @@ void ANBRoute::AddProps(const FBox2D& GroundBounds)
 	UInstancedStaticMeshComponent* Blockers = MakeLayer(TEXT("PropBlockers"), FLinearColor::White, true, false);
 	Blockers->SetHiddenInGame(true);
 	Blockers->SetVisibility(false);
-	auto Add = [this, Blockers](int32 Kind, const FVector& Location, float Yaw, float Scale)
+	auto Add = [this, Blockers](int32 Kind, FVector Location, float Yaw, float Scale)
 	{
 		UInstancedStaticMeshComponent* Mesh = PropLayer(Kind);
 		if (!Mesh)
 		{
 			return;
 		}
-		const FTransform Transform(FRotator(0.f, Yaw, 0.f), Location, FVector(Scale));
+		// Dropped onto the ground, sunk a little so no base floats on a slope. Trees and posts stay
+		// upright; rocks, stumps and logs lean with the ground.
+		Location.Z = GroundZ(Location.X, Location.Y) - (bUseTerrain ? 10.f : 0.f);
+		FQuat Rotation = FRotator(0.f, Yaw, 0.f).Quaternion();
+		const TCHAR* Path = PropKinds[Kind].Path;
+		if (bUseTerrain && (FCString::Strstr(Path, TEXT("/rock_")) || FCString::Strstr(Path, TEXT("/stump_")) || FCString::Strstr(Path, TEXT("/log/"))))
+		{
+			Rotation = FQuat::FindBetweenNormals(FVector::UpVector, GroundNormal(Location.X, Location.Y)) * Rotation;
+		}
+		const FTransform Transform(Rotation, Location, FVector(Scale));
 		Mesh->AddInstance(Transform);
 		if (PropKinds[Kind].Block > 0.f)
 		{
@@ -751,12 +1608,24 @@ void ANBRoute::AddProps(const FBox2D& GroundBounds)
 			SampleAt(D + Stream.FRandRange(-300.f, 300.f), Location, Yaw);
 			const float Band = Stream.FRandRange(Prop.BandMin, Prop.BandMax);
 			Location += RightOf(Yaw) * Side * (HalfRoad + Band);
-			Location.Z = 0.f;
-			// Never on the road, including the other legs of the hairpin and wiggles.
+			// Never on the road, including the other legs of the hairpin and wiggles; on terrain, never in a river
+			// or on a cliff face.
 			if (Prop.Weight <= 0.f || DistanceToRoad(Location) < HalfRoad + Prop.BandMin * 0.7f
 				|| !Inside.IsInside(FVector2D(Location)) || !ClearOfSigns(Location))
 			{
 				continue;
+			}
+			if (bUseTerrain)
+			{
+				const FVector2D Spot(Location);
+				const bool bWet = Rivers.ContainsByPredicate([this, &Spot](const FRiver& River)
+				{
+					return RiverDistance(River, Spot, nullptr, nullptr, nullptr) < RiverHalfWidth + RiverBank + 300.f;
+				});
+				if (bWet || GroundNormal(Location.X, Location.Y).Z < 0.8f)
+				{
+					continue;
+				}
 			}
 			Add(Kind, Location, Stream.FRandRange(0.f, 360.f), Stream.FRandRange(Prop.ScaleMin, Prop.ScaleMax));
 		}

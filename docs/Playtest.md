@@ -105,6 +105,20 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Calm and storm: does the quiet stretch feel like a breather, and the storm like a storm?
 - [ ] Failures: does fixing one buy a breather now? Does driving flat out break the engine more, and steering hard the front tires? Note the director log lines (`NBDirector: ...`) from the host's log.
 
+## Mountain trail (18 Oct): check by hand
+Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s: 7:52 against the 9:00 deadline, no stuck points, 17 acorns lost).
+- [ ] Is 9:00 still enough with breakdowns on the mountain trail? The autopilot alone needs 7:52.
+- [ ] The look (no-Lumen build): do the mountains, cliffs and river read? Does the dirt trail stand out from the grass?
+- [ ] 18 % climbs: fun or a slog? With a broken engine (35 % power, then a stall), is a climb a funny crisis or a dead stop? (`MaxGrade` on the route, then a rebake.)
+- [ ] Descents with failed brakes: scary-fun, or the brake grab flips the car?
+- [ ] The fords: do the wheels and body sit in the water? Does a squirrel that jumps out get swept away visibly, and is it back in a seat quickly enough? Do the hidden pebbles wear the tyres enough to matter (a flat mid-river)?
+- [ ] THE BRIDGE: is the drop to the river visible, and is falling off funny or frustrating?
+- [ ] ROCKY ROAD: the rocks on the steep climb tip the car up to 30°. Too much?
+- [ ] Are the cliffs beside the trail obstacles (the car stops dead) or do they just look good?
+- [ ] Hairpin and wiggles: no odd ridges between the two legs.
+- [ ] Client view in a 2-PC run: the car sits on the ground and in the water, same as on the host.
+- [ ] Note the zip size of the first build with the landscape.
+
 ## Friend test (moved up to the weekend of 17–18 Oct)
 - Host run sheet: https://claude.ai/artifact/HhHUPpK2G5D7fsctMVJHRY (ticks and notes, then a summary to paste back to Claude).
 - Friends' questionnaire: a Google Form made by `Tools/Playtest/FeedbackForm.gs` (run it once at script.google.com; answers land in a Google Sheet). Fallback: https://claude.ai/artifact/Gv6LbW984RDA3HLJGRddvF (same questions; copy-to-Discord for anyone who can't save there).

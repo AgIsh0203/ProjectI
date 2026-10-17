@@ -1,76 +1,67 @@
-# Terrain plan
+# Terrain
 
-Status: **planned 18 Oct, not started.** Asked for in friend test 1 ("make the route more based on terrain instead of flat with some jolts"). The user chose:
-- **A real Unreal Landscape in L_Route that the road follows**, not hills only beside a flat road.
-- **Rolling hills:** terrain up to ~20 m high, road grades up to ~8 %.
+Status: **built 18 Oct; checked in single-player PIE only.** Asked for in friend test 1 ("make the route more based on terrain instead of flat with some jolts").
 
-Estimate: 6–10 h. The demo is Sat 24 Oct; if this runs long, cut step 7 (river) and keep the old box hills.
+## What the user chose (18 Oct)
+The first plan was rolling hills (≤ 20 m) with a smooth road at ≤ 8 %. Mid-way the user redirected:
+- **Like "RV There Yet?"**: rugged mountains, cliffs, steep climbs, river crossings.
+- **No pushing or winching**: squirrels can't push a car.
+- **River crossings with pebbles nobody can see.** A squirrel can't hop out in a river to fix a tyre: it gets **swept away**.
+- **The trail itself is rough**: lumps, sideways lean, dirt, no lane lines.
+- There is **no 24 Oct demo any more**: testers liked the last build, and more testers next week will play that package.
 
-## Why the map is flat today
-`ANBRoute` puts everything at z = 0: a walled ground slab is the only surface the wheels touch, the road strip and lines are visual pieces 1 cm above it, and the hills, bridge and jumps are boxes on top (`ENBRouteFeature::Hill/Bridge/Jump`). `Tools/Route/BakeRoute.py` copies that into L_Route, so L_Route is flat too.
+## How it works (`Game/NBRoute`, `bUseTerrain`)
+`bUseTerrain` is on in L_Route and off by default, so the runtime route on L_TestTrack stays flat. Everything comes from one deterministic height model in C++. Every machine and every bake gets the same numbers.
 
-## Design
+- **Mountains (`TerrainZ`):** 4 octaves of Perlin noise plus a ridge term, 0–`TerrainMaxHeight` (160 m). Benches `TerraceHeight` (25 m) tall with steep faces between them make the cliffs (`TerraceStrength` 0.45). A slow noise shifts the steps, so the faces wander instead of following the contours.
+- **Trail profile (`BuildProfile`, heights in the centreline samples' Z):**
+  1. The mountains under the centreline, averaged over `ProfileSmoothing` (30 m).
+  2. ACORN HILL and THE HUMPS add cosine bumps.
+  3. Grades are limited in both directions:
+     - `MaxGrade` 18 % in general.
+     - 6 % in THE PARK (tutorial).
+     - 2 % for the first 60 m and the last 120 m.
+     - 3 % within 30 m of the jumps.
+     - 10 % in THE HAIRPIN and SQUIRREL SLALOM.
+     - Level across THE BRIDGE.
+  4. Fords are pinned (see Rivers below) and the limits run again.
+  - `CheckProfile()` prints each section's steepest climb and descent and its height range, the rivers, and any step over its limit (it should say 0).
+- **Ground (`SampleGround`, what the landscape gets):**
+  - The trail's height across the trail and `ShoulderWidth` (2 m), blending to the mountains over `BlendWidth` (15 m). That short blend leaves a rock wall on the uphill side and a drop on the other.
+  - Where two stretches of trail are within reach (the hairpin, the wiggles), they share the ground.
+  - **Rough trail:** the trail surface leans sideways up to `TrailCamber` (5 %) and has lumps of ± `TrailRoughness` (15 cm). The cobbled sections get 2.5× the lumps and the fords 1.5×. The start, the end, the jumps and the bridge stay smooth.
+  - **Trail paint:** a 0–1 weight on the landscape's "Trail" layer (`/Game/Maps/LI_Trail`).
+- **Rivers (`FRiver`):** one crosses each Ford segment (SQUIRREL CREEK at 0.46 km, THE WASH at 5.14 km) and one runs under THE BRIDGE.
+  - Each starts straight across the trail and then wanders. It runs up to `RiverReach` (300 m) each way, and stops before any other stretch of trail.
+  - The water is level at the crossing. Downstream it follows the ground down; upstream it climbs gently and starts where the ground stops rising above it. The water boxes are tilted piece by piece, so it flows downhill.
+  - The channel is `RiverHalfWidth` (14 m) plus `RiverBank` (6 m) and `RiverDepth` (2.5 m) deep. Low ground beside it is raised to just above the water, so the water never floats over a dip.
+  - **A ford** is the trail's lowest point near the crossing. The trail across the channel is pinned `FordDepth` (60 cm) under the water, and both approaches come down into it.
+  - **The bridge's river** runs `BridgeClearance` (9 m) under the deck, in a gorge.
+- **Water (`GetWaterDepth`)** answers how deep the water is at a point and which way it flows.
+  - A squirrel on foot with ≥ `SweepDepth` (30 cm) at its feet is **swept away**: it ragdolls downstream at `SweepSpeed` and is back in a seat after `SweptRespawnDelay` (2.2 s, less than the ragdoll time, so it never stands up in the river again). Logs `NBRiver: … swept away`.
+  - The car in water loses speed (`RiverDrag`) and every tyre wears (`RiverTireWearRate`), so tyres tend to go flat mid-river, where nobody can fix them.
+  - 18 hidden **pebbles** (collision boxes) sit under the opaque water at each ford.
+- **Landscape (`BuildLandscape`, editor only, called by the bake):**
+  - 2 m quads, 127-quad components (14 × 9), 300 m beyond the trail on every side. Z scale 100 (±256 m).
+  - Heights from `SampleGround`; the trail weights go into the "Trail" layer.
+  - Material `/Game/Maps/M_Terrain` (`Tools/Route/MakeTerrainMaterial.py`, no textures):
+    - grass, lighter higher up;
+    - dirt on slopes, rock on cliffs (world normal);
+    - the dirt track where "Trail" is painted.
+- **What changed on the road with terrain:**
+  - No asphalt strip, lines or start line.
+  - The cobble ridges are lumps in the trail now.
+  - Rocks, pillars, markers, signs and props stand on the ground.
+  - Props never sit in a river or on a slope steeper than about 37°.
+  - The boundary walls are invisible and 185 m tall.
 
-### 1. One height model, in C++ (deterministic, so every machine and every bake agrees)
-On `ANBRoute`:
-- **`TerrainHeight(X, Y)`:** natural ground. A sum of 3 octaves of `FMath::PerlinNoise2D`: ~12 m at ~600 m wavelength, ~6 m at ~250 m, ~2 m at ~90 m, shifted and clamped to 0–20 m. A fixed seed offset, like the rocks.
-- **`RoadHeight(Distance)`:** the road's profile along the centreline.
-  1. Sample `TerrainHeight` every 5 m along `SamplePoints`.
-  2. Smooth it with a moving average of about 80 m.
-  3. Limit the grade with a forward and a backward pass so |dz/dd| ≤ 8 %. Stricter zones: ≤ 2 % for the first 60 m of THE PARK (the car spawns there), the last 120 m (finish gate, depot), and 30 m either side of each jump kicker; ≤ 4 % through THE HAIRPIN and SQUIRREL SLALOM; level across THE BRIDGE.
-  4. Hill features (ACORN HILL, THE HUMPS) become smooth bumps added to the profile (cosine shape, the same heights as today) instead of box slabs with sheer sides. ACORN HILL's "falling off the side flips the car" goes away; keep the box version if that matters.
-- **`GroundHeight(X, Y)`:** what the landscape actually gets. `RoadHeight` across the road plus 6 m shoulders each side, blending to `TerrainHeight` over the next 25 m. Use the nearest-sample search (`DistanceToRoad` already does it) to get the road distance for a point. Where two stretches of road are within blend range of each other (the hairpin legs come within ~90 m), take the road nearest in height, or just the nearest.
-- Expose `GetRoadHeight(Distance)` and `GetGroundHeight(X, Y)` as BlueprintCallable for the bake scripts and the checker.
+## Tools
+- `Tools/Route/BakeRoute.py` (`REBAKE = True`) rebuilds everything in the Route folder, **including the landscape: a rebake erases any sculpting**. Every baked prop, board and marker carries a `Ground=<cm>` tag (its height above the ground).
+- `Tools/Route/SnapToGround.py`: after sculpting, it drops the tagged actors back onto the landscape (keeping X/Y and rotation). The trail itself follows the profile in code: change it there and rebake.
+- `NBAuto [speed]` (console) or `?Autopilot=<cm/s>` (URL): the server drives the car down the centreline, with no random failures. It slows for bends and backs out when stuck, logging per section ("NBAuto: …"): time, speed range, slowest climb, max tilt, acorns lost, air points, stuck count. Before a scripted drive in PIE, seat the local squirrel (a rider seat) so the person at the PC can watch.
 
-### 2. Road geometry follows the profile
-- `GetTransformAt(Distance, Height)` and `SampleAt` add `RoadHeight(Distance)` to Z and pitch by the local grade. Everything that places itself along the road (road strip pieces, lines, corner markers, signs, the finish gate, the car spawn, `NBWarp`, the player starts) goes through these.
-- Road strip and line pieces: pitched to the grade and about 3 % longer so slopes leave no gaps. They stay visual-only, 2 cm above the ground; the wheels drive on the landscape, which is flattened to the profile under the road (section 1).
-- The ground slab is not built when terrain is on (a new `bUseTerrain`, default off so the runtime route in L_TestTrack stays flat). The perimeter walls become a tall fence following `GroundHeight`, or simply 30 m tall.
-- Bumps, rocks, slalom pillars and jump kickers sit at `RoadHeight` and take the road's pitch.
-- Bridge: the deck is level at the profile height. See step 7 for the river.
-
-### 3. The landscape (editor-only C++, called by the bake)
-Python can't create a landscape, so add `ANBRoute::BuildLandscape()`, editor-only (`#if WITH_EDITOR`, `"Landscape"` in the module's dependencies):
-- Size: the route's extent is about 2.8 × 1.7 km. Add a 300 m margin and use **2 m per quad**: roughly 1650 × 1150 vertices. Components of 127 quads with 1 section each, about 13 × 9 = 117 components. Location and scale (X/Y 200, Z 50) so 32768 = z 0 and the range covers ±128 m.
-- Heights: `GroundHeight` at each vertex, converted with `Value = 32768 + z_cm × 128 / ScaleZ`.
-- `ALandscape::Import(...)` builds it. **Check that function's 5.7 signature in `C:\ERODEX\Engine\Source\Runtime\Landscape\Classes\Landscape.h` first;** it has changed between engine versions. Look at how `LandscapeEditorUtils` / the "Import from file" tool call it.
-- Material `M_Terrain` in `/Game/Maps/` (Python `MaterialEditingLibrary`): grass green on flat ground blending to dirt brown on slopes (`VertexNormalWS.z` → Lerp), no textures, so nothing is added to the asset licence list.
-- Landscape collision stays on (Chaos wheels use it). No Nanite, no grass or foliage types.
-
-### 4. Bake changes (`Tools/Route/BakeRoute.py`)
-- Call `BuildLandscape()` before copying geometry. On `REBAKE`, delete the old landscape first. **A rebake overwrites sculpting**: say so in the script's docstring and in CLAUDE.md.
-- Props: drop each one onto the ground (`GetGroundHeight`, or a line trace once the landscape exists), sunk 10 cm. Trees stay upright; rocks and logs tilt to the ground normal.
-- New `Tools/Route/SnapToGround.py`: after you sculpt, it re-drops every prop, board and feature actor onto the landscape with a downward trace, keeping X/Y and yaw. That way hand sculpting doesn't need a rebake.
-
-### 5. Runtime and gameplay checks
-- `GetDistanceAlong` is XY-only and stays as it is.
-- Spills: hill crests make the car go light. Check that crests at 20 m/s don't spill the whole pile (`SpillMinDeltaV` 350); landings off crests count as jumps (≥ 0.5 s airborne), which is fun and fine.
-- Engine: an 8 % climb on a failed engine (35 % power, then a stall) should become a crawl, which is the drama we want. Check that a healthy car still makes about 12 m/s uphill.
-- Flip detection (up axis < 0.35) is unaffected by 8 % grades.
-- Brakes: a downhill with failed brakes is the point. Check the brake grab doesn't flip the car on a slope.
-
-### 6. Verification
-- **Profile checker:** extend `route_check.js` (scratchpad; keep a copy in `Tools/Route/`), or a Python call into `GetRoadHeight`, to print the max grade per section, the min and max height, and the strict zones.
-- **Autopilot drive in PIE:** a Python probe that steers toward the centreline sample 20 m ahead at a target speed, driving the whole route. Log time per section, the slowest speed on each climb, airtime events and acorns lost per section. It must finish with no stuck points.
-- Screenshots from SceneCapture views (`route_start`, `high`, plus one per hilly section).
-- 2-instance packaged run (as in the restart repro: `?AutoStart`, `-nosteam`), to check the landscape cooks and replicates and the client's car sits on the ground.
-- **Package size:** the landscape plus its collision might add 20–60 MB. Measure it. The rule is a reason for anything over 20 MB; if it's too big, go to 4 m per quad.
-
-### 7. Optional: a river under THE BRIDGE
-Lower `GroundHeight` into a 6 m-deep channel under the bridge span, keep the existing water plane at the channel's floor plus 1 m, and keep the bridge deck level. Falling off the bridge then means water, a respawn and a funny clip.
-
-## Order of work
-1. Height model + profile + checker (no visuals yet). Tune until grades and strict zones pass.
-2. Road geometry from the profile (works in the runtime route too, but without a landscape there's nothing under the wheels: test that only in step 4).
-3. `BuildLandscape` + `M_Terrain`.
-4. Bake: landscape, props dropped, `SnapToGround.py`. Rebake L_Route (lock it in LFS first: `git lfs lock Content/Maps/L_Route.umap`).
-5. Autopilot drive, tune `SpillMinDeltaV` / grades, screenshots.
-6. Packaged 2-instance check and size.
-7. River (optional).
-8. Docs: GDD route section (heights per section), CLAUDE.md code map, Playtest checks ("do the hills feel good, is a climb with a broken engine too slow"), Roadmap.
-
-## Known risks
-- `ALandscape::Import` is editor API with a signature that moves between versions; budget an hour to get the first landscape to appear.
-- A landscape in a non–World Partition map is fine at this size; don't convert the map to World Partition.
-- The hairpin legs and WIGGLY ROAD bends are close together, so their corridors overlap. The blend must pick one road height, or there will be a ridge between them.
-- Rebakes erase sculpting; prefer `SnapToGround.py` after hand edits.
+## Still to check
+- Two editor GPU hangs during the long autopilot drives (18 Oct), both inside UE's software variable-rate shading on the async compute queue. With it off (CLAUDE.md, Config gotchas) the next full drive ran 8 minutes without a hang. One clean run is evidence, not proof: if it happens again, check the breadcrumbs for every pipeline.
+- Hands-on: are 18 % climbs fun or a slog? Is a broken engine on a climb a fun crisis or a dead stop? Do the fords' swept-away squirrels read on screen?
+- Packaged 2-instance run and the package size (the landscape is ~2 M vertices with collision).
+- Rocks and pillars are still grey boxes; the water is an opaque box per 10 m.

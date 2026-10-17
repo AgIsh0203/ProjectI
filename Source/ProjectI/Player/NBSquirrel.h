@@ -150,6 +150,10 @@ public:
 	UFUNCTION(Exec)
 	void NBWarp(const FString& Section);
 
+	/** Dev: the server drives the car down the route at up to Speed cm/s (default 1600), logging each section; NBAuto 0 stops. */
+	UFUNCTION(Exec)
+	void NBAuto(float Speed = 1600.f);
+
 	/** Dev: host a lobby friends can join (the menu's "Host a game"). */
 	UFUNCTION(Exec)
 	void NBHost();
@@ -320,6 +324,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Falling")
 	FVector2D EjectKick = FVector2D(350.f, 450.f);
 
+	/** A squirrel on foot in water this deep (cm, at its feet) is swept away downstream at SweepSpeed (cm/s),
+	 *  then put back in a seat after SweptRespawnDelay. So nobody can hop out mid-ford to fix a tyre. */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float SweepDepth = 30.f;
+
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float SweepSpeed = 600.f;
+
+	/** Shorter than RagdollSeconds, so a swept squirrel never stands up in the river and gets swept again. */
+	UPROPERTY(EditAnywhere, Category = "Falling")
+	float SweptRespawnDelay = 2.2f;
+
 	/** Camera offset (cm) at a full-strength punch; it shakes randomly within this and decays. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraPunchDistance = 35.f;
@@ -456,12 +472,17 @@ private:
 	UFUNCTION(Server, Reliable)
 	void Server_DevWarp(const FString& Section);
 
+	UFUNCTION(Server, Reliable)
+	void Server_DevAutopilot(float Speed);
+
 	UFUNCTION()
 	void OnRep_ClingTarget();
 	void SendSeatInput(float Value);
 	void StartLocalRagdoll();
 	void StopLocalRagdoll();
 	void Recover();
+	/** Server: on foot in deep water, get swept away (SweepDepth). */
+	void UpdateRiver();
 	void ClearRespawn();
 	void SnapTo(const FVector& Location, const FRotator& Rotation);
 

@@ -4,6 +4,9 @@ Living doc, last updated 2026-10-12. The schedule, the ranked backlog and the de
 
 Effort: **S** < 2 h, **M** 2–5 h, **L** > 5 h.
 
+## Update 18 Oct: no 24 Oct demo
+The user dropped the 24 Oct public demo: friend test 1 went well, and more testers next week will play the previous package. The schedule below is history until a new date is set; the backlog and the size rules still apply. The terrain work (above in the backlog) is the first thing after that change.
+
 ## Where we are (2026-10-12)
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
@@ -114,7 +117,13 @@ Done 17 Oct, in the `2026-10-17-fix` build: **the restart crash** (every client 
 
 **Run length went the other way:** all three said "too short", and run 1 was delivered with half the deadline left. That argues against #15 and for more route, harder sections, or side tasks; it needs your decision below.
 
-**Terrain** (pulled forward 18 Oct): a Landscape the road follows, rolling hills, grades ≤ 8 %. Plan in [Terrain.md](Terrain.md), 6–10 h, next session.
+**Terrain** (done 18 Oct, PIE only): the user redirected it mid-way from rolling hills to **"RV There Yet?"-style mountains**:
+- cliffs and climbs up to 18 %;
+- a rough dirt track;
+- two fords with hidden pebbles, where squirrels on foot are swept away;
+- a river in a gorge under THE BRIDGE.
+
+Design and tools: [Terrain.md](Terrain.md). Hands-on checks: [Playtest.md](Playtest.md#mountain-trail-18-oct-check-by-hand).
 
 Ideas from the test, after the demo unless you pull one forward: a **Gears seat** (manual up/down shifting; over-revving wears the engine) **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
 

@@ -5,8 +5,11 @@ Run inside the editor (Python):  exec(open(r"D:/Games-Unreal/ProjectI/Tools/Rout
 What it does:
   1. Creates L_Route from L_TestTrack (sky, sun, fog, sky light) without the test-track pieces,
      or reopens it and deletes the previous bake (the "Route" Outliner folder) when REBAKE is True.
-  2. Spawns an ANBRoute, has it build its road, walls, features, signs and props in the editor
-     (BuildGeometryNow), and copies them into the map under the "Route" Outliner folder: each prop
+  2. Spawns an ANBRoute with terrain on (bUseTerrain: a rough dirt trail over mountains, cliffs and rivers),
+     has it build a Landscape (BuildLandscape: material /Game/Maps/M_Terrain, the trail painted on its "Trail"
+     layer, /Game/Maps/LI_Trail) and its walls, features, water, hidden pebbles, signs and props in the editor
+     (BuildGeometryNow), and copies them into the map under the "Route" Outliner folder (the landscape is
+     "Route/Terrain"): each prop
      becomes an ANBProp (mesh + its own collision box), small feature layers (bumps, rocks, pillars,
      ramps, boards, walls) become StaticMeshActors, the big layers (road strip, lines) become one
      ANBInstancedLayer each, and sign texts become TextRenderActors. The tinted basic-shape
@@ -14,13 +17,24 @@ What it does:
   3. Replaces that builder with a placed ANBRoute whose bBuildGeometry is off: it only supplies the
      centreline (progress bar, section banners, finish gate), and the game plays the map as saved.
 
-Re-baking overwrites hand edits to the "Route" folder; anything you add outside it is kept.
+Re-baking overwrites hand edits to the "Route" folder, INCLUDING ANY SCULPTING OF THE LANDSCAPE; anything you
+add outside the folder is kept. After sculpting, run SnapToGround.py instead of re-baking: it drops the props,
+boards and markers back onto the ground. Each baked actor carries a "Ground=<cm>" tag, its height above the
+ground, for that script.
 """
 import unreal
 
 MAP = "/Game/Maps/L_Route"
 SOURCE_MAP = "/Game/Maps/L_TestTrack"
 MATERIAL_DIR = "/Game/Maps/L_Route_Materials"
+TERRAIN_MATERIAL = "/Game/Maps/M_Terrain"
+TRAIL_LAYER = "/Game/Maps/LI_Trail"
+QUAD_SIZE = 200.0      # cm per landscape quad (4 m halves the landscape's size on disk)
+LANDSCAPE_MARGIN = 30000.0  # cm of landscape beyond the road on every side
+# Layers ANBRoute builds without collision.
+NO_COLLISION_LAYERS = ("Road", "Lines", "Markers", "Water")
+# Layers that sit on the road and follow its profile: SnapToGround leaves them alone.
+ROAD_LAYERS = ("Road", "Lines", "Bumps", "Rocks", "Pillars", "Hills", "Planks", "Water", "Pebbles", "Boundary")
 REBAKE = globals().get("REBAKE", False)
 # L_TestTrack actors that belong to the test track, not the route map.
 TEST_TRACK_PREFIXES = ("Bump_", "Ramp_", "Floor", "Wall_", "TestPad_", "PlayerStart")
@@ -54,7 +68,27 @@ else:
 
 # --- 2. Build and copy -------------------------------------------------------------------------
 builder = eas.spawn_actor_from_class(unreal.NBRoute, unreal.Vector(0, 0, 0))
+builder.set_editor_property("use_terrain", True)
+for key, value in globals().get("TERRAIN_PROPS", {}).items():  # tuning without a rebuild
+    builder.set_editor_property(key, value)
 builder.build_geometry_now()
+
+exec(open(r"D:/Games-Unreal/ProjectI/Tools/Route/MakeTerrainMaterial.py").read())
+trail_layer = unreal.NBRoute.create_trail_layer_info(TRAIL_LAYER)
+assets.save_asset(TRAIL_LAYER)
+landscape = builder.build_landscape(assets.load_asset(TERRAIN_MATERIAL), trail_layer, QUAD_SIZE, LANDSCAPE_MARGIN)
+landscape.set_actor_label("Terrain")
+landscape.set_folder_path("Route/Terrain")
+log("landscape at %s" % landscape.get_actor_location())
+for line in builder.check_profile().splitlines():
+    log("profile " + line)
+
+
+def tag_ground(actor):
+    """Remember the actor's height above the ground, for SnapToGround.py."""
+    loc = actor.get_actor_location()
+    tags = [t for t in actor.get_editor_property("tags") if not str(t).startswith("Ground=")]
+    actor.set_editor_property("tags", tags + [unreal.Name("Ground=%.1f" % (loc.z - builder.get_ground_height(loc.x, loc.y)))])
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 mic_cache = {}
@@ -104,20 +138,26 @@ for component in builder.get_components_by_class(unreal.InstancedStaticMeshCompo
             prop_mesh.set_mobility(unreal.ComponentMobility.STATIC)
             prop.set_actor_label("%s_%d" % (mesh.get_name().replace("SM_", ""), i))
             prop.set_folder_path("Route/Props/" + mesh.get_name().replace("SM_", ""))
+            tag_ground(prop)
         total += count
         log("%s (%s): %d props, block %.2f" % (layer, mesh.get_name(), count, fraction))
         continue
     materials = [baked_material(component.get_material(i)) for i in range(component.get_num_materials())]
-    collides = component.get_collision_enabled() != unreal.CollisionEnabled.NO_COLLISION
+    # Python reads every instanced layer as colliding, so the layers built without collision (ANBRoute::MakeLayer)
+    # are named here: the water (the car drove on it), the road paint, and the markers and sign boards.
+    collides = not layer.startswith(NO_COLLISION_LAYERS)
 
     def style(smc):
         smc.set_static_mesh(mesh)
         for slot, material in enumerate(materials):
             smc.set_material(slot, material)
-        if collides:
+        if layer.startswith("Water"):
+            # Its own channel that everything ignores (wheels too: ANBCar), saved by name so it survives into the game.
+            smc.set_collision_profile_name("Water")
+        elif collides:
             smc.set_collision_profile_name("BlockAll")
         else:
-            smc.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+            smc.set_collision_profile_name("NoCollision")  # by name: a bare override doesn't reach the game
         smc.set_cast_shadow(component.cast_shadow)
 
     if count > BIG_LAYER:
@@ -132,11 +172,16 @@ for component in builder.get_components_by_class(unreal.InstancedStaticMeshCompo
         for i, t in enumerate(transforms):
             actor = eas.spawn_actor_from_class(unreal.StaticMeshActor, t.translation, t.rotation.rotator())
             actor.set_actor_scale3d(t.scale3d)
+            # Tag first: setting tags re-runs the actor's construction, which resets its collision.
+            if not layer.startswith(ROAD_LAYERS):
+                tag_ground(actor)
             smc = actor.static_mesh_component
             style(smc)
             smc.set_mobility(unreal.ComponentMobility.STATIC)
             actor.set_actor_label("%s_%d" % (layer, i))
             actor.set_folder_path("Route/" + layer)
+            if layer == "Boundary":
+                actor.set_actor_hidden_in_game(True)
         log("%s: %d actors" % (layer, count))
     total += count
 
@@ -152,12 +197,16 @@ for text in builder.get_components_by_class(unreal.TextRenderComponent):
     tr.set_vertical_alignment(text.get_editor_property("vertical_alignment"))
     actor.set_actor_label("Sign_%d" % signs)
     actor.set_folder_path("Route/Signs")
+    tag_ground(actor)
     signs += 1
 
 # --- 3. The data-only route --------------------------------------------------------------------
 eas.destroy_actor(builder)
 route = eas.spawn_actor_from_class(unreal.NBRoute, unreal.Vector(0, 0, 0))
 route.set_editor_property("build_geometry", False)
+route.set_editor_property("use_terrain", True)
+for key, value in globals().get("TERRAIN_PROPS", {}).items():
+    route.set_editor_property(key, value)
 route.set_actor_label("Route (centreline, finish gate)")
 
 assets.save_directory(MATERIAL_DIR)
