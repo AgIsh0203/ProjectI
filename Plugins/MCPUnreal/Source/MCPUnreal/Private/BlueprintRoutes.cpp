@@ -134,7 +134,7 @@ namespace MCPUnreal {
     }
 
     UBlueprint* Blueprint =
-        LoadBlueprintByPath(Body->GetStringField(TEXT("blueprint_path")), OnComplete);
+        LoadBlueprintByPath(MCPUnreal::JsonString(Body, TEXT("blueprint_path")), OnComplete);
     if (!Blueprint) return true;
 
     TSharedPtr<FJsonObject> ResponseJson = MakeShareable(new FJsonObject());
@@ -193,10 +193,10 @@ namespace MCPUnreal {
     }
 
     UBlueprint* Blueprint =
-        LoadBlueprintByPath(Body->GetStringField(TEXT("blueprint_path")), OnComplete);
+        LoadBlueprintByPath(MCPUnreal::JsonString(Body, TEXT("blueprint_path")), OnComplete);
     if (!Blueprint) return true;
 
-    const FString GraphName = Body->GetStringField(TEXT("graph_name"));
+    const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
 
     // Find the graph by name — search function graphs and event graphs.
     UEdGraph* TargetGraph = nullptr;
@@ -244,7 +244,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation field is required"));
       return true;
@@ -252,9 +252,9 @@ namespace MCPUnreal {
 
     // --- create ---
     if (Operation == TEXT("create")) {
-      const FString BPName = Body->GetStringField(TEXT("name"));
-      const FString PackagePath = Body->GetStringField(TEXT("package_path"));
-      const FString ParentClassStr = Body->GetStringField(TEXT("parent_class"));
+      const FString BPName = MCPUnreal::JsonString(Body, TEXT("name"));
+      const FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
+      const FString ParentClassStr = MCPUnreal::JsonString(Body, TEXT("parent_class"));
 
       if (BPName.IsEmpty()) {
         SendError(OnComplete, TEXT("name is required for create operation"));
@@ -292,15 +292,15 @@ namespace MCPUnreal {
 
     // All other operations need an existing Blueprint.
     UBlueprint* Blueprint =
-        LoadBlueprintByPath(Body->GetStringField(TEXT("blueprint_path")), OnComplete);
+        LoadBlueprintByPath(MCPUnreal::JsonString(Body, TEXT("blueprint_path")), OnComplete);
     if (!Blueprint) return true;
 
     bool bNeedsCompile = false;
 
     // --- add_variable ---
     if (Operation == TEXT("add_variable")) {
-      const FString VarName = Body->GetStringField(TEXT("variable_name"));
-      const FString VarType = Body->GetStringField(TEXT("variable_type"));
+      const FString VarName = MCPUnreal::JsonString(Body, TEXT("variable_name"));
+      const FString VarType = MCPUnreal::JsonString(Body, TEXT("variable_type"));
       if (VarName.IsEmpty() || VarType.IsEmpty()) {
         SendError(OnComplete, TEXT("variable_name and variable_type are required"));
         return true;
@@ -313,7 +313,7 @@ namespace MCPUnreal {
     }
     // --- remove_variable ---
     else if (Operation == TEXT("remove_variable")) {
-      const FString VarName = Body->GetStringField(TEXT("variable_name"));
+      const FString VarName = MCPUnreal::JsonString(Body, TEXT("variable_name"));
       if (VarName.IsEmpty()) {
         SendError(OnComplete, TEXT("variable_name is required"));
         return true;
@@ -323,7 +323,7 @@ namespace MCPUnreal {
     }
     // --- add_function ---
     else if (Operation == TEXT("add_function")) {
-      const FString FuncName = Body->GetStringField(TEXT("function_name"));
+      const FString FuncName = MCPUnreal::JsonString(Body, TEXT("function_name"));
       if (FuncName.IsEmpty()) {
         SendError(OnComplete, TEXT("function_name is required"));
         return true;
@@ -337,7 +337,7 @@ namespace MCPUnreal {
     }
     // --- remove_function ---
     else if (Operation == TEXT("remove_function")) {
-      const FString FuncName = Body->GetStringField(TEXT("function_name"));
+      const FString FuncName = MCPUnreal::JsonString(Body, TEXT("function_name"));
       if (FuncName.IsEmpty()) {
         SendError(OnComplete, TEXT("function_name is required"));
         return true;
@@ -353,10 +353,10 @@ namespace MCPUnreal {
     }
     // --- add_node ---
     else if (Operation == TEXT("add_node")) {
-      const FString GraphName = Body->GetStringField(TEXT("graph_name"));
-      const FString NodeClass = Body->GetStringField(TEXT("node_class"));
-      const double PosX = Body->GetNumberField(TEXT("pos_x"));
-      const double PosY = Body->GetNumberField(TEXT("pos_y"));
+      const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
+      const FString NodeClass = MCPUnreal::JsonString(Body, TEXT("node_class"));
+      const double PosX = MCPUnreal::JsonNumber(Body, TEXT("pos_x"));
+      const double PosY = MCPUnreal::JsonNumber(Body, TEXT("pos_y"));
 
       if (GraphName.IsEmpty() || NodeClass.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_name and node_class are required"));
@@ -408,8 +408,8 @@ namespace MCPUnreal {
     }
     // --- delete_node ---
     else if (Operation == TEXT("delete_node")) {
-      const FString GraphName = Body->GetStringField(TEXT("graph_name"));
-      const FString NodeId = Body->GetStringField(TEXT("node_id"));
+      const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
+      const FString NodeId = MCPUnreal::JsonString(Body, TEXT("node_id"));
 
       if (GraphName.IsEmpty() || NodeId.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_name and node_id are required"));
@@ -448,11 +448,11 @@ namespace MCPUnreal {
     }
     // --- connect_pins ---
     else if (Operation == TEXT("connect_pins")) {
-      const FString GraphName = Body->GetStringField(TEXT("graph_name"));
-      const FString SourceNodeId = Body->GetStringField(TEXT("source_node_id"));
-      const FString SourcePinName = Body->GetStringField(TEXT("source_pin"));
-      const FString TargetNodeId = Body->GetStringField(TEXT("target_node_id"));
-      const FString TargetPinName = Body->GetStringField(TEXT("target_pin"));
+      const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
+      const FString SourceNodeId = MCPUnreal::JsonString(Body, TEXT("source_node_id"));
+      const FString SourcePinName = MCPUnreal::JsonString(Body, TEXT("source_pin"));
+      const FString TargetNodeId = MCPUnreal::JsonString(Body, TEXT("target_node_id"));
+      const FString TargetPinName = MCPUnreal::JsonString(Body, TEXT("target_pin"));
 
       if (GraphName.IsEmpty() || SourceNodeId.IsEmpty() || SourcePinName.IsEmpty() ||
           TargetNodeId.IsEmpty() || TargetPinName.IsEmpty()) {
@@ -509,9 +509,9 @@ namespace MCPUnreal {
     }
     // --- disconnect_pins ---
     else if (Operation == TEXT("disconnect_pins")) {
-      const FString GraphName = Body->GetStringField(TEXT("graph_name"));
-      const FString NodeId = Body->GetStringField(TEXT("node_id"));
-      const FString PinName = Body->GetStringField(TEXT("pin_name"));
+      const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
+      const FString NodeId = MCPUnreal::JsonString(Body, TEXT("node_id"));
+      const FString PinName = MCPUnreal::JsonString(Body, TEXT("pin_name"));
 
       if (GraphName.IsEmpty() || NodeId.IsEmpty() || PinName.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_name, node_id, pin_name are required"));
@@ -550,10 +550,10 @@ namespace MCPUnreal {
     }
     // --- set_pin_value ---
     else if (Operation == TEXT("set_pin_value")) {
-      const FString GraphName = Body->GetStringField(TEXT("graph_name"));
-      const FString NodeId = Body->GetStringField(TEXT("node_id"));
-      const FString PinName = Body->GetStringField(TEXT("pin_name"));
-      const FString PinValue = Body->GetStringField(TEXT("value"));
+      const FString GraphName = MCPUnreal::JsonString(Body, TEXT("graph_name"));
+      const FString NodeId = MCPUnreal::JsonString(Body, TEXT("node_id"));
+      const FString PinName = MCPUnreal::JsonString(Body, TEXT("pin_name"));
+      const FString PinValue = MCPUnreal::JsonString(Body, TEXT("value"));
 
       if (GraphName.IsEmpty() || NodeId.IsEmpty() || PinName.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_name, node_id, pin_name are required"));

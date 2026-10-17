@@ -47,7 +47,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -101,7 +101,7 @@ namespace MCPUnreal {
 
     // --- get_bindings ---
     if (Operation == TEXT("get_bindings")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
       if (AssetPath.IsEmpty()) {
         SendError(OnComplete, TEXT("asset_path is required"));
         return true;
@@ -133,18 +133,18 @@ namespace MCPUnreal {
 
     // --- add_action ---
     if (Operation == TEXT("add_action")) {
-      const FString ActionName = Body->GetStringField(TEXT("action_name"));
+      const FString ActionName = MCPUnreal::JsonString(Body, TEXT("action_name"));
       if (ActionName.IsEmpty()) {
         SendError(OnComplete, TEXT("action_name is required for add_action"));
         return true;
       }
 
-      FString PackagePath = Body->GetStringField(TEXT("package_path"));
+      FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
       if (PackagePath.IsEmpty()) {
         PackagePath = TEXT("/Game/Input");
       }
 
-      const FString ValueTypeStr = Body->GetStringField(TEXT("value_type"));
+      const FString ValueTypeStr = MCPUnreal::JsonString(Body, TEXT("value_type"));
 
       IAssetTools& AssetTools =
           FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -174,7 +174,7 @@ namespace MCPUnreal {
 
     // --- remove_action ---
     if (Operation == TEXT("remove_action")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
       if (AssetPath.IsEmpty()) {
         SendError(OnComplete, TEXT("asset_path is required for remove_action"));
         return true;
@@ -199,13 +199,13 @@ namespace MCPUnreal {
 
     // --- add_context ---
     if (Operation == TEXT("add_context")) {
-      const FString ContextName = Body->GetStringField(TEXT("context_name"));
+      const FString ContextName = MCPUnreal::JsonString(Body, TEXT("context_name"));
       if (ContextName.IsEmpty()) {
         SendError(OnComplete, TEXT("context_name is required for add_context"));
         return true;
       }
 
-      FString PackagePath = Body->GetStringField(TEXT("package_path"));
+      FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
       if (PackagePath.IsEmpty()) {
         PackagePath = TEXT("/Game/Input");
       }
@@ -233,9 +233,9 @@ namespace MCPUnreal {
 
     // --- bind_action ---
     if (Operation == TEXT("bind_action")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
-      const FString ActionName = Body->GetStringField(TEXT("action_name"));
-      const FString KeyName = Body->GetStringField(TEXT("key"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
+      const FString ActionName = MCPUnreal::JsonString(Body, TEXT("action_name"));
+      const FString KeyName = MCPUnreal::JsonString(Body, TEXT("key"));
 
       if (AssetPath.IsEmpty() || ActionName.IsEmpty() || KeyName.IsEmpty()) {
         SendError(OnComplete,
@@ -292,8 +292,8 @@ namespace MCPUnreal {
 
     // --- unbind_action ---
     if (Operation == TEXT("unbind_action")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
-      const FString ActionName = Body->GetStringField(TEXT("action_name"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
+      const FString ActionName = MCPUnreal::JsonString(Body, TEXT("action_name"));
 
       if (AssetPath.IsEmpty() || ActionName.IsEmpty()) {
         SendError(OnComplete, TEXT("asset_path and action_name are required for unbind_action"));

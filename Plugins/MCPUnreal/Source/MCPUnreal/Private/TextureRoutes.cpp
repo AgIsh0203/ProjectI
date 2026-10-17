@@ -69,7 +69,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -77,9 +77,9 @@ namespace MCPUnreal {
 
     // --- import ---
     if (Operation == TEXT("import")) {
-      const FString SourcePath = Body->GetStringField(TEXT("source_path"));
-      const FString Destination = Body->GetStringField(TEXT("destination"));
-      const FString CompressionStr = Body->GetStringField(TEXT("compression"));
+      const FString SourcePath = MCPUnreal::JsonString(Body, TEXT("source_path"));
+      const FString Destination = MCPUnreal::JsonString(Body, TEXT("destination"));
+      const FString CompressionStr = MCPUnreal::JsonString(Body, TEXT("compression"));
 
       if (SourcePath.IsEmpty()) {
         SendError(OnComplete, TEXT("source_path is required for import"));
@@ -139,7 +139,7 @@ namespace MCPUnreal {
 
     // --- get_info ---
     if (Operation == TEXT("get_info")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
       if (AssetPath.IsEmpty()) {
         SendError(OnComplete, TEXT("asset is required for get_info"));
         return true;
@@ -161,9 +161,9 @@ namespace MCPUnreal {
 
     // --- set_material_texture ---
     if (Operation == TEXT("set_material_texture")) {
-      const FString MaterialPath = Body->GetStringField(TEXT("material_instance"));
-      const FString ParamName = Body->GetStringField(TEXT("param_name"));
-      const FString TexturePath = Body->GetStringField(TEXT("texture"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material_instance"));
+      const FString ParamName = MCPUnreal::JsonString(Body, TEXT("param_name"));
+      const FString TexturePath = MCPUnreal::JsonString(Body, TEXT("texture"));
 
       if (MaterialPath.IsEmpty() || ParamName.IsEmpty() || TexturePath.IsEmpty()) {
         SendError(OnComplete, TEXT("material_instance, param_name, and texture are all required "
@@ -198,7 +198,7 @@ namespace MCPUnreal {
 
     // --- list ---
     if (Operation == TEXT("list")) {
-      const FString Path = Body->GetStringField(TEXT("path"));
+      const FString Path = MCPUnreal::JsonString(Body, TEXT("path"));
       if (Path.IsEmpty()) {
         SendError(OnComplete, TEXT("path is required for list"));
         return true;

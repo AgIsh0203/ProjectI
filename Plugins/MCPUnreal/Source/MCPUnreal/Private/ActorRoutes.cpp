@@ -32,9 +32,9 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString ClassFilter = Body->GetStringField(TEXT("class_filter"));
-    const FString NameFilter = Body->GetStringField(TEXT("name_filter"));
-    const FString TagFilter = Body->GetStringField(TEXT("tag_filter"));
+    const FString ClassFilter = MCPUnreal::JsonString(Body, TEXT("class_filter"));
+    const FString NameFilter = MCPUnreal::JsonString(Body, TEXT("name_filter"));
+    const FString TagFilter = MCPUnreal::JsonString(Body, TEXT("tag_filter"));
 
     TArray<TSharedPtr<FJsonValue>> ActorArray;
 
@@ -123,7 +123,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString ClassName = Body->GetStringField(TEXT("class_name"));
+    const FString ClassName = MCPUnreal::JsonString(Body, TEXT("class_name"));
     if (ClassName.IsEmpty()) {
       SendError(OnComplete, TEXT("class_name is required"));
       return true;
@@ -185,7 +185,7 @@ namespace MCPUnreal {
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-    const FString RequestedName = Body->GetStringField(TEXT("name"));
+    const FString RequestedName = MCPUnreal::JsonString(Body, TEXT("name"));
     if (!RequestedName.IsEmpty()) {
       SpawnParams.Name = FName(*RequestedName);
     }

@@ -29,7 +29,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -94,7 +94,7 @@ namespace MCPUnreal {
 
     // --- load_level ---
     if (Operation == TEXT("load_level")) {
-      const FString LevelPath = Body->GetStringField(TEXT("level_path"));
+      const FString LevelPath = MCPUnreal::JsonString(Body, TEXT("level_path"));
       if (LevelPath.IsEmpty()) {
         SendError(OnComplete, TEXT("level_path is required"));
         return true;
@@ -133,8 +133,8 @@ namespace MCPUnreal {
 
     // --- new_level ---
     if (Operation == TEXT("new_level")) {
-      const FString LevelName = Body->GetStringField(TEXT("level_name"));
-      const FString PackagePath = Body->GetStringField(TEXT("package_path"));
+      const FString LevelName = MCPUnreal::JsonString(Body, TEXT("level_name"));
+      const FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
       if (LevelName.IsEmpty() || PackagePath.IsEmpty()) {
         SendError(OnComplete, TEXT("level_name and package_path are required"));
         return true;
@@ -156,7 +156,7 @@ namespace MCPUnreal {
 
     // --- add_sublevel ---
     if (Operation == TEXT("add_sublevel")) {
-      const FString LevelPath = Body->GetStringField(TEXT("level_path"));
+      const FString LevelPath = MCPUnreal::JsonString(Body, TEXT("level_path"));
       if (LevelPath.IsEmpty()) {
         SendError(OnComplete, TEXT("level_path is required"));
         return true;
@@ -181,7 +181,7 @@ namespace MCPUnreal {
 
     // --- remove_sublevel ---
     if (Operation == TEXT("remove_sublevel")) {
-      const FString LevelPath = Body->GetStringField(TEXT("level_path"));
+      const FString LevelPath = MCPUnreal::JsonString(Body, TEXT("level_path"));
       if (LevelPath.IsEmpty()) {
         SendError(OnComplete, TEXT("level_path is required"));
         return true;

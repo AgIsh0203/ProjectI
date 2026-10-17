@@ -31,7 +31,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -41,7 +41,7 @@ namespace MCPUnreal {
 
     // --- spawn_system ---
     if (Operation == TEXT("spawn_system")) {
-      const FString SystemPath = Body->GetStringField(TEXT("system_path"));
+      const FString SystemPath = MCPUnreal::JsonString(Body, TEXT("system_path"));
       if (SystemPath.IsEmpty()) {
         SendError(OnComplete, TEXT("system_path is required for spawn_system"));
         return true;
@@ -108,7 +108,7 @@ namespace MCPUnreal {
       // Set auto-activate.
       bool bAutoActivate = true;
       if (Body->HasField(TEXT("auto_activate"))) {
-        bAutoActivate = Body->GetBoolField(TEXT("auto_activate"));
+        bAutoActivate = MCPUnreal::JsonBool(Body, TEXT("auto_activate"));
       }
       NiagaraComp->SetAutoActivate(bAutoActivate);
 
@@ -117,7 +117,7 @@ namespace MCPUnreal {
       }
 
       // Set actor label.
-      FString ActorName = Body->GetStringField(TEXT("actor_name"));
+      FString ActorName = MCPUnreal::JsonString(Body, TEXT("actor_name"));
       if (!ActorName.IsEmpty()) {
         NewActor->SetActorLabel(ActorName);
       }
@@ -131,9 +131,9 @@ namespace MCPUnreal {
 
     // --- set_parameter ---
     if (Operation == TEXT("set_parameter")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString ParamName = Body->GetStringField(TEXT("parameter_name"));
-      const FString ParamType = Body->GetStringField(TEXT("parameter_type"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString ParamName = MCPUnreal::JsonString(Body, TEXT("parameter_name"));
+      const FString ParamType = MCPUnreal::JsonString(Body, TEXT("parameter_type"));
       if (ActorPath.IsEmpty() || ParamName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and parameter_name are required for set_parameter"));
         return true;
@@ -205,7 +205,7 @@ namespace MCPUnreal {
 
     // --- get_system_info ---
     if (Operation == TEXT("get_system_info")) {
-      const FString SystemPath = Body->GetStringField(TEXT("system_path"));
+      const FString SystemPath = MCPUnreal::JsonString(Body, TEXT("system_path"));
       if (SystemPath.IsEmpty()) {
         SendError(OnComplete, TEXT("system_path is required for get_system_info"));
         return true;
@@ -247,8 +247,8 @@ namespace MCPUnreal {
 
     // --- add_emitter ---
     if (Operation == TEXT("add_emitter")) {
-      const FString SystemPath = Body->GetStringField(TEXT("system_path"));
-      const FString EmitterPath = Body->GetStringField(TEXT("emitter_path"));
+      const FString SystemPath = MCPUnreal::JsonString(Body, TEXT("system_path"));
+      const FString EmitterPath = MCPUnreal::JsonString(Body, TEXT("emitter_path"));
       if (SystemPath.IsEmpty() || EmitterPath.IsEmpty()) {
         SendError(OnComplete, TEXT("system_path and emitter_path are required for add_emitter"));
         return true;
@@ -279,8 +279,8 @@ namespace MCPUnreal {
 
     // --- remove_emitter ---
     if (Operation == TEXT("remove_emitter")) {
-      const FString SystemPath = Body->GetStringField(TEXT("system_path"));
-      const FString EmitterName = Body->GetStringField(TEXT("emitter_name"));
+      const FString SystemPath = MCPUnreal::JsonString(Body, TEXT("system_path"));
+      const FString EmitterName = MCPUnreal::JsonString(Body, TEXT("emitter_name"));
       if (SystemPath.IsEmpty() || EmitterName.IsEmpty()) {
         SendError(OnComplete, TEXT("system_path and emitter_name are required for remove_emitter"));
         return true;
@@ -314,7 +314,7 @@ namespace MCPUnreal {
 
     // --- activate ---
     if (Operation == TEXT("activate")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for activate"));
         return true;
@@ -342,7 +342,7 @@ namespace MCPUnreal {
 
     // --- deactivate ---
     if (Operation == TEXT("deactivate")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for deactivate"));
         return true;

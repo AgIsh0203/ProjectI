@@ -104,7 +104,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Type = Body->GetStringField(TEXT("type"));
+    const FString Type = MCPUnreal::JsonString(Body, TEXT("type"));
     if (Type.IsEmpty()) {
       SendError(
           OnComplete,

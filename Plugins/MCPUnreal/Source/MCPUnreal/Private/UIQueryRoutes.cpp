@@ -83,7 +83,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -91,7 +91,7 @@ namespace MCPUnreal {
 
     // --- tree ---
     if (Operation == TEXT("tree")) {
-      int32 MaxDepth = static_cast<int32>(Body->GetNumberField(TEXT("max_depth")));
+      int32 MaxDepth = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("max_depth")));
 
       TArray<TSharedPtr<FJsonValue>> WidgetsArray;
       TArray<TSharedRef<SWindow>> Windows;
@@ -113,7 +113,7 @@ namespace MCPUnreal {
 
     // --- find ---
     if (Operation == TEXT("find")) {
-      const FString ClassName = Body->GetStringField(TEXT("class"));
+      const FString ClassName = MCPUnreal::JsonString(Body, TEXT("class"));
       if (ClassName.IsEmpty()) {
         SendError(OnComplete, TEXT("class is required for find"));
         return true;

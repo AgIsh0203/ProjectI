@@ -50,8 +50,8 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
-    const FString BlueprintPath = Body->GetStringField(TEXT("blueprint_path"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
+    const FString BlueprintPath = MCPUnreal::JsonString(Body, TEXT("blueprint_path"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -105,21 +105,21 @@ namespace MCPUnreal {
 
       if (Body->HasField(TEXT("max_walk_speed")))
         MovementComp->MaxWalkSpeed =
-            static_cast<float>(Body->GetNumberField(TEXT("max_walk_speed")));
+            static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("max_walk_speed")));
       if (Body->HasField(TEXT("max_acceleration")))
         MovementComp->MaxAcceleration =
-            static_cast<float>(Body->GetNumberField(TEXT("max_acceleration")));
+            static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("max_acceleration")));
       if (Body->HasField(TEXT("jump_z_velocity")))
         MovementComp->JumpZVelocity =
-            static_cast<float>(Body->GetNumberField(TEXT("jump_z_velocity")));
+            static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("jump_z_velocity")));
       if (Body->HasField(TEXT("gravity_scale")))
         MovementComp->GravityScale =
-            static_cast<float>(Body->GetNumberField(TEXT("gravity_scale")));
+            static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("gravity_scale")));
       if (Body->HasField(TEXT("air_control")))
-        MovementComp->AirControl = static_cast<float>(Body->GetNumberField(TEXT("air_control")));
+        MovementComp->AirControl = static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("air_control")));
       if (Body->HasField(TEXT("braking_deceleration")))
         MovementComp->BrakingDecelerationWalking =
-            static_cast<float>(Body->GetNumberField(TEXT("braking_deceleration")));
+            static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("braking_deceleration")));
 
       CDO->MarkPackageDirty();
 
@@ -140,9 +140,9 @@ namespace MCPUnreal {
       float HalfHeight = Capsule->GetUnscaledCapsuleHalfHeight();
 
       if (Body->HasField(TEXT("capsule_radius")))
-        Radius = static_cast<float>(Body->GetNumberField(TEXT("capsule_radius")));
+        Radius = static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("capsule_radius")));
       if (Body->HasField(TEXT("capsule_half_height")))
-        HalfHeight = static_cast<float>(Body->GetNumberField(TEXT("capsule_half_height")));
+        HalfHeight = static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("capsule_half_height")));
 
       Capsule->SetCapsuleSize(Radius, HalfHeight);
       CDO->MarkPackageDirty();
@@ -155,7 +155,7 @@ namespace MCPUnreal {
 
     // --- set_mesh ---
     if (Operation == TEXT("set_mesh")) {
-      const FString MeshPath = Body->GetStringField(TEXT("skeletal_mesh_path"));
+      const FString MeshPath = MCPUnreal::JsonString(Body, TEXT("skeletal_mesh_path"));
       if (!MeshPath.IsEmpty()) {
         USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
         if (Mesh && CDO->GetMesh()) {
@@ -163,7 +163,7 @@ namespace MCPUnreal {
         }
       }
 
-      const FString AnimBPPath = Body->GetStringField(TEXT("anim_blueprint_path"));
+      const FString AnimBPPath = MCPUnreal::JsonString(Body, TEXT("anim_blueprint_path"));
       if (!AnimBPPath.IsEmpty() && CDO->GetMesh()) {
         UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, *AnimBPPath);
         if (AnimClass) {

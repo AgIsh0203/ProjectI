@@ -117,7 +117,7 @@ Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s
 - [ ] Are the cliffs beside the trail obstacles (the car stops dead) or do they just look good?
 - [ ] Hairpin and wiggles: no odd ridges between the two legs.
 - [ ] Client view in a 2-PC run: the car sits on the ground and in the water, same as on the host.
-- [ ] Note the zip size of the first build with the landscape.
+- [x] Zip size of the first build with the landscape: 265 MB (`2026-10-18-terrain`, was 258 MB).
 
 ## Friend test (moved up to the weekend of 17–18 Oct)
 - Host run sheet: https://claude.ai/artifact/HhHUPpK2G5D7fsctMVJHRY (ticks and notes, then a summary to paste back to Claude).

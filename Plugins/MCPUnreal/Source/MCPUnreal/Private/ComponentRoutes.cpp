@@ -128,9 +128,9 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-    const FString ActorName = Body->GetStringField(TEXT("actor_name"));
-    const bool bIncludeTransforms = Body->GetBoolField(TEXT("include_transforms"));
+    const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+    const FString ActorName = MCPUnreal::JsonString(Body, TEXT("actor_name"));
+    const bool bIncludeTransforms = MCPUnreal::JsonBool(Body, TEXT("include_transforms"));
 
     if (ActorPath.IsEmpty() && ActorName.IsEmpty()) {
       SendError(OnComplete, TEXT("Either actor_path or actor_name is required"));

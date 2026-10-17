@@ -46,6 +46,26 @@ namespace MCPUnreal {
     return FJsonSerializer::Deserialize(Reader, OutJson) && OutJson.IsValid();
   }
 
+  /**
+   * Request fields that may be absent. FJsonObject::Get*Field logs "Field X was not found" and "Json Value of
+   * type 'Null' used as a ..." for every missing field, and most request fields are optional; these return
+   * the same defaults (empty string, 0, false) quietly.
+   */
+  inline FString JsonString(const TSharedPtr<FJsonObject>& Json, FStringView Name, const FString& Default = FString()) {
+    FString Value;
+    return Json.IsValid() && Json->TryGetStringField(Name, Value) ? Value : Default;
+  }
+
+  inline double JsonNumber(const TSharedPtr<FJsonObject>& Json, FStringView Name, double Default = 0.0) {
+    double Value = 0.0;
+    return Json.IsValid() && Json->TryGetNumberField(Name, Value) ? Value : Default;
+  }
+
+  inline bool JsonBool(const TSharedPtr<FJsonObject>& Json, FStringView Name, bool Default = false) {
+    bool Value = false;
+    return Json.IsValid() && Json->TryGetBoolField(Name, Value) ? Value : Default;
+  }
+
   /** Serialize a JSON object to an FString. */
   inline FString JsonToString(const TSharedPtr<FJsonObject>& Json) {
     FString Result;
@@ -120,7 +140,7 @@ namespace MCPUnreal {
    * "editor" (always editor). Missing or empty is treated as "auto".
    */
   inline UWorld* GetWorld(const TSharedPtr<FJsonObject>& Body) {
-    FString WorldParam = Body->GetStringField(TEXT("world"));
+    FString WorldParam = MCPUnreal::JsonString(Body, TEXT("world"));
 
     if (WorldParam == TEXT("pie")) {
       if (!IsPIEActive() || !GEditor->PlayWorld) {
@@ -146,7 +166,7 @@ namespace MCPUnreal {
    * For editor: returns GEditor->GetActiveViewport().
    */
   inline FViewport* GetViewport(const TSharedPtr<FJsonObject>& Body) {
-    FString WorldParam = Body->GetStringField(TEXT("world"));
+    FString WorldParam = MCPUnreal::JsonString(Body, TEXT("world"));
 
     bool bUsePIE = false;
     if (WorldParam == TEXT("pie")) {

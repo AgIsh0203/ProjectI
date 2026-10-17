@@ -54,7 +54,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -62,8 +62,8 @@ namespace MCPUnreal {
 
     // --- grant_ability ---
     if (Operation == TEXT("grant_ability")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString AbilityClassName = Body->GetStringField(TEXT("ability_class"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString AbilityClassName = MCPUnreal::JsonString(Body, TEXT("ability_class"));
       if (ActorPath.IsEmpty() || AbilityClassName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and ability_class are required for grant_ability"));
         return true;
@@ -100,7 +100,7 @@ namespace MCPUnreal {
 
     // --- revoke_ability ---
     if (Operation == TEXT("revoke_ability")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for revoke_ability"));
         return true;
@@ -119,8 +119,8 @@ namespace MCPUnreal {
       }
 
       int32 RevokedCount = 0;
-      const FString AbilityClassName = Body->GetStringField(TEXT("ability_class"));
-      const FString AbilityTagStr = Body->GetStringField(TEXT("ability_tag"));
+      const FString AbilityClassName = MCPUnreal::JsonString(Body, TEXT("ability_class"));
+      const FString AbilityTagStr = MCPUnreal::JsonString(Body, TEXT("ability_tag"));
 
       if (!AbilityClassName.IsEmpty()) {
         // Revoke by class.
@@ -158,7 +158,7 @@ namespace MCPUnreal {
 
     // --- list_abilities ---
     if (Operation == TEXT("list_abilities")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for list_abilities"));
         return true;
@@ -204,8 +204,8 @@ namespace MCPUnreal {
 
     // --- apply_effect ---
     if (Operation == TEXT("apply_effect")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString EffectClassName = Body->GetStringField(TEXT("effect_class"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString EffectClassName = MCPUnreal::JsonString(Body, TEXT("effect_class"));
       if (ActorPath.IsEmpty() || EffectClassName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and effect_class are required for apply_effect"));
         return true;
@@ -253,7 +253,7 @@ namespace MCPUnreal {
 
     // --- get_attributes ---
     if (Operation == TEXT("get_attributes")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for get_attributes"));
         return true;
@@ -312,8 +312,8 @@ namespace MCPUnreal {
 
     // --- set_attribute ---
     if (Operation == TEXT("set_attribute")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString AttributeName = Body->GetStringField(TEXT("attribute_name"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString AttributeName = MCPUnreal::JsonString(Body, TEXT("attribute_name"));
       if (ActorPath.IsEmpty() || AttributeName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and attribute_name are required for set_attribute"));
         return true;

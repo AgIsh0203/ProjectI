@@ -29,7 +29,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -80,8 +80,8 @@ namespace MCPUnreal {
 
     // --- import ---
     if (Operation == TEXT("import")) {
-      const FString AssetId = Body->GetStringField(TEXT("asset_id"));
-      const FString Destination = Body->GetStringField(TEXT("destination"));
+      const FString AssetId = MCPUnreal::JsonString(Body, TEXT("asset_id"));
+      const FString Destination = MCPUnreal::JsonString(Body, TEXT("destination"));
 
       if (AssetId.IsEmpty()) {
         SendError(OnComplete, TEXT("asset_id is required for import"));

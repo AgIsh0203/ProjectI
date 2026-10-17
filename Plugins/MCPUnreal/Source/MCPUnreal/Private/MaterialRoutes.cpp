@@ -30,7 +30,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -38,8 +38,8 @@ namespace MCPUnreal {
 
     // --- create ---
     if (Operation == TEXT("create")) {
-      const FString PackagePath = Body->GetStringField(TEXT("package_path"));
-      const FString MaterialName = Body->GetStringField(TEXT("material_name"));
+      const FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
+      const FString MaterialName = MCPUnreal::JsonString(Body, TEXT("material_name"));
       if (PackagePath.IsEmpty() || MaterialName.IsEmpty()) {
         SendError(OnComplete, TEXT("package_path and material_name are required"));
         return true;
@@ -65,9 +65,9 @@ namespace MCPUnreal {
 
     // --- create_instance ---
     if (Operation == TEXT("create_instance")) {
-      const FString ParentPath = Body->GetStringField(TEXT("parent_path"));
-      const FString PackagePath = Body->GetStringField(TEXT("package_path"));
-      const FString MaterialName = Body->GetStringField(TEXT("material_name"));
+      const FString ParentPath = MCPUnreal::JsonString(Body, TEXT("parent_path"));
+      const FString PackagePath = MCPUnreal::JsonString(Body, TEXT("package_path"));
+      const FString MaterialName = MCPUnreal::JsonString(Body, TEXT("material_name"));
       if (ParentPath.IsEmpty() || PackagePath.IsEmpty() || MaterialName.IsEmpty()) {
         SendError(OnComplete, TEXT("parent_path, package_path, and material_name are required"));
         return true;
@@ -102,7 +102,7 @@ namespace MCPUnreal {
 
     // --- get_parameters / list_parameters ---
     if (Operation == TEXT("get_parameters") || Operation == TEXT("list_parameters")) {
-      const FString MaterialPath = Body->GetStringField(TEXT("material_path"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material_path"));
       if (MaterialPath.IsEmpty()) {
         SendError(OnComplete, TEXT("material_path is required"));
         return true;
@@ -181,8 +181,8 @@ namespace MCPUnreal {
 
     // --- set_parameter ---
     if (Operation == TEXT("set_parameter")) {
-      const FString MaterialPath = Body->GetStringField(TEXT("material_path"));
-      const FString ParamName = Body->GetStringField(TEXT("parameter_name"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material_path"));
+      const FString ParamName = MCPUnreal::JsonString(Body, TEXT("parameter_name"));
       if (MaterialPath.IsEmpty() || ParamName.IsEmpty()) {
         SendError(OnComplete, TEXT("material_path and parameter_name are required"));
         return true;
@@ -198,7 +198,7 @@ namespace MCPUnreal {
 
       // Try scalar parameter.
       if (Body->HasField(TEXT("parameter_value"))) {
-        float Value = static_cast<float>(Body->GetNumberField(TEXT("parameter_value")));
+        float Value = static_cast<float>(MCPUnreal::JsonNumber(Body, TEXT("parameter_value")));
         MIC->SetScalarParameterValueEditorOnly(FName(*ParamName), Value);
       }
 
@@ -218,9 +218,9 @@ namespace MCPUnreal {
 
     // --- set_texture ---
     if (Operation == TEXT("set_texture")) {
-      const FString MaterialPath = Body->GetStringField(TEXT("material_path"));
-      const FString ParamName = Body->GetStringField(TEXT("parameter_name"));
-      const FString TexturePath = Body->GetStringField(TEXT("texture_path"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material_path"));
+      const FString ParamName = MCPUnreal::JsonString(Body, TEXT("parameter_name"));
+      const FString TexturePath = MCPUnreal::JsonString(Body, TEXT("texture_path"));
       if (MaterialPath.IsEmpty() || ParamName.IsEmpty() || TexturePath.IsEmpty()) {
         SendError(OnComplete, TEXT("material_path, parameter_name, and texture_path are required"));
         return true;

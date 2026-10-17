@@ -80,7 +80,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -88,7 +88,7 @@ namespace MCPUnreal {
 
     // --- list_tables ---
     if (Operation == TEXT("list_tables")) {
-      const FString Path = Body->GetStringField(TEXT("path"));
+      const FString Path = MCPUnreal::JsonString(Body, TEXT("path"));
       if (Path.IsEmpty()) {
         SendError(OnComplete, TEXT("path is required for list_tables"));
         return true;
@@ -125,7 +125,7 @@ namespace MCPUnreal {
 
     // --- get_table ---
     if (Operation == TEXT("get_table")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
       if (AssetPath.IsEmpty()) {
         SendError(OnComplete, TEXT("asset is required for get_table"));
         return true;
@@ -159,8 +159,8 @@ namespace MCPUnreal {
 
     // --- add_row ---
     if (Operation == TEXT("add_row")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
-      const FString RowName = Body->GetStringField(TEXT("row_name"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
+      const FString RowName = MCPUnreal::JsonString(Body, TEXT("row_name"));
       const TSharedPtr<FJsonObject>* DataObj;
 
       if (AssetPath.IsEmpty() || RowName.IsEmpty()) {
@@ -211,8 +211,8 @@ namespace MCPUnreal {
 
     // --- update_row ---
     if (Operation == TEXT("update_row")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
-      const FString RowName = Body->GetStringField(TEXT("row_name"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
+      const FString RowName = MCPUnreal::JsonString(Body, TEXT("row_name"));
       const TSharedPtr<FJsonObject>* DataObj;
 
       if (AssetPath.IsEmpty() || RowName.IsEmpty()) {
@@ -260,8 +260,8 @@ namespace MCPUnreal {
 
     // --- delete_row ---
     if (Operation == TEXT("delete_row")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
-      const FString RowName = Body->GetStringField(TEXT("row_name"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
+      const FString RowName = MCPUnreal::JsonString(Body, TEXT("row_name"));
 
       if (AssetPath.IsEmpty() || RowName.IsEmpty()) {
         SendError(OnComplete, TEXT("asset and row_name are required for delete_row"));
@@ -289,8 +289,8 @@ namespace MCPUnreal {
 
     // --- import_csv ---
     if (Operation == TEXT("import_csv")) {
-      const FString AssetPath = Body->GetStringField(TEXT("asset"));
-      const FString SourcePath = Body->GetStringField(TEXT("source_path"));
+      const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset"));
+      const FString SourcePath = MCPUnreal::JsonString(Body, TEXT("source_path"));
 
       if (AssetPath.IsEmpty() || SourcePath.IsEmpty()) {
         SendError(OnComplete, TEXT("asset and source_path are required for import_csv"));

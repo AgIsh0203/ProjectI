@@ -98,7 +98,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -106,11 +106,11 @@ namespace MCPUnreal {
 
     // --- create ---
     if (Operation == TEXT("create")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString ActorName = Body->GetStringField(TEXT("actor_name"));
-      const FString MeshPath = Body->GetStringField(TEXT("mesh"));
-      const FString MaterialPath = Body->GetStringField(TEXT("material"));
-      const bool bUseHISM = Body->GetBoolField(TEXT("use_hism"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString ActorName = MCPUnreal::JsonString(Body, TEXT("actor_name"));
+      const FString MeshPath = MCPUnreal::JsonString(Body, TEXT("mesh"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material"));
+      const bool bUseHISM = MCPUnreal::JsonBool(Body, TEXT("use_hism"));
 
       if (ActorPath.IsEmpty() && ActorName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path or actor_name is required for create"));
@@ -170,9 +170,9 @@ namespace MCPUnreal {
     }
 
     // For all other operations, we need component_name and the actor.
-    const FString ComponentName = Body->GetStringField(TEXT("component_name"));
-    const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-    const FString ActorName = Body->GetStringField(TEXT("actor_name"));
+    const FString ComponentName = MCPUnreal::JsonString(Body, TEXT("component_name"));
+    const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+    const FString ActorName = MCPUnreal::JsonString(Body, TEXT("actor_name"));
 
     if (ComponentName.IsEmpty()) {
       SendError(OnComplete, TEXT("component_name is required for this operation"));
@@ -252,7 +252,7 @@ namespace MCPUnreal {
 
     // --- update_instance ---
     if (Operation == TEXT("update_instance")) {
-      int32 InstanceIndex = static_cast<int32>(Body->GetNumberField(TEXT("instance_index")));
+      int32 InstanceIndex = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("instance_index")));
       if (InstanceIndex < 0 || InstanceIndex >= ISM->GetInstanceCount()) {
         SendError(OnComplete, FString::Printf(TEXT("Instance index %d out of range [0, %d)"),
                                               InstanceIndex, ISM->GetInstanceCount()));
@@ -280,7 +280,7 @@ namespace MCPUnreal {
 
     // --- remove_instance ---
     if (Operation == TEXT("remove_instance")) {
-      int32 InstanceIndex = static_cast<int32>(Body->GetNumberField(TEXT("instance_index")));
+      int32 InstanceIndex = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("instance_index")));
       if (InstanceIndex < 0 || InstanceIndex >= ISM->GetInstanceCount()) {
         SendError(OnComplete, FString::Printf(TEXT("Instance index %d out of range [0, %d)"),
                                               InstanceIndex, ISM->GetInstanceCount()));
@@ -300,7 +300,7 @@ namespace MCPUnreal {
 
     // --- set_material ---
     if (Operation == TEXT("set_material")) {
-      const FString MaterialPath = Body->GetStringField(TEXT("material"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material"));
       if (MaterialPath.IsEmpty()) {
         SendError(OnComplete, TEXT("material is required for set_material"));
         return true;

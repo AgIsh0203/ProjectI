@@ -24,7 +24,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
+    const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
     if (AssetPath.IsEmpty()) {
       SendError(OnComplete, TEXT("asset_path is required"));
       return true;
@@ -73,7 +73,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
+    const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
     if (AssetPath.IsEmpty()) {
       SendError(OnComplete, TEXT("asset_path is required"));
       return true;
@@ -119,7 +119,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString AssetPath = Body->GetStringField(TEXT("asset_path"));
+    const FString AssetPath = MCPUnreal::JsonString(Body, TEXT("asset_path"));
     if (AssetPath.IsEmpty()) {
       SendError(OnComplete, TEXT("asset_path is required"));
       return true;
@@ -168,12 +168,12 @@ namespace MCPUnreal {
         FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
     IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-    const FString ClassFilter = Body->GetStringField(TEXT("class_filter"));
-    const FString PathFilter = Body->GetStringField(TEXT("path_filter"));
-    const FString NameFilter = Body->GetStringField(TEXT("name_filter"));
+    const FString ClassFilter = MCPUnreal::JsonString(Body, TEXT("class_filter"));
+    const FString PathFilter = MCPUnreal::JsonString(Body, TEXT("path_filter"));
+    const FString NameFilter = MCPUnreal::JsonString(Body, TEXT("name_filter"));
     bool bRecursivePath = true;
     if (Body->HasField(TEXT("recursive_path"))) {
-      bRecursivePath = Body->GetBoolField(TEXT("recursive_path"));
+      bRecursivePath = MCPUnreal::JsonBool(Body, TEXT("recursive_path"));
     }
 
     FARFilter Filter;

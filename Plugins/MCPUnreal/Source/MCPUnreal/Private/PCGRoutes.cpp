@@ -33,7 +33,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -43,7 +43,7 @@ namespace MCPUnreal {
 
     // --- execute ---
     if (Operation == TEXT("execute")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for execute"));
         return true;
@@ -72,7 +72,7 @@ namespace MCPUnreal {
 
     // --- cleanup ---
     if (Operation == TEXT("cleanup")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for cleanup"));
         return true;
@@ -100,7 +100,7 @@ namespace MCPUnreal {
 
     // --- get_graph_info ---
     if (Operation == TEXT("get_graph_info")) {
-      const FString GraphPath = Body->GetStringField(TEXT("graph_path"));
+      const FString GraphPath = MCPUnreal::JsonString(Body, TEXT("graph_path"));
       if (GraphPath.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_path is required for get_graph_info"));
         return true;
@@ -181,8 +181,8 @@ namespace MCPUnreal {
 
     // --- set_parameter ---
     if (Operation == TEXT("set_parameter")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString ParamName = Body->GetStringField(TEXT("parameter_name"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString ParamName = MCPUnreal::JsonString(Body, TEXT("parameter_name"));
       if (ActorPath.IsEmpty() || ParamName.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and parameter_name are required for set_parameter"));
         return true;
@@ -249,8 +249,8 @@ namespace MCPUnreal {
 
     // --- add_node ---
     if (Operation == TEXT("add_node")) {
-      const FString GraphPath = Body->GetStringField(TEXT("graph_path"));
-      const FString NodeType = Body->GetStringField(TEXT("node_type"));
+      const FString GraphPath = MCPUnreal::JsonString(Body, TEXT("graph_path"));
+      const FString NodeType = MCPUnreal::JsonString(Body, TEXT("node_type"));
       if (GraphPath.IsEmpty() || NodeType.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_path and node_type are required for add_node"));
         return true;
@@ -280,7 +280,7 @@ namespace MCPUnreal {
       }
 
       // Set optional label.
-      FString NodeLabel = Body->GetStringField(TEXT("node_label"));
+      FString NodeLabel = MCPUnreal::JsonString(Body, TEXT("node_label"));
       if (!NodeLabel.IsEmpty()) {
         NewNode->NodeTitle = FName(*NodeLabel);
       }
@@ -294,9 +294,9 @@ namespace MCPUnreal {
 
     // --- connect_nodes ---
     if (Operation == TEXT("connect_nodes")) {
-      const FString GraphPath = Body->GetStringField(TEXT("graph_path"));
-      const FString SourceNodeID = Body->GetStringField(TEXT("node_id"));
-      const FString TargetNodeID = Body->GetStringField(TEXT("target_node_id"));
+      const FString GraphPath = MCPUnreal::JsonString(Body, TEXT("graph_path"));
+      const FString SourceNodeID = MCPUnreal::JsonString(Body, TEXT("node_id"));
+      const FString TargetNodeID = MCPUnreal::JsonString(Body, TEXT("target_node_id"));
       if (GraphPath.IsEmpty() || SourceNodeID.IsEmpty() || TargetNodeID.IsEmpty()) {
         SendError(OnComplete,
                   TEXT("graph_path, node_id, and target_node_id are required for connect_nodes"));
@@ -331,8 +331,8 @@ namespace MCPUnreal {
       }
 
       // Find pins by label (or use first available).
-      const FString SourcePinLabel = Body->GetStringField(TEXT("source_pin_label"));
-      const FString TargetPinLabel = Body->GetStringField(TEXT("target_pin_label"));
+      const FString SourcePinLabel = MCPUnreal::JsonString(Body, TEXT("source_pin_label"));
+      const FString TargetPinLabel = MCPUnreal::JsonString(Body, TEXT("target_pin_label"));
 
       UPCGPin* SourcePin = nullptr;
       for (UPCGPin* Pin : SourceNode->GetOutputPins()) {
@@ -372,8 +372,8 @@ namespace MCPUnreal {
 
     // --- remove_node ---
     if (Operation == TEXT("remove_node")) {
-      const FString GraphPath = Body->GetStringField(TEXT("graph_path"));
-      const FString NodeID = Body->GetStringField(TEXT("node_id"));
+      const FString GraphPath = MCPUnreal::JsonString(Body, TEXT("graph_path"));
+      const FString NodeID = MCPUnreal::JsonString(Body, TEXT("node_id"));
       if (GraphPath.IsEmpty() || NodeID.IsEmpty()) {
         SendError(OnComplete, TEXT("graph_path and node_id are required for remove_node"));
         return true;

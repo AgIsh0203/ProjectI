@@ -168,11 +168,11 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Category = Body->GetStringField(TEXT("category"));
-    const FString VerbosityStr = Body->GetStringField(TEXT("verbosity"));
-    const FString Pattern = Body->GetStringField(TEXT("pattern"));
-    const double SinceSeconds = Body->GetNumberField(TEXT("since_seconds"));
-    int32 MaxLines = static_cast<int32>(Body->GetNumberField(TEXT("max_lines")));
+    const FString Category = MCPUnreal::JsonString(Body, TEXT("category"));
+    const FString VerbosityStr = MCPUnreal::JsonString(Body, TEXT("verbosity"));
+    const FString Pattern = MCPUnreal::JsonString(Body, TEXT("pattern"));
+    const double SinceSeconds = MCPUnreal::JsonNumber(Body, TEXT("since_seconds"));
+    int32 MaxLines = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("max_lines")));
     if (MaxLines <= 0) MaxLines = 100;
 
     ELogVerbosity::Type MinVerbosity = StringToVerbosity(VerbosityStr);
@@ -236,7 +236,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString OutputPath = Body->GetStringField(TEXT("output_path"));
+    const FString OutputPath = MCPUnreal::JsonString(Body, TEXT("output_path"));
     bool bIncludeUI = false;
     Body->TryGetBoolField(TEXT("include_ui"), bIncludeUI);
 
@@ -323,7 +323,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Script = Body->GetStringField(TEXT("script"));
+    const FString Script = MCPUnreal::JsonString(Body, TEXT("script"));
     if (Script.IsEmpty()) {
       SendError(OnComplete, TEXT("script is required"));
       return true;
@@ -364,7 +364,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Command = Body->GetStringField(TEXT("command"));
+    const FString Command = MCPUnreal::JsonString(Body, TEXT("command"));
     if (Command.IsEmpty()) {
       SendError(OnComplete, TEXT("command is required"));
       return true;
@@ -453,7 +453,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    FString Operation = Body->GetStringField(TEXT("operation"));
+    FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
 
     if (Operation == TEXT("start")) {
       if (IsPIEActive()) {
@@ -465,7 +465,7 @@ namespace MCPUnreal {
       Params.WorldType = EPlaySessionWorldType::PlayInEditor;
       Params.SessionDestination = EPlaySessionDestinationType::InProcess;
 
-      FString MapPath = Body->GetStringField(TEXT("map_path"));
+      FString MapPath = MCPUnreal::JsonString(Body, TEXT("map_path"));
       if (!MapPath.IsEmpty()) {
         Params.GlobalMapOverride = MapPath;
       }
@@ -524,7 +524,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    FString Operation = Body->GetStringField(TEXT("operation"));
+    FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
 
     // --- get_camera / set_camera: work without PIE ---
     if (Operation == TEXT("get_camera")) {
@@ -737,7 +737,7 @@ namespace MCPUnreal {
     }
 
     if (Operation == TEXT("set_view_target")) {
-      FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for set_view_target"));
         return true;

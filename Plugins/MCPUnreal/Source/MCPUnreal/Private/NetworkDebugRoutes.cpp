@@ -181,7 +181,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -206,7 +206,7 @@ namespace MCPUnreal {
 
     // --- recent_requests ---
     if (Operation == TEXT("recent_requests")) {
-      int32 LastN = static_cast<int32>(Body->GetNumberField(TEXT("last_n")));
+      int32 LastN = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("last_n")));
       if (LastN <= 0) LastN = 20;
 
       TArray<FHTTPRequestRecord> Recent = GetTracker().GetRecent(LastN);

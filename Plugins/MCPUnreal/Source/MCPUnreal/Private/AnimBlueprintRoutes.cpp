@@ -75,14 +75,14 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation field is required"));
       return true;
     }
 
     UAnimBlueprint* AnimBP =
-        LoadAnimBPByPath(Body->GetStringField(TEXT("blueprint_path")), OnComplete);
+        LoadAnimBPByPath(MCPUnreal::JsonString(Body, TEXT("blueprint_path")), OnComplete);
     if (!AnimBP) return true;
 
     // --- list_state_machines ---
@@ -118,7 +118,7 @@ namespace MCPUnreal {
 
     // --- inspect_state_machine ---
     if (Operation == TEXT("inspect_state_machine")) {
-      const FString SMName = Body->GetStringField(TEXT("state_machine_name"));
+      const FString SMName = MCPUnreal::JsonString(Body, TEXT("state_machine_name"));
       UAnimGraphNode_StateMachine* SM = FindStateMachineByName(AnimBP, SMName);
       if (!SM) {
         SendError(OnComplete, FString::Printf(TEXT("State machine '%s' not found"), *SMName));
@@ -190,22 +190,22 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation field is required"));
       return true;
     }
 
     UAnimBlueprint* AnimBP =
-        LoadAnimBPByPath(Body->GetStringField(TEXT("blueprint_path")), OnComplete);
+        LoadAnimBPByPath(MCPUnreal::JsonString(Body, TEXT("blueprint_path")), OnComplete);
     if (!AnimBP) return true;
 
     bool bNeedsCompile = false;
 
     // --- rename_state_machine ---
     if (Operation == TEXT("rename_state_machine")) {
-      const FString OldName = Body->GetStringField(TEXT("old_name"));
-      const FString NewName = Body->GetStringField(TEXT("new_name"));
+      const FString OldName = MCPUnreal::JsonString(Body, TEXT("old_name"));
+      const FString NewName = MCPUnreal::JsonString(Body, TEXT("new_name"));
       UAnimGraphNode_StateMachine* SM = FindStateMachineByName(AnimBP, OldName);
       if (SM) {
         // TODO: UE 5.7 removed GetStateMachineNode(). Renaming state machines
@@ -231,7 +231,7 @@ namespace MCPUnreal {
              Operation == TEXT("delete_anim_node")) {
       // These operations require deep graph manipulation.
       // Each one modifies the state machine graph directly.
-      const FString SMName = Body->GetStringField(TEXT("state_machine_name"));
+      const FString SMName = MCPUnreal::JsonString(Body, TEXT("state_machine_name"));
       UAnimGraphNode_StateMachine* SM = FindStateMachineByName(AnimBP, SMName);
 
       if (!SM && Operation != TEXT("create_state_machine")) {
@@ -248,7 +248,7 @@ namespace MCPUnreal {
           return true;
         }
 
-        const FString StateName = Body->GetStringField(TEXT("state_name"));
+        const FString StateName = MCPUnreal::JsonString(Body, TEXT("state_name"));
         if (StateName.IsEmpty()) {
           SendError(OnComplete, TEXT("state_name is required"));
           return true;
@@ -270,7 +270,7 @@ namespace MCPUnreal {
           return true;
         }
 
-        const FString StateName = Body->GetStringField(TEXT("state_name"));
+        const FString StateName = MCPUnreal::JsonString(Body, TEXT("state_name"));
         for (UEdGraphNode* Node : SMGraph->Nodes) {
           if (UAnimStateNode* StateNode = Cast<UAnimStateNode>(Node)) {
             if (StateNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString().Contains(StateName)) {

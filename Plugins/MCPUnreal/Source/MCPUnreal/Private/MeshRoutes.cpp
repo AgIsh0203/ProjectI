@@ -95,7 +95,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;
@@ -131,7 +131,7 @@ namespace MCPUnreal {
       }
 
       // Spawn or find ProceduralMesh actor.
-      FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       AActor* MeshActor = nullptr;
 
       if (!ActorPath.IsEmpty()) {
@@ -162,7 +162,7 @@ namespace MCPUnreal {
           ProcMesh->AttachToComponent(MeshActor->GetRootComponent(),
                                       FAttachmentTransformRules::KeepRelativeTransform);
 
-          FString ActorName = Body->GetStringField(TEXT("actor_name"));
+          FString ActorName = MCPUnreal::JsonString(Body, TEXT("actor_name"));
           if (!ActorName.IsEmpty()) {
             MeshActor->SetActorLabel(ActorName);
           }
@@ -181,7 +181,7 @@ namespace MCPUnreal {
         return true;
       }
 
-      int32 SectionIndex = static_cast<int32>(Body->GetNumberField(TEXT("section_index")));
+      int32 SectionIndex = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("section_index")));
 
       // Convert FLinearColor to FColor for vertex colors.
       TArray<FColor> VertexColors;
@@ -204,7 +204,7 @@ namespace MCPUnreal {
 
     // --- clear ---
     if (Operation == TEXT("clear")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
       if (ActorPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path is required for clear"));
         return true;
@@ -229,9 +229,9 @@ namespace MCPUnreal {
 
     // --- set_material ---
     if (Operation == TEXT("set_material")) {
-      const FString ActorPath = Body->GetStringField(TEXT("actor_path"));
-      const FString MaterialPath = Body->GetStringField(TEXT("material_path"));
-      int32 SectionIndex = static_cast<int32>(Body->GetNumberField(TEXT("section_index")));
+      const FString ActorPath = MCPUnreal::JsonString(Body, TEXT("actor_path"));
+      const FString MaterialPath = MCPUnreal::JsonString(Body, TEXT("material_path"));
+      int32 SectionIndex = static_cast<int32>(MCPUnreal::JsonNumber(Body, TEXT("section_index")));
 
       if (ActorPath.IsEmpty() || MaterialPath.IsEmpty()) {
         SendError(OnComplete, TEXT("actor_path and material_path are required"));
@@ -271,7 +271,7 @@ namespace MCPUnreal {
       return true;
     }
 
-    const FString Operation = Body->GetStringField(TEXT("operation"));
+    const FString Operation = MCPUnreal::JsonString(Body, TEXT("operation"));
     if (Operation.IsEmpty()) {
       SendError(OnComplete, TEXT("operation is required"));
       return true;

@@ -63,5 +63,8 @@ The first plan was rolling hills (≤ 20 m) with a smooth road at ≤ 8 %. Mid-w
 ## Still to check
 - Two editor GPU hangs during the long autopilot drives (18 Oct), both inside UE's software variable-rate shading on the async compute queue. With it off (CLAUDE.md, Config gotchas) the next full drive ran 8 minutes without a hang. One clean run is evidence, not proof: if it happens again, check the breadcrumbs for every pipeline.
 - Hands-on: are 18 % climbs fun or a slog? Is a broken engine on a climb a fun crisis or a dead stop? Do the fords' swept-away squirrels read on screen?
-- Packaged 2-instance run and the package size (the landscape is ~2 M vertices with collision).
+- ~~Packaged 2-instance run and the package size~~ (done 18 Oct): `ProjectI_Builds\2026-10-18-terrain\`, a 265 MB zip (258 MB before the terrain) that installs to 507 MB.
+  - Host and client (`-nosteam`, 127.0.0.1) both load and draw the landscape.
+  - The autopilot run was delivered (warped to THE DEPOT for the finish), and the seamless restart worked on both.
+  - At 25 m/s the autopilot got stuck once on the ROCKY ROAD climb and backed itself out.
 - Rocks and pillars are still grey boxes; the water is an opaque box per 10 m.
