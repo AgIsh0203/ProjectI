@@ -10,6 +10,7 @@ Everything here has been verified only by Python scripts in PIE, so this is the 
   |---|---|---|---|---|
   | 2026-10-06 | (pre-M1) | 1.04 GB | 3 GB | Included the 2.3 GB PDB. |
   | 2026-10-13 | `a950c06` | 254 MB | 495 MB | Phases A + B. `ProjectI-2026-10-13-Dev.zip`. The exe (302 MB) is now the biggest file; content is 129 MB. Launches offline with no load errors. |
+  | 2026-10-17 | `dc7593b` | 258 MB | 498 MB | `ProjectI-2026-10-17-Dev.zip`. First build with Tier 1 (horn, pile, callouts, charm, onboarding), sounds + music, puff VFX, the squirrel/acorn models, route props and input prompts. Content 136 MB. Launches offline with no asset-load errors; Lilita One loads. Not played yet. |
 - [ ] Copy the zip to the second PC, the way a friend would get it. Steam runs on both, signed into two different accounts.
 
 ## Slim build
