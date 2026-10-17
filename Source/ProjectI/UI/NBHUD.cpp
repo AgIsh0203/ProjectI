@@ -17,6 +17,7 @@
 #include "Engine/Font.h"
 #include "Engine/FontFace.h"
 #include "Engine/Texture2D.h"
+#include "GlobalRenderResources.h"
 #include "Engine/GameInstance.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
@@ -381,6 +382,7 @@ void ANBHUD::DrawHUD()
 	}
 
 	DrawSeatLabels();
+	DrawNameTags();
 	DrawCarStatus();
 	DrawNetStatus();
 	DrawRunStatus();
@@ -400,10 +402,12 @@ void ANBHUD::DrawHUD()
 		DrawCenteredText(Countdown, Canvas->ClipY * 0.3f + 70.f, BadColor, 1.8f);
 	}
 
-	if (const UNBInteractableComponent* Interactable = Squirrel->GetFocusedInteractable())
+	const UNBInteractableComponent* Interactable = Squirrel->GetFocusedInteractable();
+	if (Interactable)
 	{
 		DrawInteractable(*Interactable, Interactable->IsUsedBy(Squirrel));
 	}
+	DrawRoles();
 
 	TArray<TPair<ENBPrompt, FString>> Hint;
 	if (Squirrel->IsClinging())
@@ -527,6 +531,7 @@ void ANBHUD::DrawSeatLabels()
 	// They're for squirrels still choosing a seat; once seated they'd only cover the repair panel.
 	const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(GetOwningPawn());
 	const bool bShow = !Squirrel || !Squirrel->IsSeated();
+	TArray<TPair<bool, FVector2D>, TInlineAllocator<2>> Labels; // (is the wheel, screen position)
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
 		for (const UNBSeatComponent* Seat : It->GetSeats())
@@ -545,11 +550,132 @@ void ANBHUD::DrawSeatLabels()
 			{
 				continue;
 			}
-			const bool bWheel = Seat->Role == ENBSeatRole::Wheel;
-			DrawShoutText(bWheel ? TEXT("WHEEL") : TEXT("PEDALS"), Screen.X, Screen.Y - 40.f + Bob, GoodColor, 1.5f);
-			DrawShoutText(bWheel ? TEXT("steers") : TEXT("gas + brake"), Screen.X, Screen.Y - 12.f + Bob, FLinearColor::White, 0.8f);
+			Labels.Add({Seat->Role == ENBSeatRole::Wheel, Screen});
 		}
 	}
+
+	// The two seats are close together, so from most angles their labels landed on top of each
+	// other (friend test 1). Spread an overlapping pair sideways, the wheel to the left.
+	if (Labels.Num() == 2 && FMath::Abs(Labels[0].Value.X - Labels[1].Value.X) < 220.f && FMath::Abs(Labels[0].Value.Y - Labels[1].Value.Y) < 90.f)
+	{
+		const float MidX = (Labels[0].Value.X + Labels[1].Value.X) * 0.5f;
+		for (TPair<bool, FVector2D>& Label : Labels)
+		{
+			Label.Value.X = MidX + (Label.Key ? -115.f : 115.f);
+		}
+	}
+	for (const TPair<bool, FVector2D>& Label : Labels)
+	{
+		const bool bWheel = Label.Key;
+		DrawShoutText(bWheel ? TEXT("WHEEL") : TEXT("PEDALS"), Label.Value.X, Label.Value.Y - 40.f + Bob, GoodColor, 1.5f);
+		DrawShoutText(bWheel ? TEXT("steers") : TEXT("gas + brake"), Label.Value.X, Label.Value.Y - 12.f + Bob, FLinearColor::White, 0.8f);
+	}
+}
+
+namespace
+{
+	const TCHAR* RoleName(ENBSeatRole Role)
+	{
+		switch (Role)
+		{
+		case ENBSeatRole::Wheel: return TEXT("WHEEL");
+		case ENBSeatRole::Pedals: return TEXT("PEDALS");
+		default: return TEXT("RIDER");
+		}
+	}
+}
+
+void ANBHUD::DrawNameTags()
+{
+	const ANBSquirrel* Me = Cast<ANBSquirrel>(GetOwningPawn());
+	const float Time = GetWorld()->GetTimeSeconds();
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		const ANBSquirrel* Squirrel = *It;
+		const APlayerState* Player = Squirrel->GetPlayerState();
+		FVector2D Screen;
+		if (!Player || !PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(Squirrel->GetActorLocation() + FVector(0.f, 0.f, 70.f), Screen))
+		{
+			continue;
+		}
+		const FLinearColor Fur = Squirrel->GetFurColor();
+		if (Squirrel == Me)
+		{
+			// A bobbing arrow: findable at a glance, even in a pile of squirrels.
+			const float Y = Screen.Y - 34.f + 5.f * FMath::Sin(Time * 5.f);
+			DrawShoutText(TEXT("YOU"), Screen.X, Y - 22.f, Fur, 0.9f);
+			FCanvasTriangleItem Arrow(FVector2D(Screen.X - 11.f, Y - 6.f), FVector2D(Screen.X + 11.f, Y - 6.f), FVector2D(Screen.X, Y + 10.f), GWhiteTexture);
+			Arrow.SetColor(Fur);
+			Canvas->DrawItem(Arrow);
+			continue;
+		}
+		FString Tag = Player->GetPlayerName();
+		if (const UNBSeatComponent* Seat = Squirrel->GetCurrentSeat())
+		{
+			if (Seat->Role != ENBSeatRole::Rider)
+			{
+				Tag += FString::Printf(TEXT("  %s"), RoleName(Seat->Role));
+			}
+		}
+		DrawShoutText(Tag, Screen.X, Screen.Y - 30.f, Fur, 0.7f);
+	}
+}
+
+void ANBHUD::DrawRoles()
+{
+	const ANBSquirrel* Me = Cast<ANBSquirrel>(GetOwningPawn());
+	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
+	TActorIterator<ANBCar> CarIt(GetWorld());
+	if (!Me || !CarIt)
+	{
+		return;
+	}
+	const ANBCar& Car = **CarIt;
+
+	// Top left, under the net status: who has the wheel and the pedals.
+	const bool bLive = State && State->GetPhase() == ENBRunPhase::Driving;
+	const float Pulse = 0.6f + 0.4f * FMath::Sin(GetWorld()->GetTimeSeconds() * 8.f);
+	float Y = 58.f;
+	for (const ENBSeatRole SeatRole : {ENBSeatRole::Wheel, ENBSeatRole::Pedals})
+	{
+		const UNBSeatComponent* Seat = Car.GetSeat(SeatRole);
+		const ANBSquirrel* Driver = Seat ? Seat->GetOccupant() : nullptr;
+		const APlayerState* Player = Driver ? Driver->GetPlayerState() : nullptr;
+		FString Line = FString::Printf(TEXT("%s: "), RoleName(SeatRole));
+		FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.85f);
+		if (Player && Driver == Me)
+		{
+			// Your own job carries its controls, so nobody has to ask what the keys do.
+			const bool bWheel = SeatRole == ENBSeatRole::Wheel;
+			Line += bUsingGamepad ? (bWheel ? TEXT("YOU  (left stick)") : TEXT("YOU  (left stick up / down)"))
+				: (bWheel ? TEXT("YOU  (A / D)") : TEXT("YOU  (W gas / S brake)"));
+			Color = Driver->GetFurColor();
+		}
+		else if (Player)
+		{
+			Line += Player->GetPlayerName();
+			Color = Driver->GetFurColor();
+		}
+		else
+		{
+			Line += TEXT("nobody!");
+			Color = bLive ? FLinearColor(BadColor.R, BadColor.G, BadColor.B, Pulse) : FLinearColor(1.f, 1.f, 1.f, 0.6f);
+		}
+		DrawLeftShout(Line, Y, Color);
+		Y += 28.f;
+	}
+	const UNBSeatComponent* MySeat = Me->GetCurrentSeat();
+	if (MySeat && MySeat->Role == ENBSeatRole::Rider)
+	{
+		DrawLeftShout(TEXT("YOU RIDE: fix what breaks near you"), Y, Me->GetFurColor());
+	}
+}
+
+void ANBHUD::DrawLeftShout(const FString& Text, float Y, const FLinearColor& Color)
+{
+	float W = 0.f, H = 0.f;
+	GetTextSize(Text, W, H, GetShoutFont(), 0.8f);
+	DrawShoutText(Text, 16.f + W * 0.5f, Y, Color, 0.8f);
 }
 
 void ANBHUD::DrawShoutText(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float Scale)

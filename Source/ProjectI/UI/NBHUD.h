@@ -90,6 +90,16 @@ private:
 	void DrawSeatLabels();
 	/** "HONK!" over the car for a moment after each honk. */
 	void DrawHornBubble();
+
+	/** Who is who: a bobbing YOU arrow over this player's squirrel, and every other squirrel's
+	 *  name (plus its seat) in its fur colour. Friend test 1: nobody knew which squirrel they were. */
+	void DrawNameTags();
+
+	/** Who is driving, top left: the WHEEL / PEDALS crew (your own line carries its controls), with
+	 *  "nobody!" flashing when a driving seat is empty during a run. */
+	void DrawRoles();
+	/** DrawShoutText at 0.8, left-aligned to the screen's left margin. */
+	void DrawLeftShout(const FString& Text, float Y, const FLinearColor& Color);
 	/** Large outlined text centred on CenterX, for anything viewers must read at a glance. */
 	void DrawShoutText(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float Scale);
 

@@ -55,6 +55,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	int32 GetColorIndex() const { return ColorIndex; }
 
+	/** The fur this squirrel wears, for its name tag; white until the server picks one. */
+	FLinearColor GetFurColor() const { return FurColors.IsValidIndex(ColorIndex) ? FurColors[ColorIndex] : FLinearColor::White; }
+
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	UNBSeatComponent* GetCurrentSeat() const { return CurrentSeat; }
 
@@ -229,9 +232,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float OnFootArmLength = 320.f;
 
-	/** Pulled back while seated so the whole car is framed. */
+	/** Pulled back while seated so the whole car is framed. Was 1100 with a 420 height until friend test 1
+	 *  (17 Oct): the car was a speck at the bottom of the screen. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	float SeatedArmLength = 1100.f;
+	float SeatedArmLength = 650.f;
+
+	/** How far above the seat the seated camera's pivot sits (cm). */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float SeatedCameraHeight = 150.f;
+
+	/** The pitch the seated camera eases to while following the car (degrees, negative looks down). */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float SeatedFollowPitch = -12.f;
 
 	/** Seated, the camera swings back behind the car once the mouse/stick has been idle this long (s). */
 	UPROPERTY(EditAnywhere, Category = "Camera")
@@ -499,6 +511,10 @@ private:
 
 	/** Whether this machine is currently simulating the tumbling body. */
 	bool bLocalRagdoll = false;
+
+	/** Sound attenuation (voices, the engine) is measured from this squirrel, not the camera: the seated camera
+	 *  sits metres behind the car, which put every rider past the voice full-volume radius. */
+	bool bListenerOnSquirrel = false;
 
 	FTransform DefaultBodyTransform;
 	FTransform DefaultTailTransform;

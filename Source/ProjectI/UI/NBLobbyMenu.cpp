@@ -2,7 +2,11 @@
 
 #include "UI/NBLobbyMenu.h"
 
+#include "Audio/NBAudioSettings.h"
+#include "AudioMixerBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/ComboBoxString.h"
+#include "Components/Slider.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/ButtonSlot.h"
@@ -80,8 +84,167 @@ void UNBLobbyMenu::BuildTree()
 	ResumeButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleResume);
 	LeaveButton = AddButton(Box, TEXT("Leave the game"));
 	LeaveButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleLeave);
+	SettingsButton = AddButton(Box, TEXT("Sound and voice"));
+	SettingsButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSettings);
 	QuitButton = AddButton(Box, TEXT("Quit to desktop"));
 	QuitButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleQuit);
+
+	BuildSettings(Box);
+}
+
+void UNBLobbyMenu::BuildSettings(UVerticalBox* Column)
+{
+	SettingsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Settings"));
+	Column->AddChildToVerticalBox(SettingsBox);
+	SettingsBox->SetVisibility(ESlateVisibility::Collapsed);
+
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	GameVolumeSlider = AddSliderRow(SettingsBox, TEXT("Game volume"), UNBAudioSettings::MaxGameVolume, Audio ? Audio->GetGameVolume() : 1.f, GameVolumeText);
+	GameVolumeSlider->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleGameVolume);
+	AddSliderRow(SettingsBox, TEXT("Voices"), UNBAudioSettings::MaxVoiceVolume, Audio ? Audio->GetVoiceVolume() : 1.f, VoiceVolumeText)
+		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleVoiceVolume);
+	AddSliderRow(SettingsBox, TEXT("Mic boost"), UNBAudioSettings::MaxMicBoost, Audio ? Audio->GetMicBoost() : 1.f, MicBoostText)
+		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleMicBoost);
+
+	UTextBlock* DeviceLabel = AddText(SettingsBox, 16, FLinearColor::White);
+	DeviceLabel->SetText(FText::FromString(TEXT("Speakers / headphones")));
+	OutputDeviceCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("OutputDevice"));
+	UVerticalBoxSlot* ComboSlot = SettingsBox->AddChildToVerticalBox(OutputDeviceCombo);
+	ComboSlot->SetPadding(FMargin(0.f, 2.f, 0.f, 8.f));
+	ComboSlot->SetHorizontalAlignment(HAlign_Fill);
+	OutputDeviceCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleOutputDevice);
+	FOnAudioOutputDevicesObtained OnDevices;
+	OnDevices.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UNBLobbyMenu, HandleDevicesObtained));
+	UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(this, OnDevices);
+
+	UTextBlock* MicNote = AddText(SettingsBox, 13, DimColor);
+	MicNote->SetAutoWrapText(true);
+	MicNote->SetText(FText::FromString(TEXT("The mic is Windows' default input device: pick it in Windows Sound settings (Input). "
+		"Others too quiet? Raise Voices. They can't hear you? Raise Mic boost.")));
+
+	UButton* Back = AddButton(SettingsBox, TEXT("Back"));
+	Back->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSettingsBack);
+	RefreshSliderTexts();
+}
+
+USlider* UNBLobbyMenu::AddSliderRow(UVerticalBox* Box, const FString& Label, float Max, float Value, TObjectPtr<UTextBlock>& OutValueText)
+{
+	OutValueText = AddText(Box, 16, FLinearColor::White);
+	OutValueText->SetToolTipText(FText::FromString(Label));
+	USlider* Slider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass());
+	Slider->SetMinValue(0.f);
+	Slider->SetMaxValue(Max);
+	Slider->SetStepSize(0.05f);
+	Slider->SetValue(Value);
+	Slider->SetSliderBarColor(FLinearColor(1.f, 1.f, 1.f, 0.4f));
+	Slider->SetSliderHandleColor(ButtonColor);
+	UVerticalBoxSlot* BoxSlot = Box->AddChildToVerticalBox(Slider);
+	BoxSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+	BoxSlot->SetHorizontalAlignment(HAlign_Fill);
+	return Slider;
+}
+
+void UNBLobbyMenu::RefreshSliderTexts()
+{
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	if (!Audio || !GameVolumeText)
+	{
+		return;
+	}
+	auto Percent = [](const TCHAR* Label, float Value)
+	{
+		return FText::FromString(FString::Printf(TEXT("%s  %d%%"), Label, FMath::RoundToInt(Value * 100.f)));
+	};
+	GameVolumeText->SetText(Percent(TEXT("Game volume"), Audio->GetGameVolume()));
+	VoiceVolumeText->SetText(Percent(TEXT("Voices"), Audio->GetVoiceVolume()));
+	MicBoostText->SetText(Percent(TEXT("Mic boost"), Audio->GetMicBoost()));
+}
+
+void UNBLobbyMenu::HandleSettings()
+{
+	bShowSettings = true;
+	Refresh();
+	if (GameVolumeSlider)
+	{
+		GameVolumeSlider->SetKeyboardFocus();
+	}
+}
+
+void UNBLobbyMenu::HandleSettingsBack()
+{
+	bShowSettings = false;
+	FocusFirstButton();
+}
+
+void UNBLobbyMenu::HandleGameVolume(float Value)
+{
+	if (UNBAudioSettings* Audio = UNBAudioSettings::Get(this))
+	{
+		Audio->SetGameVolume(Value);
+	}
+	RefreshSliderTexts();
+}
+
+void UNBLobbyMenu::HandleVoiceVolume(float Value)
+{
+	if (UNBAudioSettings* Audio = UNBAudioSettings::Get(this))
+	{
+		Audio->SetVoiceVolume(Value);
+	}
+	RefreshSliderTexts();
+}
+
+void UNBLobbyMenu::HandleMicBoost(float Value)
+{
+	if (UNBAudioSettings* Audio = UNBAudioSettings::Get(this))
+	{
+		Audio->SetMicBoost(Value);
+	}
+	RefreshSliderTexts();
+}
+
+void UNBLobbyMenu::HandleOutputDevice(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	// Direct is our own SetSelectedOption while filling the list.
+	UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	if (Audio && SelectionType != ESelectInfo::Direct)
+	{
+		if (const FString* Id = DeviceIds.Find(SelectedItem))
+		{
+			Audio->SetOutputDevice(*Id);
+		}
+	}
+}
+
+void UNBLobbyMenu::HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& Devices)
+{
+	if (!OutputDeviceCombo)
+	{
+		return;
+	}
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	const FString Current = Audio ? Audio->GetOutputDeviceId() : FString();
+	static const FString DefaultEntry(TEXT("Windows default"));
+	OutputDeviceCombo->ClearOptions();
+	DeviceIds.Reset();
+	OutputDeviceCombo->AddOption(DefaultEntry);
+	DeviceIds.Add(DefaultEntry, FString());
+	FString Selected = DefaultEntry;
+	for (const FAudioOutputDeviceInfo& Device : Devices)
+	{
+		FString Entry = Device.Name;
+		while (DeviceIds.Contains(Entry))
+		{
+			Entry += TEXT(" ");
+		}
+		OutputDeviceCombo->AddOption(Entry);
+		DeviceIds.Add(Entry, Device.DeviceId);
+		if (!Current.IsEmpty() && Device.DeviceId == Current)
+		{
+			Selected = Entry;
+		}
+	}
+	OutputDeviceCombo->SetSelectedOption(Selected);
 }
 
 UTextBlock* UNBLobbyMenu::AddText(UVerticalBox* Box, int32 Size, const FLinearColor& Color)
@@ -190,6 +353,9 @@ void UNBLobbyMenu::Refresh()
 	Show(StatusText, !Status.IsEmpty());
 	StatusText->SetText(FText::FromString(Status));
 
+	Show(ResumeButton, true);
+	Show(SettingsButton, true);
+	Show(QuitButton, true);
 	Show(HostButton, !bOnline);
 	Show(JoinButton, !bOnline);
 	Show(PracticeButton, !bOnline && Phase == ENBRunPhase::Waiting);
@@ -198,6 +364,21 @@ void UNBLobbyMenu::Refresh()
 	Show(InviteButton, bOnline);
 	Show(RestartButton, bAuthority && Phase != ENBRunPhase::Waiting);
 	Show(LeaveButton, bOnline);
+
+	// The sound page takes over the panel: hide every other button and the status lines.
+	if (bShowSettings)
+	{
+		for (UButton* Button : Buttons)
+		{
+			if (Button && Button->GetParent() != SettingsBox)
+			{
+				Show(Button, false);
+			}
+		}
+		Show(CrewText, false);
+		Show(StatusText, false);
+	}
+	Show(SettingsBox, bShowSettings);
 }
 
 void UNBLobbyMenu::FocusFirstButton()
@@ -218,6 +399,11 @@ FReply UNBLobbyMenu::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEven
 	const FKey Key = InKeyEvent.GetKey();
 	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right || Key == EKeys::Gamepad_FaceButton_Right)
 	{
+		if (bShowSettings)
+		{
+			HandleSettingsBack();
+			return FReply::Handled();
+		}
 		CloseMenu();
 		return FReply::Handled();
 	}

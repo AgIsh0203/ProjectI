@@ -92,6 +92,13 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - **Name ideas:** Nuts and Bolts, Roll Deez Nuts, Rodent Racing.
 - GPUs: RTX 3060, 3070 Ti, 4070 laptop. No frame-rate complaints.
 
+## Next test: check the friend-test fixes
+- [ ] The restart works on Steam: the end screen, then the next run, with every client still in and in voice.
+- [ ] Voice is loud enough without Discord. Esc → Sound and voice: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
+- [ ] Everyone can tell which squirrel is theirs (YOU arrow) and who is on the Wheel and Pedals (top left, name tags).
+- [ ] The seated camera (6.5 m, tilting down while following): the car readable, the road ahead visible? Tune `SeatedArmLength` / `SeatedCameraHeight` / `SeatedFollowPitch` on BP_Squirrel.
+- [ ] Failures: does fixing one buy a breather now? Does driving flat out break the engine more, and steering hard the front tires? Note the director log lines (`NBDirector: ...`) from the host's log.
+
 ## Friend test (moved up to the weekend of 17–18 Oct)
 - Host run sheet: https://claude.ai/artifact/HhHUPpK2G5D7fsctMVJHRY (ticks and notes, then a summary to paste back to Claude).
 - Friends' questionnaire: a Google Form made by `Tools/Playtest/FeedbackForm.gs` (run it once at script.google.com; answers land in a Google Sheet). Fallback: https://claude.ai/artifact/Gv6LbW984RDA3HLJGRddvF (same questions; copy-to-Discord for anyone who can't save there).

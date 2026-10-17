@@ -28,6 +28,7 @@
 #include "InputModifiers.h"
 #include "Net/UnrealNetwork.h"
 #include "UI/NBHUD.h"
+#include "Audio/NBVoiceTalker.h"
 #include "Net/VoiceConfig.h"
 #include "Sound/SoundAttenuation.h"
 #include "UObject/ConstructorHelpers.h"
@@ -101,7 +102,7 @@ ANBSquirrel::ANBSquirrel()
 		}
 	}
 
-	VoiceTalker = CreateDefaultSubobject<UVOIPTalker>(TEXT("VoiceTalker"));
+	VoiceTalker = CreateDefaultSubobject<UNBVoiceTalker>(TEXT("VoiceTalker"));
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -772,7 +773,7 @@ void ANBSquirrel::RefreshAttachedState()
 	// Riding, the boom starts inside the car; probing would snap the camera onto the squirrel.
 	CameraBoom->bDoCollisionTest = !bRiding;
 	CameraBoom->TargetArmLength = bRiding ? SeatedArmLength : OnFootArmLength;
-	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? 420.f : 60.f);
+	CameraBoom->SocketOffset = FVector(0.f, 0.f, bRiding ? SeatedCameraHeight : 60.f);
 	RefreshTailPose();
 }
 
@@ -881,9 +882,10 @@ void ANBSquirrel::UpdateSeatedCamera(float DeltaSeconds)
 	{
 		return;
 	}
-	// Yaw only: the player's pitch stays, and the car's roll/pitch on bumps doesn't shake the view.
+	// The car's yaw, tilted down to SeatedFollowPitch so the car sits mid-frame with the road ahead.
+	// The car's own roll/pitch on bumps is ignored so the view doesn't shake.
 	const FRotator Current = MyController->GetControlRotation();
-	const FRotator Target(Current.Pitch, Car->GetActorRotation().Yaw, Current.Roll);
+	const FRotator Target(SeatedFollowPitch, Car->GetActorRotation().Yaw, Current.Roll);
 	MyController->SetControlRotation(FMath::RInterpTo(Current, Target, DeltaSeconds, SeatedFollowSpeed));
 }
 
@@ -1116,6 +1118,15 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (IsLocallyControlled())
 	{
+		if (!bListenerOnSquirrel)
+		{
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				// Panning still follows the camera; only distance is measured from the squirrel.
+				PC->SetAudioListenerAttenuationOverride(GetRootComponent(), FVector::ZeroVector);
+				bListenerOnSquirrel = true;
+			}
+		}
 		UpdateVoiceMute();
 		UpdateSeatedCamera(DeltaSeconds);
 		UpdateCameraPunch(DeltaSeconds);

@@ -7,8 +7,11 @@
 #include "NBLobbyMenu.generated.h"
 
 class UButton;
+class UComboBoxString;
+class USlider;
 class UTextBlock;
 class UVerticalBox;
+struct FAudioOutputDeviceInfo;
 
 /**
  * The lobby menu, built in code so it needs no widget asset. Offline it offers host, join,
@@ -63,6 +66,60 @@ private:
 
 	UFUNCTION()
 	void HandleQuit();
+
+	// --- Sound and voice page: replaces the buttons while open. ---
+
+	void BuildSettings(UVerticalBox* Column);
+	/** A labelled slider showing Value as a percentage of 1; returns the slider. */
+	USlider* AddSliderRow(UVerticalBox* Box, const FString& Label, float Max, float Value, TObjectPtr<UTextBlock>& OutValueText);
+	void RefreshSliderTexts();
+
+	UFUNCTION()
+	void HandleSettings();
+
+	UFUNCTION()
+	void HandleSettingsBack();
+
+	UFUNCTION()
+	void HandleGameVolume(float Value);
+
+	UFUNCTION()
+	void HandleVoiceVolume(float Value);
+
+	UFUNCTION()
+	void HandleMicBoost(float Value);
+
+	UFUNCTION()
+	void HandleOutputDevice(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& Devices);
+
+	bool bShowSettings = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> SettingsButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> SettingsBox;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GameVolumeText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> VoiceVolumeText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> MicBoostText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USlider> GameVolumeSlider;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> OutputDeviceCombo;
+
+	/** Combo entry -> device id ("" = the system default). */
+	TMap<FString, FString> DeviceIds;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ModeText;

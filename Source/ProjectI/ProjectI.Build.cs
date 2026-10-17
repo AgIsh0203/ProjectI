@@ -20,6 +20,6 @@ public class ProjectI : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PhysicsCore", "ChaosVehicles" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "NetCore", "OnlineSubsystem", "OnlineSubsystemUtils", "UMG", "Slate", "SlateCore", "Niagara", "AudioExtensions" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "NetCore", "OnlineSubsystem", "OnlineSubsystemUtils", "UMG", "Slate", "SlateCore", "Niagara", "AudioExtensions", "AudioMixer", "RenderCore" });
 	}
 }

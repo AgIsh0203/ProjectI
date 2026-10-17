@@ -122,6 +122,6 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Acorns | 40; a velocity change above 350 cm/s per 0.1 s spills 1, plus 1 per 120 cm/s more; a flip dumps 25 % | `ANBCar` |
 | Crash feedback | from a 500 cm/s change per 0.1 s; full intensity at 1600 | `ANBCar` |
 | Squirrel | ragdoll 2.5 s; respawn 8 s; jumping out above 600 cm/s throws you; eject kick 350 out + 450 up (cm/s) | `ANBSquirrel` |
-| Camera | arm 320 cm on foot, 1100 cm seated (friend test 17 Oct: too far, the car is a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
+| Camera | arm 320 cm on foot; seated 650 cm, pivot 150 cm above the seat, follow pitch -12° (was 1100 cm / 420 cm / level until friend test 1: the car was a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
 | Acorn in Mouth | every 75–105 s, 20 s mute; pings: 1 s cooldown, shown 4 s | `ANBRunGameMode`, `ANBPlayerState` |
-| Voice | full volume within 800 cm, silent 2500 cm further | `ANBSquirrel` |
+| Voice | full volume within 800 cm, silent 2500 cm further, measured from the listening squirrel (it was the camera, 11 m back); voices 150 %, mic boost 150 % by default, both in the Sound and voice menu | `ANBSquirrel` |
