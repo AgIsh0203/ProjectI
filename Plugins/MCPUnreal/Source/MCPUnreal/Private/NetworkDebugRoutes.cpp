@@ -152,8 +152,10 @@ namespace MCPUnreal {
       FHttpModule& HttpModule = FHttpModule::Get();
       FHttpManager& Manager = HttpModule.GetHttpManager();
 
-      // Flush completed requests to the tracker.
-      Manager.Flush(EHttpFlushReason::Default);
+      // No Manager.Flush() here: Flush is a shutdown call that blocks the game thread for 0.5 s
+      // ("Sleeping 0.500s to wait for N outstanding Http Requests") whenever any request is in flight,
+      // which hitched the editor twice a second.
+      (void)Manager;
 
       return true;  // Keep ticking.
     }
@@ -259,8 +261,7 @@ namespace MCPUnreal {
 
   void RegisterNetworkDebugRoutes(TSharedPtr<IHttpRouter> Router,
                                   TArray<FHttpRouteHandle>& Handles) {
-    // Start auto-tracking when routes are registered.
-    GetAutoTracker().Start();
+    // Auto-tracking stays off: its ticker did nothing useful and only flushed the HTTP manager.
 
     Handles.Add(Router->BindRoute(FHttpPath(TEXT("/api/network/debug")),
                                   EHttpServerRequestVerbs::VERB_POST,

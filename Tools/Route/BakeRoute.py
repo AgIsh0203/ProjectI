@@ -98,7 +98,7 @@ for component in builder.get_components_by_class(unreal.InstancedStaticMeshCompo
         for i, t in enumerate(transforms):
             prop = eas.spawn_actor_from_class(unreal.NBProp, t.translation, t.rotation.rotator())
             prop.set_actor_scale3d(t.scale3d)
-            prop.set_prop(mesh, fraction)
+            prop.set_prop(mesh, fraction, builder.get_prop_block_at_pivot(mesh))
             prop_mesh = prop.get_editor_property("mesh")
             prop_mesh.set_cast_shadow(component.cast_shadow)
             prop_mesh.set_mobility(unreal.ComponentMobility.STATIC)

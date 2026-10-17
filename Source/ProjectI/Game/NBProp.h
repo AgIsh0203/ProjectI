@@ -26,7 +26,10 @@ public:
 
 	/** For the bake script. */
 	UFUNCTION(BlueprintCallable, Category = "Prop")
-	void SetProp(UStaticMesh* NewMesh, float NewBlockFraction);
+	void SetProp(UStaticMesh* NewMesh, float NewBlockFraction, bool bNewBlockAtPivot);
+
+	/** The collision box for a prop mesh, in the mesh's own space (shared with the runtime-built route). */
+	static void BlockerBox(const UStaticMesh* Mesh, float Fraction, bool bAtPivot, FVector& OutCentre, FVector& OutExtent);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Prop")
@@ -38,6 +41,11 @@ protected:
 	/** Share of the mesh's footprint the car bumps into, full height; 0 = drive through it. */
 	UPROPERTY(EditAnywhere, Category = "Prop", meta = (ClampMin = "0", ClampMax = "1"))
 	float BlockFraction = 0.f;
+
+	/** Centre the box on the pivot (a trunk or a lamp's pole), sized from the narrower side of the footprint;
+	 *  off = centred on the mesh's bounds (rocks, logs, fences). */
+	UPROPERTY(EditAnywhere, Category = "Prop")
+	bool bBlockAtPivot = false;
 
 private:
 	void FitBlocker();

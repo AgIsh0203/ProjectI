@@ -87,6 +87,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Route|Bake")
 	float GetPropBlockFraction(const UStaticMesh* Mesh) const;
 
+	/** Bake tool: whether that entry's box sits on the pivot (trees, lamps). */
+	UFUNCTION(BlueprintCallable, Category = "Route|Bake")
+	bool GetPropBlockAtPivot(const UStaticMesh* Mesh) const;
+
 	/** Off in a baked level (L_Route): its geometry is saved in the map as ordinary actors you can edit,
 	 *  and this actor only supplies the centreline (progress, sections, the finish gate). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route")

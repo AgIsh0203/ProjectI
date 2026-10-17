@@ -2,6 +2,8 @@
 
 #include "Game/NBRoute.h"
 
+#include "Game/NBProp.h"
+
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -39,31 +41,34 @@ namespace
 		/** Collision: an invisible box this share of the mesh's footprint (a tree's trunk, most of a rock), full height.
 		 *  0 = drive through it (bushes, flowers, cones). Friend test 1: the car drove through trees. */
 		float Block;
+		/** Centre the box on the mesh's pivot (a trunk or pole) and size it from the narrower side of the footprint,
+		 *  instead of centring it on the bounds: a lamp's bounds sit halfway along its arm. */
+		bool bBlockAtPivot;
 	};
 
 	const FPropKind PropKinds[] = {
-		{TEXT("Nature/tree_default/StaticMeshes/SM_tree_default.SM_tree_default"),       4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f},
-		{TEXT("Nature/tree_oak/StaticMeshes/SM_tree_oak.SM_tree_oak"),                   4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f},
-		{TEXT("Nature/tree_pineTallA/StaticMeshes/SM_tree_pineTallA.SM_tree_pineTallA"), 4.f, 6.f, 2.f, 500.f, 4500.f, true, 0.14f},
-		{TEXT("Nature/tree_fat/StaticMeshes/SM_tree_fat.SM_tree_fat"),                   4.f, 5.5f, 2.f, 500.f, 4500.f, true, 0.16f},
-		{TEXT("Nature/tree_blocks/StaticMeshes/SM_tree_blocks.SM_tree_blocks"),          4.f, 5.f, 1.f, 500.f, 4500.f, true, 0.16f},
-		{TEXT("Nature/plant_bush/StaticMeshes/SM_plant_bush.SM_plant_bush"),             3.f, 4.5f, 3.f, 400.f, 2500.f, false, 0.f},
-		{TEXT("Nature/plant_bushLarge/StaticMeshes/SM_plant_bushLarge.SM_plant_bushLarge"), 3.f, 4.5f, 2.f, 400.f, 2500.f, false, 0.f},
-		{TEXT("Nature/rock_largeA/StaticMeshes/SM_rock_largeA.SM_rock_largeA"),          2.5f, 4.f, 1.5f, 500.f, 4000.f, true, 0.75f},
-		{TEXT("Nature/rock_largeB/StaticMeshes/SM_rock_largeB.SM_rock_largeB"),          2.5f, 4.f, 1.f, 500.f, 4000.f, true, 0.75f},
-		{TEXT("Nature/rock_tallA/StaticMeshes/SM_rock_tallA.SM_rock_tallA"),             2.f, 3.f, 0.7f, 700.f, 4000.f, true, 0.7f},
-		{TEXT("Nature/stump_round/StaticMeshes/SM_stump_round.SM_stump_round"),          3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.7f},
-		{TEXT("Nature/log/StaticMeshes/SM_log.SM_log"),                                  3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.85f},
-		{TEXT("Nature/flower_redA/StaticMeshes/SM_flower_redA.SM_flower_redA"),          3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f},
-		{TEXT("Nature/flower_yellowA/StaticMeshes/SM_flower_yellowA.SM_flower_yellowA"), 3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f},
-		{TEXT("Nature/mushroom_red/StaticMeshes/SM_mushroom_red.SM_mushroom_red"),       3.f, 4.f, 1.f, 400.f, 2000.f, false, 0.f},
-		{TEXT("Nature/grass_large/StaticMeshes/SM_grass_large.SM_grass_large"),          3.f, 4.f, 3.f, 400.f, 2000.f, false, 0.f},
+		{TEXT("Nature/tree_default/StaticMeshes/SM_tree_default.SM_tree_default"),       4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f, true},
+		{TEXT("Nature/tree_oak/StaticMeshes/SM_tree_oak.SM_tree_oak"),                   4.5f, 6.f, 3.f, 500.f, 4500.f, true, 0.14f, true},
+		{TEXT("Nature/tree_pineTallA/StaticMeshes/SM_tree_pineTallA.SM_tree_pineTallA"), 4.f, 6.f, 2.f, 500.f, 4500.f, true, 0.14f, true},
+		{TEXT("Nature/tree_fat/StaticMeshes/SM_tree_fat.SM_tree_fat"),                   4.f, 5.5f, 2.f, 500.f, 4500.f, true, 0.16f, true},
+		{TEXT("Nature/tree_blocks/StaticMeshes/SM_tree_blocks.SM_tree_blocks"),          4.f, 5.f, 1.f, 500.f, 4500.f, true, 0.16f, true},
+		{TEXT("Nature/plant_bush/StaticMeshes/SM_plant_bush.SM_plant_bush"),             3.f, 4.5f, 3.f, 400.f, 2500.f, false, 0.f, false},
+		{TEXT("Nature/plant_bushLarge/StaticMeshes/SM_plant_bushLarge.SM_plant_bushLarge"), 3.f, 4.5f, 2.f, 400.f, 2500.f, false, 0.f, false},
+		{TEXT("Nature/rock_largeA/StaticMeshes/SM_rock_largeA.SM_rock_largeA"),          2.5f, 4.f, 1.5f, 500.f, 4000.f, true, 0.75f, false},
+		{TEXT("Nature/rock_largeB/StaticMeshes/SM_rock_largeB.SM_rock_largeB"),          2.5f, 4.f, 1.f, 500.f, 4000.f, true, 0.75f, false},
+		{TEXT("Nature/rock_tallA/StaticMeshes/SM_rock_tallA.SM_rock_tallA"),             2.f, 3.f, 0.7f, 700.f, 4000.f, true, 0.7f, false},
+		{TEXT("Nature/stump_round/StaticMeshes/SM_stump_round.SM_stump_round"),          3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.7f, false},
+		{TEXT("Nature/log/StaticMeshes/SM_log.SM_log"),                                  3.f, 4.f, 1.f, 400.f, 3000.f, false, 0.85f, false},
+		{TEXT("Nature/flower_redA/StaticMeshes/SM_flower_redA.SM_flower_redA"),          3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f, false},
+		{TEXT("Nature/flower_yellowA/StaticMeshes/SM_flower_yellowA.SM_flower_yellowA"), 3.f, 4.f, 2.f, 400.f, 1500.f, false, 0.f, false},
+		{TEXT("Nature/mushroom_red/StaticMeshes/SM_mushroom_red.SM_mushroom_red"),       3.f, 4.f, 1.f, 400.f, 2000.f, false, 0.f, false},
+		{TEXT("Nature/grass_large/StaticMeshes/SM_grass_large.SM_grass_large"),          3.f, 4.f, 3.f, 400.f, 2000.f, false, 0.f, false},
 		// Placed by AddProps, not scattered.
-		{TEXT("Nature/fence_simple/StaticMeshes/SM_fence_simple.SM_fence_simple"),       3.f, 3.f, 0.f, 0.f, 0.f, false, 1.f},
-		{TEXT("CityRoads/construction-cone/StaticMeshes/SM_construction_cone.SM_construction_cone"), 7.f, 7.f, 0.f, 0.f, 0.f, false, 0.f},
-		{TEXT("CityRoads/construction-barrier/StaticMeshes/SM_construction_barrier.SM_construction_barrier"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 0.9f},
-		{TEXT("CityRoads/construction-light/StaticMeshes/SM_construction_light.SM_construction_light"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 0.3f},
-		{TEXT("CityRoads/light-square/StaticMeshes/SM_light_square.SM_light_square"),    10.f, 10.f, 0.f, 0.f, 0.f, true, 0.15f},
+		{TEXT("Nature/fence_simple/StaticMeshes/SM_fence_simple.SM_fence_simple"),       3.f, 3.f, 0.f, 0.f, 0.f, false, 1.f, false},
+		{TEXT("CityRoads/construction-cone/StaticMeshes/SM_construction_cone.SM_construction_cone"), 7.f, 7.f, 0.f, 0.f, 0.f, false, 0.f, false},
+		{TEXT("CityRoads/construction-barrier/StaticMeshes/SM_construction_barrier.SM_construction_barrier"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 0.9f, false},
+		{TEXT("CityRoads/construction-light/StaticMeshes/SM_construction_light.SM_construction_light"), 7.f, 7.f, 0.f, 0.f, 0.f, true, 1.f, true},
+		{TEXT("CityRoads/light-square/StaticMeshes/SM_light_square.SM_light_square"),    10.f, 10.f, 0.f, 0.f, 0.f, true, 1.f, true},
 	};
 	constexpr int32 FenceKind = 16, ConeKind = 17, BarrierKind = 18, WorkLightKind = 19, LampKind = 20;
 }
@@ -158,6 +163,12 @@ float ANBRoute::GetPropBlockFraction(const UStaticMesh* Mesh) const
 {
 	const int32 Kind = PropMeshes.IndexOfByKey(Mesh);
 	return Kind != INDEX_NONE && Kind < UE_ARRAY_COUNT(PropKinds) ? PropKinds[Kind].Block : 0.f;
+}
+
+bool ANBRoute::GetPropBlockAtPivot(const UStaticMesh* Mesh) const
+{
+	const int32 Kind = PropMeshes.IndexOfByKey(Mesh);
+	return Kind != INDEX_NONE && Kind < UE_ARRAY_COUNT(PropKinds) && PropKinds[Kind].bBlockAtPivot;
 }
 
 void ANBRoute::PostInitializeComponents()
@@ -683,9 +694,9 @@ void ANBRoute::AddProps(const FBox2D& GroundBounds)
 		Mesh->AddInstance(Transform);
 		if (PropKinds[Kind].Block > 0.f)
 		{
-			const FBoxSphereBounds Bounds = PropMeshes[Kind]->GetBounds();
-			const FVector Size(Bounds.BoxExtent.X * 2.f * PropKinds[Kind].Block, Bounds.BoxExtent.Y * 2.f * PropKinds[Kind].Block, Bounds.BoxExtent.Z * 2.f);
-			AddBox(Blockers, Transform.TransformPosition(Bounds.Origin), Transform.Rotator(), Size * Scale);
+			FVector Centre, Extent;
+			ANBProp::BlockerBox(PropMeshes[Kind], PropKinds[Kind].Block, PropKinds[Kind].bBlockAtPivot, Centre, Extent);
+			AddBox(Blockers, Transform.TransformPosition(Centre), Transform.Rotator(), Extent * 2.f * Scale);
 		}
 	};
 
