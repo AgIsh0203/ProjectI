@@ -133,6 +133,9 @@ public:
 	/** Server only. The run isn't live (waiting, countdown, over): brakes held, no spilling. */
 	void SetRunLocked(bool bLocked);
 
+	/** Server only. A squirrel hopped seats: the door rattles looser. */
+	void NoteSeatHop();
+
 	// --- Hooks for car parts. 1 = healthy. Server only. ---
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Damage")
@@ -244,6 +247,59 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Dev")
 	float DevChaosInterval = 12.f;
 
+	// --- Wear: how the car is driven decides which parts the failure director picks. Rates are
+	// wear per second (1 = worn out) unless noted. ---
+
+	/** Speed (cm/s) where flooring it starts wearing the engine and rear tires... */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float WearSpeedStart = 1000.f;
+
+	/** ...and where it wears them fastest. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float WearSpeedFull = 2000.f;
+
+	/** At full speed and full throttle (half that coasting). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float EngineWearRate = 0.03f;
+
+	/** Each rear tire, at full speed. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RearTireWearRate = 0.02f;
+
+	/** Each front tire, at full lock above FrontTireWearSpeed. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float FrontTireWearRate = 0.035f;
+
+	/** Below this speed (cm/s) steering wears the front tires proportionally less. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float FrontTireWearSpeed = 800.f;
+
+	/** Braking hard at BrakeWearSpeed or faster. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float BrakeHeavyWearRate = 0.08f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float BrakeWearSpeed = 1500.f;
+
+	/** Never braking also hurts them: after BrakeIdleSeconds above BrakeIdleMinSpeed without a touch
+	 *  of the brakes, they wear at this rate until someone brakes. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float BrakeIdleWearRate = 0.02f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float BrakeIdleSeconds = 30.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float BrakeIdleMinSpeed = 600.f;
+
+	/** Added to the door each time a squirrel hops seats (not per second). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float DoorWearPerHop = 0.15f;
+
+	/** Every part heals this much per second, so careful stretches cool things down. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float WearRecoveryRate = 0.006f;
+
 	// --- Sound and VFX. All optional: assign assets in BP_OffroadCar_Pawn. ---
 
 	/** Plays the engine loop at the engine deck. Add attenuation on this component in the Blueprint. */
@@ -330,6 +386,12 @@ protected:
 private:
 	void ApplyInputsToVehicle();
 	void UpdateEngineState(float DeltaSeconds);
+
+	/** Server: wears the parts from speed, steering and braking. */
+	void UpdateWear(float DeltaSeconds);
+
+	/** Seconds driven above BrakeIdleMinSpeed since the brakes were last used. */
+	float SecondsWithoutBraking = 0.f;
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
 	void SoundTourStep();

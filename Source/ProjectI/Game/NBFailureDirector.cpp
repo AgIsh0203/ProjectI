@@ -18,6 +18,8 @@ void UNBFailureDirector::Begin(ANBCar* InCar, float RunSeconds)
 	RunLength = FMath::Max(RunSeconds, 1.f);
 	Elapsed = 0.f;
 	NextFailureAt = FirstFailureDelay;
+	QuietUntil = 0.f;
+	bWasFull = false;
 	bActive = Car != nullptr;
 	SetComponentTickEnabled(bActive);
 }
@@ -51,15 +53,10 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 
 	Elapsed += DeltaTime;
-	if (Elapsed < NextFailureAt)
-	{
-		return;
-	}
-
 	const float Progress = FMath::Clamp(Elapsed / RunLength, 0.f, 1.f);
 	const float Now = GetWorld()->GetTimeSeconds();
 
-	int32 NumFailed = 0;
+	int32 NumBlocking = 0;
 	TArray<UNBCarPartComponent*, TInlineAllocator<8>> Candidates;
 	for (UNBCarPartComponent* Part : Car->GetParts())
 	{
@@ -69,7 +66,7 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 		if (Part->IsFailed())
 		{
-			++NumFailed;
+			NumBlocking += Part->GetFailedSeconds() < IgnoredFailureSeconds ? 1 : 0;
 		}
 		else if (Now - Part->GetLastRepairTime() >= RepairCooldown)
 		{
@@ -77,13 +74,59 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 	}
 
-	if (NumFailed >= MaxConcurrent(Progress) || Candidates.IsEmpty())
+	if (NumBlocking >= MaxConcurrent(Progress))
 	{
-		// Try again shortly rather than waiting a whole interval.
-		NextFailureAt = Elapsed + 1.5f;
+		bWasFull = true;
+		return;
+	}
+	if (bWasFull)
+	{
+		// A repair freed a slot: a breather before the next one, not an instant replacement.
+		bWasFull = false;
+		NextFailureAt = FMath::Max(NextFailureAt, Elapsed + NextInterval(Progress));
+	}
+	if (Elapsed < FMath::Max(QuietUntil, FirstFailureDelay) || Candidates.IsEmpty())
+	{
 		return;
 	}
 
-	Candidates[FMath::RandRange(0, Candidates.Num() - 1)]->Fail();
+	// A badly worn part can go before the timer says so.
+	for (UNBCarPartComponent* Part : Candidates)
+	{
+		const float Over = (Part->GetWear() - WearHazardStart) / (1.f - WearHazardStart);
+		if (Over > 0.f && FMath::FRand() < WearHazardPerSecond * Over * Over * DeltaTime)
+		{
+			FailPart(Part, Progress, TEXT("worn out"));
+			return;
+		}
+	}
+
+	if (Elapsed < NextFailureAt)
+	{
+		return;
+	}
+
+	// Timed failure: random, weighted towards worn parts.
+	float TotalWeight = 0.f;
+	TArray<float, TInlineAllocator<8>> Weights;
+	for (const UNBCarPartComponent* Part : Candidates)
+	{
+		Weights.Add(1.f + WearBias * FMath::Square(Part->GetWear()));
+		TotalWeight += Weights.Last();
+	}
+	float Pick = FMath::FRandRange(0.f, TotalWeight);
+	int32 Index = 0;
+	while (Index < Candidates.Num() - 1 && Pick > Weights[Index])
+	{
+		Pick -= Weights[Index++];
+	}
+	FailPart(Candidates[Index], Progress, TEXT("timer"));
+}
+
+void UNBFailureDirector::FailPart(UNBCarPartComponent* Part, float Progress, const TCHAR* Why)
+{
+	UE_LOG(LogTemp, Log, TEXT("NBDirector: %s fails at %.0f s (%s, wear %.2f)"), *Part->PartName.ToString(), Elapsed, Why, Part->GetWear());
+	Part->Fail();
 	NextFailureAt = Elapsed + NextInterval(Progress);
+	QuietUntil = Elapsed + MinGap;
 }

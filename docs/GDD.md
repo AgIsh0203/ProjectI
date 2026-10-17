@@ -20,7 +20,7 @@ Schedule and ranked backlog: [Roadmap.md](Roadmap.md). Asset sources and licence
   | Tire ×4 | flat (grip loss) | jump out and hold for 3 s, clinging to the moving wheel |
   | Door | swings open, throws the passenger out | slam it shut (3 presses) |
 
-- Crashes don't break parts yet; only the failure director's timer does. Crash damage was always meant to add breakdowns too (#16).
+- **Wear (built 17 Oct, after the friend test):** failures are still random, but how you drive tilts which part goes. Speeding wears the engine and rear tires, steering hard at speed wears the front tires, hammering the brakes (or never touching them for 30 s) wears the brakes, and hopping seats rattles the door loose. A worn part is up to 6× likelier to be the next failure and can break on its own past 60 % wear; everything heals slowly when driven gently. A repair buys a full interval of calm, and a failure ignored for 25 s stops holding the others off. Crashes don't break parts yet (#16).
 - Anyone who falls out ragdolls, gets up 2.5 s later, then chases the car or respawns at it after 8 s with a score penalty.
 - Flipped car: 2 squirrels push at once to right it.
 - **Score:** acorns still in the open bed at the depot (10 each), plus 2 per second left, minus 25 per respawn. The 40 acorns spill on bumps, hard braking and crashes; a flip dumps a quarter of them.
@@ -112,7 +112,8 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Score | 10 per acorn, 2 per second left, −25 per respawn; 0 on a bad ending | `ANBRunGameMode` |
 | Audio | engine loop asset volume 0.35 (✓ 14 Oct: the user found 1.0 too loud); music 0.35 | `SW_Engine_Loop` volume, `ANBHUD::MusicVolume` |
 | Total wreck | 3 parts failed for 10 s | `ANBRunGameMode` |
-| Failure director | first failure after 8 s; then every 14 s, easing to 6 s by the deadline; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s | `UNBFailureDirector` |
+| Failure director | first failure after 8 s; then every 14 s, easing to 6 s by the deadline; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s; a repair that frees a slot restarts the interval; a failure unfixed for 25 s stops counting against the limit; at least 3 s between failures. Friend test 17 Oct: "too many breakdowns", and fixing one let the next in within 1.5 s (fixed) | `UNBFailureDirector` |
+| Wear | pick weight 1 + 5 × wear²; past 0.6 wear, up to 8 %/s to break early. Per second: engine 0.03 × speed factor (1000→2000 cm/s) × (½ + ½ throttle); rear tires 0.02 × speed factor; front tires 0.035 × steer × (speed / 800 cm/s); brakes 0.08 × brake × (speed / 1500 cm/s), or 0.02 after 30 s above 600 cm/s without braking; door +0.15 per seat hop; all heal 0.006/s. In PIE, flat out (2250 cm/s) the engine reached 0.84 and broke at 40 s | `ANBCar` "Car\|Wear", `UNBFailureDirector` "Director\|Wear" |
 | Engine | power fades to 35 % over 10 s, stalls at 16 s; repair: 14 presses (progress drains 0.2/s) | `UNBEnginePart` |
 | Brakes | drop to 25 %, fading to 0 by 12 s; repair: 3 ring hits, 1.3 s period, 16 % sweet spot, a miss costs 34 % | `UNBBrakePart` |
 | Tire | grip 30 %; repair: hold 3 s, on foot | `UNBTirePart` |
@@ -121,6 +122,6 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Acorns | 40; a velocity change above 350 cm/s per 0.1 s spills 1, plus 1 per 120 cm/s more; a flip dumps 25 % | `ANBCar` |
 | Crash feedback | from a 500 cm/s change per 0.1 s; full intensity at 1600 | `ANBCar` |
 | Squirrel | ragdoll 2.5 s; respawn 8 s; jumping out above 600 cm/s throws you; eject kick 350 out + 450 up (cm/s) | `ANBSquirrel` |
-| Camera | arm 320 cm on foot, 1100 cm seated; swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
+| Camera | arm 320 cm on foot, 1100 cm seated (friend test 17 Oct: too far, the car is a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
 | Acorn in Mouth | every 75–105 s, 20 s mute; pings: 1 s cooldown, shown 4 s | `ANBRunGameMode`, `ANBPlayerState` |
 | Voice | full volume within 800 cm, silent 2500 cm further | `ANBSquirrel` |

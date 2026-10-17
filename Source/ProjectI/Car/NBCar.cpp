@@ -227,6 +227,62 @@ void ANBCar::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	UpdateEngineState(DeltaSeconds);
+	if (HasAuthority())
+	{
+		UpdateWear(DeltaSeconds);
+	}
+}
+
+void ANBCar::UpdateWear(float DeltaSeconds)
+{
+	if (bRunLocked || bFlipped)
+	{
+		return;
+	}
+	const float Speed = FMath::Abs(GetForwardSpeed());
+	const float Fast = FMath::GetMappedRangeValueClamped(FVector2f(WearSpeedStart, WearSpeedFull), FVector2f(0.f, 1.f), Speed);
+	const float Throttle = FMath::Max(ThrottleInput, 0.f);
+	// Negative pedal input brakes while rolling forward, and reverses once stopped.
+	const float Brake = GetForwardSpeed() > 100.f ? FMath::Max(-ThrottleInput, 0.f) : 0.f;
+
+	for (UNBCarPartComponent* Part : Parts)
+	{
+		Part->AddWear(-WearRecoveryRate * DeltaSeconds);
+	}
+
+	// Speeding: the engine and the rear tires.
+	EnginePart->AddWear(EngineWearRate * Fast * (0.5f + 0.5f * Throttle) * DeltaSeconds);
+	TireBL->AddWear(RearTireWearRate * Fast * DeltaSeconds);
+	TireBR->AddWear(RearTireWearRate * Fast * DeltaSeconds);
+
+	// Steering a lot: the front tires.
+	const float Scrub = FMath::Abs(SteerInput) * FMath::Clamp(Speed / FrontTireWearSpeed, 0.f, 1.f);
+	TireFL->AddWear(FrontTireWearRate * Scrub * DeltaSeconds);
+	TireFR->AddWear(FrontTireWearRate * Scrub * DeltaSeconds);
+
+	// Brakes: hammering them, or never touching them.
+	BrakePart->AddWear(BrakeHeavyWearRate * Brake * FMath::Clamp(Speed / BrakeWearSpeed, 0.f, 1.f) * DeltaSeconds);
+	if (Brake > 0.1f)
+	{
+		SecondsWithoutBraking = 0.f;
+	}
+	else if (Speed >= BrakeIdleMinSpeed)
+	{
+		SecondsWithoutBraking += DeltaSeconds;
+		if (SecondsWithoutBraking > BrakeIdleSeconds)
+		{
+			BrakePart->AddWear(BrakeIdleWearRate * DeltaSeconds);
+		}
+	}
+}
+
+void ANBCar::NoteSeatHop()
+{
+	check(HasAuthority());
+	if (!bRunLocked)
+	{
+		DoorPart->AddWear(DoorWearPerHop);
+	}
 }
 
 void ANBCar::UpdateEngineState(float DeltaSeconds)

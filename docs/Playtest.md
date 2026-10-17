@@ -10,7 +10,8 @@ Everything here has been verified only by Python scripts in PIE, so this is the 
   |---|---|---|---|---|
   | 2026-10-06 | (pre-M1) | 1.04 GB | 3 GB | Included the 2.3 GB PDB. |
   | 2026-10-13 | `a950c06` | 254 MB | 495 MB | Phases A + B. `ProjectI-2026-10-13-Dev.zip`. The exe (302 MB) is now the biggest file; content is 129 MB. Launches offline with no load errors. |
-  | 2026-10-17 | `dc7593b` | 258 MB | 498 MB | `ProjectI-2026-10-17-Dev.zip`. First build with Tier 1 (horn, pile, callouts, charm, onboarding), sounds + music, puff VFX, the squirrel/acorn models, route props and input prompts. Content 136 MB. Launches offline with no asset-load errors; Lilita One loads. Not played yet. |
+  | 2026-10-17 | `dc7593b` | 258 MB | 498 MB | `ProjectI-2026-10-17-Dev.zip`. First build with Tier 1 (horn, pile, callouts, charm, onboarding), sounds + music, puff VFX, the squirrel/acorn models, route props and input prompts. Content 136 MB. Launches offline with no asset-load errors; Lilita One loads. Played in friend test 1 (results below). |
+  | 2026-10-17 (fix) | wear + restart fix commit | 258 MB | 498 MB | `ProjectI-2026-10-17-fix-Dev.zip` in `ProjectI_Builds\2026-10-17-fix\`. Fixes the restart crash: two packaged copies on one PC (`?AutoStart`, `-nosteam`, IP) went through 2 restarts with the client connected; the 17 Oct build crashed the client on the first. Adds part wear and the director fixes. Not played by hand. |
 - [ ] Copy the zip to the second PC, the way a friend would get it. Steam runs on both, signed into two different accounts.
 
 ## Slim build
@@ -74,6 +75,22 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - Run time, acorns delivered, and how the run ended.
 - Any value that felt wrong, for the [GDD tuning table](GDD.md#tuning-table).
 - If something broke: each PC's log, in the build folder under `ProjectI/Saved/Logs/ProjectI.log`.
+
+## Friend test 1 results (Sat 17 Oct, build `dc7593b`)
+3 players over Steam (monty500500, Anya_Musk, bongo24) plus the host, 2 runs. Sources: 3 form answers, the notes doc, the host's chat with them, 3 recordings (Drive) whose Hindi/English voice chat was machine-translated with Whisper, so quotes are approximate.
+- **Runs:** run 1 delivered at 3:50 left (30/40 acorns, score 764); run 2 a total wreck at ~1:30 left. Run 2's restart **crashed every client** (the recording shows the crash toast 12 s into the end screen).
+- **Scores:** fun 4, 4, 3. Play again: "yes, right now", "maybe another day", "no". Would watch a streamer: yes, yes, no. Acorn in Mouth: funny, funny, didn't notice. Run length: **too short ×3**. First minute: "took a bit" ×3.
+- **Best repair:** door, brakes. **Worst: engine mash ×3** ("I have to press it multiple times, I didn't understand"; "not clear at the start, maybe a UI element"; the notes ask for another key).
+- **Funniest:** multiple fires while friends got thrown out; the car falling off the ramp; nobody steering, everyone yelling "WE BALL!" and pushing through a wrecked car.
+- **Readability:** nobody knew who was steering or which squirrel was theirs ("am I even controlling it?", "I thought I was blue, I'm pink"). The form asks for feedback on roles.
+- **Failures:** too many, too constant ("errors pop up way too often, I'd prefer a cruising phase"). Fixing one let the next in at once, and leaving one broken held the rest off (a director bug, fixed 17 Oct). Flat tires and the door didn't matter ("what difference does a flat tyre make", "does the door really matter? No"), and brake failure meant nothing because nobody brakes.
+- **THE BIG JUMP** only costs acorns on landing, so why jump.
+- **Voice:** too quiet, so everyone moved to Discord. They want mic/speaker device and volume settings.
+- **Camera:** "not very good". The seated camera is 11 m back, so the car is a speck at the bottom of the screen.
+- **Bugs:** restart crash (above, fixed 17 Oct); "widgets are shared across players" (probably the repair prompt showing on squirrels who aren't repairing; unconfirmed); props have no collision (the car drives through trees; one player said colliders might make it annoying); the WHEEL and PEDALS labels draw on top of each other.
+- **Ideas:** a damage meter; manual gears (and a Gears seat); terrain instead of a flat slab; branching sections; side tasks / vehicle swaps (R.V. There Yet?); distractions like roadside ads; a Linux build.
+- **Name ideas:** Nuts and Bolts, Roll Deez Nuts, Rodent Racing.
+- GPUs: RTX 3060, 3070 Ti, 4070 laptop. No frame-rate complaints.
 
 ## Friend test (moved up to the weekend of 17–18 Oct)
 - Host run sheet: https://claude.ai/artifact/HhHUPpK2G5D7fsctMVJHRY (ticks and notes, then a summary to paste back to Claude).

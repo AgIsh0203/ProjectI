@@ -19,6 +19,23 @@ void UNBCarPartComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UNBCarPartComponent, bFailed);
+	DOREPLIFETIME(UNBCarPartComponent, RepWear);
+}
+
+void UNBCarPartComponent::AddWear(float Amount)
+{
+	check(HasAuthority());
+	if (!bFailed)
+	{
+		SetWear(Wear + Amount);
+	}
+}
+
+void UNBCarPartComponent::SetWear(float NewWear)
+{
+	Wear = FMath::Clamp(NewWear, 0.f, 1.f);
+	// Bytes, and only on a visible change, so wear ticking every frame costs almost nothing.
+	RepWear = static_cast<uint8>(FMath::RoundToInt(Wear * 255.f));
 }
 
 void UNBCarPartComponent::BeginPlay()
@@ -54,6 +71,7 @@ void UNBCarPartComponent::Fail()
 	}
 	bFailed = true;
 	TimeSinceFailure = 0.f;
+	SetWear(0.f);
 	SetInteractEnabled(true);
 	ApplyFailedEffect(0.f);
 	HandleFailedChanged(true);

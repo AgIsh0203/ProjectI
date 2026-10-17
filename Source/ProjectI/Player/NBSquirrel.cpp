@@ -711,6 +711,7 @@ void ANBSquirrel::HopToNextSeat()
 	}
 
 	Car->SetSeatInput(CurrentSeat->Role, 0.f);
+	Car->NoteSeatHop();
 	CurrentSeat->SetOccupant(nullptr);
 	NewSeat->SetOccupant(this);
 	CurrentSeat = NewSeat;

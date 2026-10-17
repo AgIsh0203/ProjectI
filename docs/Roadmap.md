@@ -95,6 +95,27 @@ Expected: about 160 MB zipped.
 ## Backlog
 Ranked within each tier. "Touches" says where the work lands, so a session can start without re-deriving it.
 
+### Friend test 1 fixes (17 Oct): before the next test
+The test is written up in [Playtest.md](Playtest.md#friend-test-1-results-sat-17-oct-build-dc7593b). Fun scored 4 / 4 / 3. The core is there, but nobody could read their role, voice chat failed, and the failures felt like noise.
+
+Done 17 Oct, in the `2026-10-17-fix` build: **the restart crash** (every client crashed when the next run loaded); **the director bug** (a repair let the next failure in within 1.5 s, and leaving a cheap failure unfixed held all the others off); **part wear** (how you drive tilts which part breaks: [GDD](GDD.md#core-loop-610-min-run-800-deadline--built)).
+
+| # | Item | Why | Effort | Touches |
+|---|---|---|---|---|
+| F1 | **Voice you can hear:** louder voice by default, then a settings panel with mic and speaker device, voice volume and game volume | Everyone fell back to Discord, which kills proximity voice and Acorn in Mouth, two of the never-cut features | S (gain), M (panel) | `ANBSquirrel` VOIPTalker settings; a settings page in `UNBLobbyMenu`; the device lists come from the online voice interface / audio mixer |
+| F2 | **Who am I, who's driving:** a YOU arrow and name tags in each fur colour; "You: WHEEL" on the HUD; every seat's occupant shown; fix the WHEEL / PEDALS labels drawing on top of each other | "Am I even controlling it?", "I thought I was blue". The top confusion in every recording | S–M | `ANBHUD` (world-projected tags, seat panel); `ANBSquirrel::ColorIndex` |
+| F3 | **Seated camera closer:** the arm drops from 11 m to ~6 m, lower and centred on the car | The car is a speck at the bottom of the screen; "the camera angle was not very good" | S + your feel check | `ANBSquirrel` seated boom length / offset |
+| F4 | **Failures that matter:** a flat tire pulls the car to its side and caps speed; an open door throws people more often; failed brakes do something even when nobody brakes (they grab, so the car lurches); the engine mash shows "MASH [LMB] 9/14" by the part | "What difference does a flat tyre make", "the door doesn't matter", "we didn't even press the brake"; engine mash was the worst repair ×3 | M | `UNBTirePart` / `UNBDoorPart` / `UNBBrakePart` effects; the HUD repair panel |
+| F5 | **Damage meter:** a wear bar per part (green → red) so players can see what's about to go and why | Turns wear into a readable cause and effect; asked for in the chat | S–M | `ANBHUD`; `UNBCarPartComponent::GetWear()` already replicates |
+| F6 | **THE BIG JUMP pays:** a clean wheels-down landing spills nothing, and airtime gives bonus points | "What's the use of the jump if we lose the nuts anyway?" | S | `ANBCar` spill check (ignore the vertical jolt when all wheels touch down), score in `ANBRunGameMode` |
+| F7 | **Prop collision** on trees, rocks, lamps and fences (not bushes or flowers) | The car drives through trees. One player thought colliders could be annoying, so it's your call | S | `ANBRoute::PropLayer`: a per-kind collision flag in `PropKinds`; check the Kenney meshes have simple collision |
+| F8 | **"Widgets are shared":** check whether the repair prompt and progress show on squirrels who aren't repairing | Reported by two players; not confirmed from the video | S | `ANBHUD` prompt / progress drawing |
+| F9 | **Pacing:** a calm cruise, then a storm (e.g. 40 s quiet, 25 s pressure), instead of a steady drip | "I'd prefer a cruising phase … calm before the storm" | S | `UNBFailureDirector` |
+
+**Run length went the other way:** all three said "too short", and run 1 was delivered with half the deadline left. That argues against #15 and for more route, harder sections, or side tasks; it needs your decision below.
+
+Ideas from the test, after the demo unless you pull one forward: a **Gears seat** (manual up/down shifting; over-revving wears the engine), **terrain** instead of a flat slab with bumps, **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
+
 ### Tier 1: before the friend test
 | # | Item | Why it's fun | Effort | Touches |
 |---|---|---|---|---|
@@ -155,5 +176,6 @@ Ranked within each tier. "Touches" says where the work lands, so a session can s
 | Ship the public itch build on **AppID 480 (Spacewar)**? Players see "Spacewar" in Steam and need Steam running, and 480 is Valve's test app. The free alternative, Epic Online Services, is a big late change. | Wed 21 | Keep 480 for the demo (no code change, proven on 2 PCs). Move to your own AppID with the Steam release. |
 | **Lighting without Lumen** ([size phase B](#b-simpler-lighting-mon-12-it-changes-the-look-so-you-check-it)) | Mon 12, after the look check | Accept it: a smaller download, a much better frame rate on weak PCs, and flat-colour art doesn't need bounce light. |
 | **Pedal-seat blind camera** (#9) | After the 2-PC test | Try it if the Pedals seat felt like a passenger's job. |
-| **Run length** (#15) | After the 2-PC test | Keep 8:00 unless the test run dragged. |
+| **Run length** (#15) | Before the next test | The friend test said "too short" ×3 and run 1 finished at the halfway mark. Make it longer and harder: more sections or side tasks, not a shorter deadline. |
+| **Prop collision** (F7) | Before the next test | Trees, rocks and lamps solid; bushes and flowers not. The open ground beside the road stays drivable. |
 | **Final title** | Before Sat 24 | — |

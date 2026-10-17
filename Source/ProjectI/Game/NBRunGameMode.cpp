@@ -119,7 +119,8 @@ void ANBRunGameMode::StartPlay()
 
 	UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>();
 	const bool bRestarted = Sessions && Sessions->ConsumeRunRestart();
-	bAutoStart = !bHostStartsRun || bRestarted || GetWorld()->IsPlayInEditor();
+	// ?AutoStart in the URL: start at MinPlayers without the host's button (unattended 2-instance tests).
+	bAutoStart = !bHostStartsRun || bRestarted || GetWorld()->IsPlayInEditor() || UGameplayStatics::HasOption(OptionsString, TEXT("AutoStart"));
 
 	EnsureRoute();
 	FindOrSpawnCar();
@@ -243,21 +244,44 @@ void ANBRunGameMode::RestartRun()
 	// Set even if the travel is refused, so the end screen doesn't retry every frame.
 	bRestarting = true;
 
-	// Fresh map, fresh car. PIE refuses seamless travel, so there this does nothing; stop and replay.
-	if (!GetWorld()->ServerTravel(TEXT("?Restart")))
+	// PIE refuses seamless travel, so there this does nothing; stop and replay.
+	if (GetWorld()->IsPlayInEditor())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("NBRun: restart travel refused (seamless travel doesn't run in PIE)"));
+		return;
+	}
+	Director->End();
+
+	// Get rid of the car before travelling. A client that only hears the car is gone after it has
+	// moved to the new map destroys it there, and the Chaos vehicle's network physics component then
+	// reads the old map's freed physics solver: a crash on every client at every restart (2026-10-17
+	// friend test). A second's grace lets every client remove it while its old world is still alive.
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		if (It->IsSeated())
+		{
+			It->LeaveSeat();
+		}
+	}
+	if (Car)
+	{
+		Car->Destroy();
+		Car = nullptr;
+	}
+	GetWorldTimerManager().SetTimer(RestartTravelTimer, this, &ANBRunGameMode::TravelToRestart, 1.f);
+}
+
+void ANBRunGameMode::TravelToRestart()
+{
+	// Fresh map, fresh car.
+	if (!GetWorld()->ServerTravel(TEXT("?Restart")))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NBRun: restart travel refused"));
 		return;
 	}
 	if (UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>())
 	{
 		Sessions->NoteRunRestart();
-	}
-	// The old world keeps ticking while the map loads; keep the car still and quiet.
-	Director->End();
-	if (Car)
-	{
-		Car->SetRunLocked(true);
 	}
 }
 

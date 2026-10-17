@@ -65,6 +65,17 @@ public:
 	/** Server world time of the last repair, or a very negative number if never repaired. */
 	float GetLastRepairTime() const { return LastRepairTime; }
 
+	/** Server only: seconds since it broke, 0 while healthy. */
+	float GetFailedSeconds() const { return bFailed ? TimeSinceFailure : 0.f; }
+
+	/** How worn out it is, 0 (fresh) to 1 (about to go). The car's driving wears it; the failure
+	 *  director picks worn parts more often. Replicated coarsely, for a damage meter. */
+	UFUNCTION(BlueprintPure, Category = "Part")
+	float GetWear() const { return HasAuthority() ? Wear : RepWear / 255.f; }
+
+	/** Server only. Negative heals. Ignored while broken: a broken part starts fresh once fixed. */
+	void AddWear(float Amount);
+
 	/** Server only. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Part")
 	void Fail();
@@ -102,8 +113,16 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Failed)
 	bool bFailed = false;
 
+	bool HasAuthority() const { return GetOwner() && GetOwner()->HasAuthority(); }
+	void SetWear(float NewWear);
+
 	float TimeSinceFailure = 0.f;
 	float LastRepairTime = -1000000.f;
+
+	float Wear = 0.f;
+
+	UPROPERTY(Replicated)
+	uint8 RepWear = 0;
 
 	/** Local world time this machine saw the break, for the loop's severity. */
 	float LocalFailTime = 0.f;

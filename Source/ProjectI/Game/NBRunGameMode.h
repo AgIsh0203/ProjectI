@@ -178,6 +178,10 @@ private:
 	bool bAutoStart = false;
 	bool bRestarting = false;
 
+	/** RestartRun removes the car, then travels on this timer (see RestartRun for why). */
+	void TravelToRestart();
+	FTimerHandle RestartTravelTimer;
+
 	double Now() const;
 	ANBRunGameState* GetRunState() const;
 };
