@@ -72,6 +72,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact|Hold", meta = (ClampMin = "0.1"))
 	float HoldSeconds = 2.5f;
 
+	/** Hold: how many squirrels may hold at once; extras are turned away ("NAME IS ON IT"). More holders never
+	 *  made it faster, yet each saw the repair as theirs and got the credit (friend test 1, the tires). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact|Hold", meta = (ClampMin = "1"))
+	int32 MaxHoldUsers = 1;
+
 	/** Progress lost per second while not enough squirrels are holding. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interact|Hold", meta = (ClampMin = "0"))
 	float HoldDrainPerSecond = 0.35f;
@@ -140,6 +145,9 @@ public:
 	/** Enabled, in range, and the squirrel is in a state that may use it. */
 	UFUNCTION(BlueprintPure, Category = "Interact")
 	bool CanBeUsedBy(const ANBSquirrel* Squirrel) const;
+
+	/** A Hold with its holders already taken, not counting Squirrel itself. */
+	bool IsFullFor(const ANBSquirrel* Squirrel) const;
 
 	/** Where the ring marker is now, 0..1. */
 	UFUNCTION(BlueprintPure, Category = "Interact|TimingRing")

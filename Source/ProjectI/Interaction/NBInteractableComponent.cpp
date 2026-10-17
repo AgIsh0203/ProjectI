@@ -51,7 +51,10 @@ UNBInteractableComponent* UNBInteractableComponent::FindBestFor(const ANBSquirre
 		return nullptr;
 	}
 
+	// The nearest one this squirrel can actually work on; one someone else is already holding only
+	// if there's nothing else (it then shows "NAME IS ON IT"), so two squirrels at two flats split up.
 	UNBInteractableComponent* Best = nullptr;
+	bool bBestFull = true;
 	float BestDistSq = TNumericLimits<float>::Max();
 	for (UNBInteractableComponent* Interactable : Subsystem->GetInteractables())
 	{
@@ -59,10 +62,12 @@ UNBInteractableComponent* UNBInteractableComponent::FindBestFor(const ANBSquirre
 		{
 			continue;
 		}
+		const bool bFull = Interactable->IsFullFor(Squirrel);
 		const float DistSq = FVector::DistSquared(Interactable->GetComponentLocation(), Squirrel->GetActorLocation());
-		if (DistSq < BestDistSq)
+		if ((bBestFull && !bFull) || (bFull == bBestFull && DistSq < BestDistSq))
 		{
 			BestDistSq = DistSq;
+			bBestFull = bFull;
 			Best = Interactable;
 		}
 	}
@@ -72,6 +77,11 @@ UNBInteractableComponent* UNBInteractableComponent::FindBestFor(const ANBSquirre
 bool UNBInteractableComponent::IsInRangeOf(const ANBSquirrel* Squirrel) const
 {
 	return Squirrel && FVector::DistSquared(GetComponentLocation(), Squirrel->GetActorLocation()) <= FMath::Square(Range);
+}
+
+bool UNBInteractableComponent::IsFullFor(const ANBSquirrel* Squirrel) const
+{
+	return Mode == ENBInteractMode::Hold && Users.Num() >= MaxHoldUsers && !Users.Contains(Squirrel);
 }
 
 bool UNBInteractableComponent::CanBeUsedBy(const ANBSquirrel* Squirrel) const
@@ -147,7 +157,10 @@ void UNBInteractableComponent::PressBy(ANBSquirrel* Squirrel, double PressServer
 	{
 	case ENBInteractMode::Hold:
 	case ENBInteractMode::Push2:
-		Users.AddUnique(Squirrel);
+		if (!IsFullFor(Squirrel))
+		{
+			Users.AddUnique(Squirrel);
+		}
 		break;
 
 	case ENBInteractMode::Mash:
