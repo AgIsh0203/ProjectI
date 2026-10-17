@@ -52,6 +52,8 @@ private:
 	void DrawCarStatus();
 	/** Top-right timer and acorn count, the waiting/countdown banners, the wreck warning and the end screen. */
 	void DrawRunStatus();
+	/** Right, under the acorns: the car's health and a wear bar per part (green to red, BROKEN flashing). */
+	void DrawDamageMeter(const class ANBCar& Car, float Y);
 	/** Bottom: how far along the route the car is, and a banner when it enters a new section. */
 	void DrawRouteProgress(const class ANBCar& Car);
 	/** Acorn in Mouth banners, the chat wheel legend and recent pings. */
@@ -90,6 +92,9 @@ private:
 	void DrawSeatLabels();
 	/** "HONK!" over the car for a moment after each honk. */
 	void DrawHornBubble();
+
+	/** "AIR TIME! +N" over the car for a moment after each clean jump landing. */
+	void DrawJumpBubble();
 
 	/** Who is who: a bobbing YOU arrow over this player's squirrel, and every other squirrel's
 	 *  name (plus its seat) in its fur colour. Friend test 1: nobody knew which squirrel they were. */

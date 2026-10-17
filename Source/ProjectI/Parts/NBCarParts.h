@@ -48,9 +48,32 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0.1"))
 	float GoneSeconds = 12.f;
 
+	/** While failed they also seize now and then: a hard grab of GrabStrength for GrabSeconds... */
+	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0", ClampMax = "1"))
+	float GrabStrength = 0.8f;
+
+	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0"))
+	float GrabSeconds = 0.35f;
+
+	/** ...every GrabIntervalMin to GrabIntervalMax seconds, if the car is doing at least GrabMinSpeed (cm/s). */
+	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0.5"))
+	float GrabIntervalMin = 2.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0.5"))
+	float GrabIntervalMax = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "Part|Brakes", meta = (ClampMin = "0"))
+	float GrabMinSpeed = 300.f;
+
 protected:
 	virtual void ApplyFailedEffect(float FailedSeconds) override;
 	virtual void ClearEffect() override;
+	virtual void OnFailedChanged() override;
+
+private:
+	/** In seconds since the failure. */
+	float NextGrabAt = 0.f;
+	float GrabUntil = 0.f;
 };
 
 /** Flat tire: that wheel loses grip. Patch it from outside the car by clinging and holding. */
@@ -97,13 +120,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Part|Door")
 	float OpenYaw = -85.f;
 
-	/** How often a squirrel on the door's side gets thrown out while it's open. */
+	/** How often a squirrel on the door's side gets thrown out while it's open (3 s until friend test 1). */
 	UPROPERTY(EditAnywhere, Category = "Part|Door", meta = (ClampMin = "0.1"))
-	float EjectIntervalSeconds = 3.f;
+	float EjectIntervalSeconds = 2.f;
 
 	/** The car must be going at least this fast (cm/s) to throw anyone out. */
 	UPROPERTY(EditAnywhere, Category = "Part|Door", meta = (ClampMin = "0"))
-	float EjectMinSpeed = 300.f;
+	float EjectMinSpeed = 250.f;
+
+	/** With nobody on the door's side, this many acorns fall out instead each time. */
+	UPROPERTY(EditAnywhere, Category = "Part|Door", meta = (ClampMin = "0"))
+	int32 AcornsLostWhenEmpty = 2;
 
 protected:
 	virtual void BeginPlay() override;

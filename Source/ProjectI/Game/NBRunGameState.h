@@ -57,6 +57,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	int32 GetTimeBonus() const { return TimeBonus; }
 
+	/** Points from clean jump landings (ANBCar::GetAirPoints). */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	int32 GetAirBonus() const { return AirBonus; }
+
 	UFUNCTION(BlueprintPure, Category = "Run")
 	int32 GetRespawnPenalty() const { return RespawnPenalty; }
 
@@ -75,7 +79,7 @@ public:
 	void SetPhase(ENBRunPhase NewPhase, double NewEndTime);
 	void SetWreckSeconds(float Seconds) { WreckSeconds = Seconds; }
 	void SetAwards(APlayerState* NewMvp, APlayerState* NewMostUseless) { Mvp = NewMvp; MostUseless = NewMostUseless; }
-	void Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewPenalty, int32 NewScore, double RestartTime);
+	void Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewAirBonus, int32 NewPenalty, int32 NewScore, double RestartTime);
 
 private:
 	UPROPERTY(Replicated)
@@ -96,6 +100,9 @@ private:
 
 	UPROPERTY(Replicated)
 	int32 TimeBonus = 0;
+
+	UPROPERTY(Replicated)
+	int32 AirBonus = 0;
 
 	UPROPERTY(Replicated)
 	int32 RespawnPenalty = 0;

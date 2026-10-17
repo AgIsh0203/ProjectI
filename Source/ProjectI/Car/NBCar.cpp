@@ -230,6 +230,11 @@ void ANBCar::Tick(float DeltaSeconds)
 	if (HasAuthority())
 	{
 		UpdateWear(DeltaSeconds);
+		// The flat-tire wobble and speed cap change every frame, not only on input.
+		if (FlatWheels != 0)
+		{
+			ApplyInputsToVehicle();
+		}
 	}
 }
 
@@ -405,6 +410,8 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, ThrottleInput);
 	DOREPLIFETIME(ANBCar, bFlipped);
 	DOREPLIFETIME(ANBCar, Acorns);
+	DOREPLIFETIME(ANBCar, LastJumpPoints);
+	DOREPLIFETIME(ANBCar, JumpCount);
 	DOREPLIFETIME(ANBCar, RepEngineRPM);
 	DOREPLIFETIME(ANBCar, RepGear);
 }
@@ -430,10 +437,53 @@ void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
 void ANBCar::ApplyInputsToVehicle()
 {
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
-	Movement->SetSteeringInput(SteerInput);
-	Movement->SetThrottleInput(FMath::Max(ThrottleInput, 0.f));
-	Movement->SetBrakeInput(bRunLocked ? 1.f : FMath::Max(-ThrottleInput, 0.f));
+	float Steer = SteerInput;
+	float Throttle = FMath::Max(ThrottleInput, 0.f);
+	if (FlatWheels != 0)
+	{
+		// Each flat drags its side and shakes the wheel; past the top speed the engine gives up.
+		const TPair<uint8, float> Pulls[] = {{1, -FlatFrontPull}, {2, FlatFrontPull}, {4, -FlatRearPull}, {8, FlatRearPull}};
+		int32 NumFlat = 0;
+		for (const TPair<uint8, float>& Pull : Pulls)
+		{
+			if (FlatWheels & Pull.Key)
+			{
+				Steer += Pull.Value;
+				++NumFlat;
+			}
+		}
+		Steer += NumFlat * FlatWobble * FMath::Sin(GetWorld()->GetTimeSeconds() * 9.f);
+		if (FMath::Abs(GetForwardSpeed()) > FlatTopSpeed - (NumFlat - 1) * FlatTopSpeedPerExtra)
+		{
+			Throttle = 0.f;
+		}
+	}
+	Movement->SetSteeringInput(FMath::Clamp(Steer, -1.f, 1.f));
+	Movement->SetThrottleInput(Throttle);
+	Movement->SetBrakeInput(bRunLocked ? 1.f : FMath::Max(FMath::Max(-ThrottleInput, 0.f), BrakeGrab));
 	Movement->SetHandbrakeInput(bRunLocked);
+}
+
+void ANBCar::SetWheelFlat(const UNBTirePart* Tire, bool bFlat)
+{
+	check(HasAuthority());
+	const uint8 Bit = Tire == TireFL ? 1 : Tire == TireFR ? 2 : Tire == TireBL ? 4 : Tire == TireBR ? 8 : 0;
+	const uint8 Old = FlatWheels;
+	FlatWheels = bFlat ? (FlatWheels | Bit) : (FlatWheels & ~Bit);
+	if (FlatWheels != Old)
+	{
+		ApplyInputsToVehicle();
+	}
+}
+
+void ANBCar::SetBrakeGrab(float Strength)
+{
+	check(HasAuthority());
+	if (BrakeGrab != Strength)
+	{
+		BrakeGrab = Strength;
+		ApplyInputsToVehicle();
+	}
 }
 
 void ANBCar::SetRunLocked(bool bLocked)
@@ -472,21 +522,70 @@ int32 ANBCar::SpillAcorns(int32 Count)
 void ANBCar::CheckSpill()
 {
 	const FVector Velocity = GetVelocity();
+	const FVector LastSpillVelocityBefore = LastSpillVelocity;
 	const float DeltaV = (Velocity - LastSpillVelocity).Size();
 	LastSpillVelocity = Velocity;
 
 	const float Now = GetWorld()->GetTimeSeconds();
+	// A clean landing off a jump: the thump straight down doesn't shake the cargo out, only sideways jolts.
+	const float SpillDeltaV = UpdateJump(Now) ? FVector::VectorPlaneProject(Velocity - LastSpillVelocityBefore, FVector::UpVector).Size() : DeltaV;
 	if (DeltaV >= CrashMinDeltaV && Now >= NextCrashFeedbackTime)
 	{
 		NextCrashFeedbackTime = Now + CrashCooldown;
 		Multicast_Feedback(ENBCarFeedback::Crash, FMath::GetMappedRangeValueClamped(FVector2f(CrashMinDeltaV, CrashMaxDeltaV), FVector2f(0.f, 1.f), DeltaV));
 	}
 
-	if (bRunLocked || Acorns <= 0 || DeltaV < SpillMinDeltaV)
+	if (bRunLocked || Acorns <= 0 || SpillDeltaV < SpillMinDeltaV)
 	{
 		return;
 	}
-	SpillAcorns(1 + FMath::FloorToInt((DeltaV - SpillMinDeltaV) / SpillDeltaVPerAcorn));
+	SpillAcorns(1 + FMath::FloorToInt((SpillDeltaV - SpillMinDeltaV) / SpillDeltaVPerAcorn));
+}
+
+bool ANBCar::UpdateJump(double Now)
+{
+	const UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	int32 InContact = 0;
+	for (int32 i = 0; i < Movement->GetNumWheels(); ++i)
+	{
+		InContact += Movement->GetWheelState(i).bInContact ? 1 : 0;
+	}
+	if (InContact == 0)
+	{
+		if (AirborneSince < 0.0)
+		{
+			AirborneSince = Now;
+		}
+		// The landing thump often arrives a sample before the wheels report contact, so a long-enough
+		// flight already counts as landing clean.
+		return Now - AirborneSince >= MinJumpAirtime;
+	}
+	if (AirborneSince >= 0.0)
+	{
+		const double Airtime = Now - AirborneSince;
+		AirborneSince = -1.0;
+		const bool bUpright = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) > 0.8f;
+		if (Airtime >= MinJumpAirtime && GetVelocity().Size2D() >= MinJumpSpeed)
+		{
+			UE_LOG(LogTemp, Log, TEXT("NBJump: %.2f s in the air, %s"), Airtime, bUpright ? TEXT("clean landing") : TEXT("crashed"));
+		}
+		// A real jump lands moving; a stuck car whose wheels flicker off the ground, or a teleport, doesn't count.
+		const bool bMoving = GetVelocity().Size2D() >= MinJumpSpeed;
+		if (Airtime >= MinJumpAirtime && bUpright && bMoving && !bRunLocked && !bFlipped)
+		{
+			CleanLandingUntil = Now + CleanLandingGrace;
+			LastJumpPoints = FMath::RoundToInt(Airtime * AirPointsPerSecond);
+			AirPoints += LastJumpPoints;
+			++JumpCount;
+			OnRep_JumpCount();
+		}
+	}
+	return Now <= CleanLandingUntil;
+}
+
+void ANBCar::OnRep_JumpCount()
+{
+	LastJumpSeenTime = GetWorld()->GetTimeSeconds();
 }
 
 UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float MaxDistance) const

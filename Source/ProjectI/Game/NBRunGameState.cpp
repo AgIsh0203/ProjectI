@@ -13,6 +13,7 @@ void ANBRunGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ANBRunGameState, WreckSeconds);
 	DOREPLIFETIME(ANBRunGameState, AcornsDelivered);
 	DOREPLIFETIME(ANBRunGameState, TimeBonus);
+	DOREPLIFETIME(ANBRunGameState, AirBonus);
 	DOREPLIFETIME(ANBRunGameState, RespawnPenalty);
 	DOREPLIFETIME(ANBRunGameState, FinalScore);
 	DOREPLIFETIME(ANBRunGameState, Mvp);
@@ -34,12 +35,13 @@ void ANBRunGameState::SetPhase(ENBRunPhase NewPhase, double NewEndTime)
 	PhaseEndTime = NewEndTime;
 }
 
-void ANBRunGameState::Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewPenalty, int32 NewScore, double RestartTime)
+void ANBRunGameState::Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewAirBonus, int32 NewPenalty, int32 NewScore, double RestartTime)
 {
 	Phase = ENBRunPhase::Finished;
 	Result = NewResult;
 	AcornsDelivered = Delivered;
 	TimeBonus = NewTimeBonus;
+	AirBonus = NewAirBonus;
 	RespawnPenalty = NewPenalty;
 	FinalScore = NewScore;
 	PhaseEndTime = RestartTime;

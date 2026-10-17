@@ -49,13 +49,30 @@ UNBBrakePart::UNBBrakePart()
 
 void UNBBrakePart::ApplyFailedEffect(float FailedSeconds)
 {
+	ANBCar* Car = GetCar();
+	if (FailedSeconds >= NextGrabAt)
+	{
+		GrabUntil = FailedSeconds + GrabSeconds;
+		NextGrabAt = FailedSeconds + FMath::FRandRange(GrabIntervalMin, GrabIntervalMax);
+	}
+	// Seizing: full torque for a moment, whatever the pedals say, so the car lurches even when
+	// nobody brakes (friend test 1: "the brakes are going ... we didn't even press the brake").
+	const bool bGrab = FailedSeconds < GrabUntil && FMath::Abs(Car->GetForwardSpeed()) >= GrabMinSpeed;
 	const float Power = FMath::Lerp(FadedBrakePower, 0.f, FMath::Clamp(FailedSeconds / GoneSeconds, 0.f, 1.f));
-	GetCar()->SetBrakePowerScale(Power);
+	Car->SetBrakePowerScale(bGrab ? 1.f : Power);
+	Car->SetBrakeGrab(bGrab ? GrabStrength : 0.f);
 }
 
 void UNBBrakePart::ClearEffect()
 {
 	GetCar()->SetBrakePowerScale(1.f);
+	GetCar()->SetBrakeGrab(0.f);
+}
+
+void UNBBrakePart::OnFailedChanged()
+{
+	NextGrabAt = FMath::FRandRange(GrabIntervalMin * 0.5f, GrabIntervalMin);
+	GrabUntil = 0.f;
 }
 
 // --- Tire ---
@@ -84,11 +101,13 @@ void UNBTirePart::BeginPlay()
 void UNBTirePart::ApplyFailedEffect(float FailedSeconds)
 {
 	GetCar()->SetWheelGripScale(WheelIndex, FlatGrip);
+	GetCar()->SetWheelFlat(this, true);
 }
 
 void UNBTirePart::ClearEffect()
 {
 	GetCar()->SetWheelGripScale(WheelIndex, 1.f);
+	GetCar()->SetWheelFlat(this, false);
 }
 
 // --- Door ---
@@ -128,7 +147,7 @@ void UNBDoorPart::ApplyFailedEffect(float FailedSeconds)
 
 void UNBDoorPart::EjectSquirrelOnDoorSide()
 {
-	const ANBCar* Car = GetCar();
+	ANBCar* Car = GetCar();
 	const FVector Right = Car->GetActorRightVector();
 	const float DoorSide = FMath::Sign(FVector::DotProduct(GetComponentLocation() - Car->GetActorLocation(), Right));
 	for (UNBSeatComponent* Seat : Car->GetSeats())
@@ -142,6 +161,9 @@ void UNBDoorPart::EjectSquirrelOnDoorSide()
 			return;
 		}
 	}
+	// Nobody on that side: the cargo rattles out through the gap instead, so an open door always
+	// costs something (friend test 1: "does the door really matter? No").
+	Car->SpillAcorns(AcornsLostWhenEmpty);
 }
 
 void UNBDoorPart::OnFailedChanged()

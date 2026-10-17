@@ -121,6 +121,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Car|Cargo")
 	int32 GetMaxAcorns() const { return MaxAcorns; }
 
+	/** Air points banked this run from clean landings (server; added to the score on delivery). */
+	int32 GetAirPoints() const { return AirPoints; }
+
+	/** The last clean landing, for the HUD's "AIR TIME! +N": its points, and the local time this machine saw it. */
+	int32 GetLastJumpPoints() const { return LastJumpPoints; }
+	double GetLastJumpSeenTime() const { return LastJumpSeenTime; }
+
 	/** Server only. Throws up to Count acorns out of the bed as physics props. Returns how many spilled. */
 	int32 SpillAcorns(int32 Count);
 
@@ -146,6 +153,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Damage")
 	void SetWheelGripScale(int32 WheelIndex, float Scale);
+
+	/** A flat tire pulls the car towards its side, wobbles the wheel and caps the top speed. */
+	void SetWheelFlat(const class UNBTirePart* Tire, bool bFlat);
+
+	/** Failed brakes seizing: forces this much brake (0..1) over whatever the pedals say. */
+	void SetBrakeGrab(float Strength);
 
 protected:
 	virtual void BeginPlay() override;
@@ -236,6 +249,24 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Cargo")
 	float SpillDeltaVPerAcorn = 120.f;
 
+	// --- Jumps (friend test 1: "what's the use of the jump if we lose the nuts anyway?"). ---
+
+	/** All four wheels off the ground at least this long (s) counts as a jump... */
+	UPROPERTY(EditAnywhere, Category = "Car|Jumps")
+	float MinJumpAirtime = 0.5f;
+
+	/** ...landing at this horizontal speed (cm/s) or faster... */
+	UPROPERTY(EditAnywhere, Category = "Car|Jumps")
+	float MinJumpSpeed = 600.f;
+
+	/** ...and landing it upright earns this many points per second in the air... */
+	UPROPERTY(EditAnywhere, Category = "Car|Jumps")
+	float AirPointsPerSecond = 25.f;
+
+	/** ...and for this long after touchdown only sideways jolts spill acorns, not the landing thump. */
+	UPROPERTY(EditAnywhere, Category = "Car|Jumps")
+	float CleanLandingGrace = 0.3f;
+
 	/** Share of the remaining cargo dumped when the car flips. */
 	UPROPERTY(EditAnywhere, Category = "Car|Cargo", meta = (ClampMin = "0", ClampMax = "1"))
 	float FlipSpillFraction = 0.25f;
@@ -295,6 +326,28 @@ protected:
 	/** Added to the door each time a squirrel hops seats (not per second). */
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
 	float DoorWearPerHop = 0.15f;
+
+	// --- Flat tires (friend test 1: "what difference does a flat tyre make?"). ---
+
+	/** Steering added towards the side of a flat front tire (full lock = 1)... */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage")
+	float FlatFrontPull = 0.3f;
+
+	/** ...and of a flat rear tire. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage")
+	float FlatRearPull = 0.15f;
+
+	/** Steering shake per flat tire, so the car visibly wobbles. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage")
+	float FlatWobble = 0.08f;
+
+	/** With one flat the engine cuts out above this speed (cm/s)... */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage")
+	float FlatTopSpeed = 1400.f;
+
+	/** ...and each further flat lowers it by this much. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage")
+	float FlatTopSpeedPerExtra = 300.f;
 
 	/** Every part heals this much per second, so careful stretches cool things down. */
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
@@ -392,6 +445,10 @@ private:
 
 	/** Seconds driven above BrakeIdleMinSpeed since the brakes were last used. */
 	float SecondsWithoutBraking = 0.f;
+
+	/** Bit per flat tire: FL, FR, BL, BR. */
+	uint8 FlatWheels = 0;
+	float BrakeGrab = 0.f;
 	UNBTirePart* CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName);
 	void DevFailRandomPart();
 	void SoundTourStep();
@@ -426,6 +483,25 @@ private:
 	FTimerHandle DevChaosTimer;
 	FTimerHandle SpillTimerHandle;
 	FVector LastSpillVelocity = FVector::ZeroVector;
+
+	/** Server: tracks airtime in CheckSpill; returns true while a clean landing's grace is running. */
+	bool UpdateJump(double Now);
+	double AirborneSince = -1.0;
+	double CleanLandingUntil = 0.0;
+	int32 AirPoints = 0;
+
+	/** The last clean landing's points; JumpCount is bumped per jump so equal jumps still replicate. */
+	UPROPERTY(Replicated)
+	int32 LastJumpPoints = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_JumpCount)
+	uint8 JumpCount = 0;
+
+	UFUNCTION()
+	void OnRep_JumpCount();
+
+	/** Local time this machine saw the last jump. */
+	double LastJumpSeenTime = -100.0;
 	bool bRunLocked = false;
 	float NextCrashFeedbackTime = 0.f;
 

@@ -97,6 +97,9 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Voice is loud enough without Discord. Esc → Sound and voice: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
 - [ ] Everyone can tell which squirrel is theirs (YOU arrow) and who is on the Wheel and Pedals (top left, name tags).
 - [ ] The seated camera (6.5 m, tilting down while following): the car readable, the road ahead visible? Tune `SeatedArmLength` / `SeatedCameraHeight` / `SeatedFollowPitch` on BP_Squirrel.
+- [ ] Flat tires pull and cap speed, the door throws people or loses acorns, failed brakes lurch, the engine shows MASH LMB! / N MORE!. Do they matter now, without being unfair?
+- [ ] The damage meter (top right, CAR %): do players read it and fix things before they break?
+- [ ] THE BIG JUMP: a clean landing keeps the acorns and shows AIR TIME! +N; the end screen lists the Air bonus.
 - [ ] Failures: does fixing one buy a breather now? Does driving flat out break the engine more, and steering hard the front tires? Note the director log lines (`NBDirector: ...`) from the host's log.
 
 ## Friend test (moved up to the weekend of 17–18 Oct)

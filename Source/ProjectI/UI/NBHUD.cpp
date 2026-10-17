@@ -390,6 +390,7 @@ void ANBHUD::DrawHUD()
 	UpdateCallouts();
 	DrawCallouts();
 	DrawHornBubble();
+	DrawJumpBubble();
 
 	if (Squirrel->IsRagdolled())
 	{
@@ -522,6 +523,23 @@ void ANBHUD::DrawHornBubble()
 		}
 		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, Age));
 		DrawShoutText(TEXT("HONK!"), Screen.X, Screen.Y - 30.f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - Age) / 0.2f, 0.f, 1.f)), 2.f * Pop);
+	}
+}
+
+void ANBHUD::DrawJumpBubble()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		const float Age = static_cast<float>(Now - It->GetLastJumpSeenTime());
+		FVector2D Screen;
+		if (Age > 1.6f || It->GetLastJumpPoints() <= 0 || !PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(It->GetActorLocation() + FVector(0.f, 0.f, 300.f), Screen))
+		{
+			continue;
+		}
+		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.15f, Age));
+		const FLinearColor Color(GoodColor.R, GoodColor.G, GoodColor.B, FMath::Clamp((1.6f - Age) / 0.4f, 0.f, 1.f));
+		DrawShoutText(FString::Printf(TEXT("AIR TIME! +%d"), It->GetLastJumpPoints()), Screen.X, Screen.Y - 30.f - 40.f * Age, Color, 1.6f * Pop);
 	}
 }
 
@@ -756,7 +774,58 @@ void ANBHUD::DrawRunStatus()
 	if (Car && State->GetPhase() != ENBRunPhase::Finished)
 	{
 		DrawRight(FString::Printf(TEXT("ACORNS  %d / %d"), Car->GetAcorns(), Car->GetMaxAcorns()), 70.f, ProgressColor, 1.5f);
+		DrawDamageMeter(*Car, 112.f);
 		DrawRouteProgress(*Car);
+	}
+}
+
+void ANBHUD::DrawDamageMeter(const ANBCar& Car, float Y)
+{
+	// Friend test 1 asked to see how damaged the car is. Wear is the "about to go" signal the
+	// failure director leans on, so this shows the cause before the effect.
+	const TArray<TObjectPtr<UNBCarPartComponent>>& Parts = Car.GetParts();
+	if (Parts.IsEmpty())
+	{
+		return;
+	}
+	float Health = 0.f;
+	for (const UNBCarPartComponent* Part : Parts)
+	{
+		Health += Part ? (Part->IsFailed() ? 0.f : 1.f - Part->GetWear()) : 1.f;
+	}
+	Health /= Parts.Num();
+
+	UFont* Font = GEngine->GetSmallFont();
+	const float Right = Canvas->ClipX - 24.f;
+	const float BarW = 90.f;
+	const float Flash = 0.5f + 0.5f * FMath::Sin(GetWorld()->GetTimeSeconds() * 10.f);
+	auto WearColor = [](float Wear)
+	{
+		// Green, through yellow, to red.
+		return Wear < 0.5f ? FLinearColor::LerpUsingHSV(GoodColor, ProgressColor, Wear * 2.f)
+			: FLinearColor::LerpUsingHSV(ProgressColor, BadColor, (Wear - 0.5f) * 2.f);
+	};
+
+	const FString Title = FString::Printf(TEXT("CAR  %d%%"), FMath::RoundToInt(Health * 100.f));
+	float W = 0.f, H = 0.f;
+	GetTextSize(Title, W, H, Font, 1.4f);
+	DrawText(Title, WearColor(1.f - Health), Right - W, Y, Font, 1.4f);
+	Y += H + 6.f;
+
+	for (const UNBCarPartComponent* Part : Parts)
+	{
+		if (!Part)
+		{
+			continue;
+		}
+		const bool bBroken = Part->IsFailed();
+		const float Wear = bBroken ? 1.f : Part->GetWear();
+		const FString Label = bBroken ? FString::Printf(TEXT("%s  BROKEN"), *Part->PartName.ToString()) : Part->PartName.ToString();
+		const FLinearColor Color = bBroken ? FLinearColor(BadColor.R, BadColor.G, BadColor.B, 0.4f + 0.6f * Flash) : WearColor(Wear);
+		GetTextSize(Label, W, H, Font, 1.f);
+		DrawText(Label, bBroken ? Color : FLinearColor(1.f, 1.f, 1.f, 0.85f), Right - BarW - 10.f - W, Y, Font, 1.f);
+		DrawBar(Right - BarW, Y + 3.f, BarW, 10.f, FMath::Max(Wear, 0.04f), Color);
+		Y += H + 3.f;
 	}
 }
 
@@ -852,7 +921,7 @@ void ANBHUD::DrawVoiceStatus()
 void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 {
 	const float PanelW = 720.f;
-	const float PanelH = 490.f;
+	const float PanelH = 520.f;
 	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
 	const float PanelY = (Canvas->ClipY - PanelH) * 0.5f;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), PanelX, PanelY, PanelW, PanelH);
@@ -874,14 +943,15 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 	{
 		DrawCenteredText(FString::Printf(TEXT("Acorns delivered: %d"), State.GetAcornsDelivered()), Y, FLinearColor::White, 1.3f);
 		DrawCenteredText(FString::Printf(TEXT("Time bonus: +%d"), State.GetTimeBonus()), Y + 30.f, FLinearColor::White, 1.3f);
-		DrawCenteredText(FString::Printf(TEXT("Respawn penalty: -%d"), State.GetRespawnPenalty()), Y + 60.f, FLinearColor::White, 1.3f);
-		DrawCenteredText(FString::Printf(TEXT("SCORE  %d"), State.GetFinalScore()), Y + 100.f, ProgressColor, 2.2f);
+		DrawCenteredText(FString::Printf(TEXT("Air bonus: +%d"), State.GetAirBonus()), Y + 60.f, FLinearColor::White, 1.3f);
+		DrawCenteredText(FString::Printf(TEXT("Respawn penalty: -%d"), State.GetRespawnPenalty()), Y + 90.f, FLinearColor::White, 1.3f);
+		DrawCenteredText(FString::Printf(TEXT("SCORE  %d"), State.GetFinalScore()), Y + 130.f, ProgressColor, 2.2f);
 	}
 	else
 	{
 		DrawCenteredText(TEXT("The acorns never made it."), Y + 20.f, FLinearColor::White, 1.4f);
 	}
-	Y += 160.f;
+	Y += 190.f;
 
 	// Badges, big enough to read in a clip.
 	const APlayerState* Mvp = State.GetMvp();
@@ -962,6 +1032,20 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 	{
 		DrawRing(Interactable, FVector2D(Canvas->ClipX * 0.5f, Y + 70.f), 60.f);
 		Y += 150.f;
+	}
+	else if (Interactable.Mode == ENBInteractMode::Mash)
+	{
+		// Friend test 1: nobody understood the engine wanted many fast presses. Count them down,
+		// in the panel and bouncing on the part itself.
+		const int32 Left = FMath::Max(1, FMath::CeilToInt((1.f - Interactable.GetProgress()) * Interactable.MashPresses));
+		const float Time = GetWorld()->GetTimeSeconds();
+		const float Bounce = FMath::Abs(FMath::Sin(Time * 10.f));
+		DrawShoutText(FString::Printf(TEXT("%d MORE!"), Left), Canvas->ClipX * 0.5f, PanelY - 26.f - 6.f * Bounce, ProgressColor, 1.2f + 0.1f * Bounce);
+		FVector2D Screen;
+		if (PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(Interactable.GetComponentLocation() + FVector(0.f, 0.f, 40.f), Screen))
+		{
+			DrawShoutText(FString::Printf(TEXT("MASH %s!"), PromptName(ENBPrompt::Work)), Screen.X, Screen.Y - 30.f - 10.f * Bounce, ProgressColor, 1.f);
+		}
 	}
 
 	DrawBar(PanelX + 20.f, Y, PanelW - 40.f, 18.f, Interactable.GetProgress(), ProgressColor);

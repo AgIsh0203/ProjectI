@@ -443,12 +443,14 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 
 	int32 Delivered = 0;
 	int32 TimeBonus = 0;
+	int32 AirBonus = 0;
 	int32 Penalty = 0;
 	int32 Score = 0;
 	if (Result == ENBRunResult::Delivered)
 	{
 		Delivered = Car->GetAcorns();
 		TimeBonus = FMath::FloorToInt(SecondsLeft) * PointsPerSecondLeft;
+		AirBonus = Car->GetAirPoints();
 		for (const APlayerState* Player : GameState->PlayerArray)
 		{
 			if (const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
@@ -456,7 +458,7 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 				Penalty += Stats->GetRespawns() * RespawnPenalty;
 			}
 		}
-		Score = FMath::Max(0, Delivered * PointsPerAcorn + TimeBonus - Penalty);
+		Score = FMath::Max(0, Delivered * PointsPerAcorn + TimeBonus + AirBonus - Penalty);
 	}
 
 	Director->End();
@@ -470,7 +472,7 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 	Car->SetRunLocked(true);
 	State->SetWreckSeconds(0.f);
 	PickAwards();
-	State->Finish(Result, Delivered, TimeBonus, Penalty, Score, Now() + EndScreenSeconds);
+	State->Finish(Result, Delivered, TimeBonus, AirBonus, Penalty, Score, Now() + EndScreenSeconds);
 }
 
 void ANBRunGameMode::PickAwards()
