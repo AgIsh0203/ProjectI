@@ -114,7 +114,9 @@ Done 17 Oct, in the `2026-10-17-fix` build: **the restart crash** (every client 
 
 **Run length went the other way:** all three said "too short", and run 1 was delivered with half the deadline left. That argues against #15 and for more route, harder sections, or side tasks; it needs your decision below.
 
-Ideas from the test, after the demo unless you pull one forward: a **Gears seat** (manual up/down shifting; over-revving wears the engine), **terrain** instead of a flat slab with bumps, **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
+**Terrain** (pulled forward 18 Oct): a Landscape the road follows, rolling hills, grades ≤ 8 %. Plan in [Terrain.md](Terrain.md), 6–10 h, next session.
+
+Ideas from the test, after the demo unless you pull one forward: a **Gears seat** (manual up/down shifting; over-revving wears the engine) **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
 
 ### Tier 1: before the friend test
 | # | Item | Why it's fun | Effort | Touches |

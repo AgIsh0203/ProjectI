@@ -6,6 +6,7 @@
 - `docs/Roadmap.md` — **before picking up new work or packaging**: the schedule to the 24 Oct demo, the ranked backlog (items are cited as #N), the package-size budget and how to meet it, and the decisions waiting on the user.
 - `docs/GDD.md` — **design questions**: what each feature is, its status (Built / Friend test / Demo / Later), and the tuning table where playtested values get recorded.
 - `docs/Assets.md` — **before importing, assigning or committing any asset**: licence rules, folders, the slot map, sources.
+- `docs/Terrain.md` — **next session's work**: the plan for a Landscape in L_Route that the road follows (rolling hills, ≤ 8 % grades), chosen by the user on 18 Oct.
 - `docs/Playtest.md` — **before a packaged build or a 2-PC test**: everything that still needs a hands-on check.
 - `CREDITS.md` — **when an asset is imported**: add its line.
 - The approved plan (`C:\Users\ishan\.claude\plans\for-the-first-project-woolly-wozniak.md`) holds the original scope and success test. The Roadmap replaces its schedule, and the code map below replaces its technical sketch.
