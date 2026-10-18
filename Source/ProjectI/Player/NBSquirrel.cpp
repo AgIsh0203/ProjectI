@@ -239,6 +239,8 @@ void ANBSquirrel::BuildInputAssets()
 	HornAction = NewObject<UInputAction>(this, TEXT("IA_Horn"));
 	ResetAction = NewObject<UInputAction>(this, TEXT("IA_ResetCar"));
 	HandbrakeAction = NewObject<UInputAction>(this, TEXT("IA_Handbrake"));
+	SoloShiftUpAction = NewObject<UInputAction>(this, TEXT("IA_SoloShiftUp"));
+	SoloShiftDownAction = NewObject<UInputAction>(this, TEXT("IA_SoloShiftDown"));
 
 	PingActions.Reset();
 	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
@@ -310,6 +312,11 @@ void ANBSquirrel::MapKeys()
 	InputContext->MapKey(ResetAction, EKeys::Gamepad_Special_Left);
 	InputContext->MapKey(HandbrakeAction, KeyFor(ENBBinding::Handbrake));
 	InputContext->MapKey(HandbrakeAction, EKeys::Gamepad_RightShoulder);
+	// Dev solo drive only (the handlers check it).
+	InputContext->MapKey(SoloShiftUpAction, EKeys::MouseScrollUp);
+	InputContext->MapKey(SoloShiftDownAction, EKeys::MouseScrollDown);
+	InputContext->MapKey(SoloShiftUpAction, EKeys::E);
+	InputContext->MapKey(SoloShiftDownAction, EKeys::Q);
 }
 
 void ANBSquirrel::UpdateKeyBindings()
@@ -360,6 +367,8 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(ResetAction, ETriggerEvent::Completed, this, &ANBSquirrel::ResetReleased);
 	Input->BindAction(HandbrakeAction, ETriggerEvent::Started, this, &ANBSquirrel::HandbrakePressed);
 	Input->BindAction(HandbrakeAction, ETriggerEvent::Completed, this, &ANBSquirrel::HandbrakeReleased);
+	Input->BindAction(SoloShiftUpAction, ETriggerEvent::Started, this, &ANBSquirrel::SoloShiftUp);
+	Input->BindAction(SoloShiftDownAction, ETriggerEvent::Started, this, &ANBSquirrel::SoloShiftDown);
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
@@ -369,6 +378,16 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 void ANBSquirrel::Move(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
+	if (CurrentSeat && ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		// Dev solo drive: this squirrel is the whole crew.
+		if (!Axis.Equals(LastSentSoloInput, 0.01f))
+		{
+			LastSentSoloInput = Axis;
+			Server_SetSoloInput(Axis);
+		}
+		return;
+	}
 	if (CurrentSeat)
 	{
 		const ENBSeatRole SeatRole = CurrentSeat->Role;
@@ -403,6 +422,12 @@ void ANBSquirrel::Move(const FInputActionValue& Value)
 
 void ANBSquirrel::MoveCompleted(const FInputActionValue& Value)
 {
+	if (CurrentSeat && ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		LastSentSoloInput = FVector2D::ZeroVector;
+		Server_SetSoloInput(FVector2D::ZeroVector);
+		return;
+	}
 	if (CurrentSeat)
 	{
 		SendSeatInput(0.f);
@@ -439,6 +464,11 @@ void ANBSquirrel::JumpPressed()
 
 void ANBSquirrel::Interact()
 {
+	// Solo drive: E shifts up instead of hopping seats.
+	if (CurrentSeat && ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		return;
+	}
 	Server_Interact();
 }
 
@@ -521,7 +551,7 @@ void ANBSquirrel::HornPressed()
 
 void ANBSquirrel::HandbrakePressed()
 {
-	if (CurrentSeat && CurrentSeat->Role == ENBSeatRole::Gears)
+	if (CurrentSeat && (CurrentSeat->Role == ENBSeatRole::Gears || ANBRunGameMode::IsSoloDrive(GetWorld())))
 	{
 		bHandbrakeHeld = true;
 		Server_SetHandbrake(true);
@@ -544,9 +574,9 @@ void ANBSquirrel::HandbrakeReleased()
 
 void ANBSquirrel::Server_SetHandbrake_Implementation(bool bOn)
 {
-	// Only from the Gears seat; leaving it lets go (ANBCar::ClearSeatInput).
+	// Only from the Gears seat (any seat in solo drive); leaving it lets go (ANBCar::ClearSeatInput).
 	ANBCar* Car = GetSeatCar();
-	if (Car && CurrentSeat->Role == ENBSeatRole::Gears)
+	if (Car && (CurrentSeat->Role == ENBSeatRole::Gears || ANBRunGameMode::IsSoloDrive(GetWorld())))
 	{
 		Car->SetHandbrake(bOn);
 	}
@@ -716,6 +746,46 @@ void ANBSquirrel::Server_DevWarp_Implementation(const FString& Section)
 	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
 	{
 		Mode->DevWarp(Section);
+	}
+}
+
+void ANBSquirrel::NBSolo()
+{
+	Server_DevSolo();
+}
+
+void ANBSquirrel::Server_DevSolo_Implementation()
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		Mode->DevSolo(this);
+	}
+}
+
+void ANBSquirrel::Server_SetSoloInput_Implementation(FVector2D Axis)
+{
+	ANBCar* Car = GetSeatCar();
+	if (Car && ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		Car->SetSeatInput(ENBSeatRole::Wheel, Axis.X);
+		Car->SetSeatInput(ENBSeatRole::Pedals, Axis.Y);
+	}
+}
+
+void ANBSquirrel::Server_SoloShift_Implementation(int32 Direction)
+{
+	ANBCar* Car = GetSeatCar();
+	if (Car && ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		// The first shift switches to manual gears (solo starts the run before the lobby's toggle can be clicked).
+		ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>();
+		if (!Car->IsManualGears() && Mode)
+		{
+			Mode->SetManualGears(true);
+		}
+		// A push and a release of the Gears stick: one shift.
+		Car->SetSeatInput(ENBSeatRole::Gears, Direction > 0 ? 1.f : -1.f);
+		Car->SetSeatInput(ENBSeatRole::Gears, 0.f);
 	}
 }
 

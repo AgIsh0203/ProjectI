@@ -23,6 +23,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
 #include "Game/NBRoute.h"
+#include "Game/NBRunGameMode.h"
 #include "Game/NBRunGameState.h"
 #include "Player/NBControlSettings.h"
 #include "Player/NBPlayerState.h"
@@ -822,6 +823,12 @@ void ANBHUD::DrawRoles()
 	const bool bLive = State && State->GetPhase() == ENBRunPhase::Driving;
 	const float Pulse = 0.6f + 0.4f * FMath::Sin(GetWorld()->GetTimeSeconds() * 8.f);
 	float Y = 58.f;
+	if (ANBRunGameMode::IsSoloDrive(GetWorld()))
+	{
+		// Dev solo drive: one squirrel is every seat, so the empty ones aren't news.
+		DrawLeftShout(TEXT("SOLO DRIVE (dev): WASD drive, Shift handbrake, E / Q or mouse wheel shift (switches to manual)"), Y, ProgressColor);
+		return;
+	}
 	for (const ENBSeatRole SeatRole : {ENBSeatRole::Wheel, ENBSeatRole::Pedals, ENBSeatRole::Gears})
 	{
 		const UNBSeatComponent* Seat = Car.GetSeat(SeatRole);

@@ -3,6 +3,7 @@
 #include "Game/NBRunGameMode.h"
 
 #include "Car/NBCar.h"
+#include "HAL/IConsoleManager.h"
 #include "EngineUtils.h"
 #include "Game/NBFailureDirector.h"
 #include "Game/NBFinishZone.h"
@@ -18,6 +19,12 @@
 #include "Player/NBSquirrel.h"
 #include "UI/NBHUD.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	TAutoConsoleVariable<int32> CVarSoloDrive(TEXT("nb.SoloDrive"), 0,
+		TEXT("Dev, PIE only: 1 = one squirrel drives alone (WASD steer + gas/brake from any seat, Shift handbrake, mouse wheel shifts)."));
+}
 
 ANBRunGameMode::ANBRunGameMode()
 {
@@ -148,8 +155,9 @@ void ANBRunGameMode::StartPlay()
 
 bool ANBRunGameMode::CanChangeManualGears() const
 {
+	// Solo drive (dev) can flip it any time.
 	const ANBRunGameState* State = GetRunState();
-	return State && State->GetPhase() == ENBRunPhase::Waiting;
+	return State && (State->GetPhase() == ENBRunPhase::Waiting || IsSoloDrive(GetWorld()));
 }
 
 void ANBRunGameMode::SetManualGears(bool bManual)
@@ -342,6 +350,52 @@ void ANBRunGameMode::DevAutopilot(float Speed)
 	UE_LOG(LogTemp, Log, TEXT("NBAuto: on at %.0f cm/s"), Auto.Speed);
 }
 
+bool ANBRunGameMode::IsSoloDrive(const UWorld* World)
+{
+	return World && World->IsPlayInEditor() && CVarSoloDrive.GetValueOnGameThread() != 0;
+}
+
+void ANBRunGameMode::DevSolo(ANBSquirrel* Driver)
+{
+	if (!GetWorld()->IsPlayInEditor())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NBSolo: PIE only"));
+		return;
+	}
+	CVarSoloDrive->Set(1);
+	Director->End();
+	if (Car && Driver && !Driver->IsSeated())
+	{
+		Driver->EnterSeat(Car->GetSeat(ENBSeatRole::Wheel));
+	}
+	const ANBRunGameState* State = GetRunState();
+	if (State && State->GetPhase() == ENBRunPhase::Waiting)
+	{
+		bForceStart = true;
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBSolo: on (nb.SoloDrive 0 turns it off)"));
+}
+
+void ANBRunGameMode::SeatSoloDriver()
+{
+	if (!Car)
+	{
+		return;
+	}
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		const AController* Controller = It->GetController();
+		if (Controller && Controller->IsLocalController())
+		{
+			if (!It->IsSeated())
+			{
+				It->EnterSeat(Car->GetSeat(ENBSeatRole::Wheel));
+			}
+			return;
+		}
+	}
+}
+
 void ANBRunGameMode::LogAutopilotSection(const TCHAR* Why)
 {
 	if (!Route || Auto.Section == INDEX_NONE)
@@ -528,7 +582,8 @@ void ANBRunGameMode::Tick(float DeltaSeconds)
 
 void ANBRunGameMode::TickWaiting()
 {
-	if (bForceStart || (bAutoStart && GameState->PlayerArray.Num() >= MinPlayers))
+	const bool bSolo = IsSoloDrive(GetWorld()) && GameState->PlayerArray.Num() >= 1;
+	if (bForceStart || bSolo || (bAutoStart && GameState->PlayerArray.Num() >= MinPlayers))
 	{
 		BeginCountdown();
 	}
@@ -537,6 +592,10 @@ void ANBRunGameMode::TickWaiting()
 void ANBRunGameMode::BeginCountdown()
 {
 	GetRunState()->SetPhase(ENBRunPhase::Countdown, Now() + CountdownSeconds);
+	if (IsSoloDrive(GetWorld()))
+	{
+		SeatSoloDriver();
+	}
 }
 
 void ANBRunGameMode::BeginDriving()
@@ -546,8 +605,13 @@ void ANBRunGameMode::BeginDriving()
 	WreckTimer = 0.f;
 	NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	Car->SetRunLocked(false);
-	// The autopilot drives with no breakdowns, so its log shows the road, not the director.
-	if (Auto.Speed <= 0.f)
+	// The autopilot and solo drive have no breakdowns: they're for the road, not the director.
+	const bool bSolo = IsSoloDrive(GetWorld());
+	if (bSolo)
+	{
+		SeatSoloDriver();
+	}
+	if (Auto.Speed <= 0.f && !bSolo)
 	{
 		Director->Begin(Car, Deadline);
 	}

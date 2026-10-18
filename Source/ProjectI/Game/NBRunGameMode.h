@@ -87,6 +87,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Run|Dev")
 	void DevAutopilot(float Speed);
 
+	/**
+	 * Dev, PIE only, never shipped: solo drive (console nb.SoloDrive 1, or NBSolo). One squirrel drives alone: WASD steer
+	 * and gas/brake from any seat, Shift handbrake, mouse wheel shifts. The run starts with one squirrel, the host's squirrel
+	 * is put in the WHEEL seat, and nothing breaks by itself (NBFail / NBChaos still work).
+	 */
+	static bool IsSoloDrive(const UWorld* World);
+
+	/** Dev (NBSolo): turn solo drive on for this squirrel: seat it at the wheel, stop random failures, start the run. */
+	void DevSolo(class ANBSquirrel* Driver);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	TSubclassOf<ANBCar> CarClass;
@@ -196,6 +206,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNBFailureDirector> Director;
+
+	/** Solo drive: put the host's squirrel at the wheel if it isn't seated. */
+	void SeatSoloDriver();
 
 	/** Weighted pick: the Wheel seat and squirrels at a failing part are likelier to need to talk. */
 	void GiveAcornInMouth();

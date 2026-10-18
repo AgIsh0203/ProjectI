@@ -825,7 +825,7 @@ void UNBLobbyMenu::Refresh()
 	Show(PracticeButton, !bOnline && Phase == ENBRunPhase::Waiting);
 	Show(StartButton, bOnline && bAuthority && Phase == ENBRunPhase::Waiting);
 	StartButton->SetIsEnabled(Mode && Mode->CanStartRun());
-	Show(GearsButton, bAuthority && Phase == ENBRunPhase::Waiting);
+	Show(GearsButton, bAuthority && Mode && Mode->CanChangeManualGears());
 	if (UTextBlock* GearsLabel = Cast<UTextBlock>(GearsButton->GetChildAt(0)))
 	{
 		const bool bManual = State && State->IsManualGears();

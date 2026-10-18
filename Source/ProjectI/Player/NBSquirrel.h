@@ -214,6 +214,10 @@ public:
 	UFUNCTION(Exec)
 	void NBJoin();
 
+	/** Dev, PIE only: solo drive (see ANBRunGameMode::IsSoloDrive). Seats you at the wheel and starts the run. */
+	UFUNCTION(Exec)
+	void NBSolo();
+
 	/** Open or close the lobby menu (Esc / gamepad Start; Esc stops PIE, so use this there). */
 	UFUNCTION(Exec)
 	void NBMenu();
@@ -630,6 +634,21 @@ private:
 	UFUNCTION(Server, Reliable)
 	void Server_DevAutopilot(float Speed);
 
+	UFUNCTION(Server, Reliable)
+	void Server_DevSolo();
+
+	/** Solo drive: steer (X) and gas/brake (Y) at once, from any seat. */
+	UFUNCTION(Server, Unreliable)
+	void Server_SetSoloInput(FVector2D Axis);
+
+	/** Solo drive: mouse wheel up / down shifts (manual gears only). */
+	UFUNCTION(Server, Reliable)
+	void Server_SoloShift(int32 Direction);
+
+	void SoloShiftUp() { Server_SoloShift(1); }
+	void SoloShiftDown() { Server_SoloShift(-1); }
+	FVector2D LastSentSoloInput = FVector2D::ZeroVector;
+
 	UFUNCTION()
 	void OnRep_ClingTarget();
 	void SendSeatInput(float Value);
@@ -751,6 +770,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> HandbrakeAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SoloShiftUpAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SoloShiftDownAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)
