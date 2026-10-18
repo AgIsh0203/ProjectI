@@ -174,8 +174,9 @@ Checked only by script in 2-client PIE (seat inputs set from Python, no keys pre
 - [ ] Gamepad View works; rebinding Reset in Options works.
 
 ## Mountain trail (18 Oct): check by hand
-Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s: 7:52 against the 9:00 deadline, no stuck points, 17 acorns lost).
-- [ ] Is 9:00 still enough with breakdowns on the mountain trail? The autopilot alone needs 7:52.
+Only an autopilot has driven it so far (no breakdowns, 16 m/s; with the slower 18 Oct car, in a `-game` window: 6:40 against the 9:00 deadline, 21 acorns lost, stuck once on ROCKY ROAD's 18 % climb).
+- [ ] Is 9:00 still enough with breakdowns on the mountain trail? The autopilot alone needs 6:40.
+- [ ] The slower car (top ~1900 cm/s, 18 Oct): does it still feel fun, or sluggish? Does it make the 18 % climbs (ROCKY ROAD, PINE PASS) in automatic?
 - [ ] The look (no-Lumen build): do the mountains, cliffs and river read? Does the dirt trail stand out from the grass?
 - [ ] 18 % climbs: fun or a slog? With a broken engine (35 % power, then a stall), is a climb a funny crisis or a dead stop? (`MaxGrade` on the route, then a rebake.)
 - [ ] Descents with failed brakes: scary-fun, or the brake grab flips the car?

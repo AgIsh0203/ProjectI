@@ -132,6 +132,8 @@ void ANBRunGameMode::StartPlay()
 	const bool bRestarted = Sessions && Sessions->ConsumeRunRestart();
 	// ?AutoStart in the URL: start at MinPlayers without the host's button (unattended 2-instance tests).
 	bAutoStart = !bHostStartsRun || bRestarted || GetWorld()->IsPlayInEditor() || UGameplayStatics::HasOption(OptionsString, TEXT("AutoStart"));
+	// ?Autopilot=<cm/s> drives alone, like NBAuto: start without waiting for a crew (one -game window can time the route).
+	bForceStart = Auto.Speed > 0.f;
 
 	EnsureRoute();
 	FindOrSpawnCar();

@@ -1,33 +1,45 @@
-# Sets the car's gearbox on BP_OffroadCar_Pawn (run in the editor's Python, then the Blueprint is saved).
+# Sets the car's gearbox and engine torque on BP_OffroadCar_Pawn (run in the editor's Python).
+# SAVE = False applies them in memory only, for trying values in PIE; True also saves the Blueprint
+# (it's an LFS-lockable asset: `git lfs lock` it first, or the save fails as read-only).
 #
-# Why (18 Oct): with the template's ratios (4.25 / 2.52 / 1.66 / 1.22 / 1.0) 1st gear alone reached ~2200 cm/s,
-# and the engine runs out of pull near 5100 rpm, so the automatic box (shifting up at 6000) never left 1st and
-# a manual crew never needed to shift. The ratios below space the gears so each tops out near:
-#   1st ~1000, 2nd ~1600, 3rd ~2200, 4th ~2800, 5th ~3400 cm/s at ~5100 rpm
-# (speed = rpm / 60 * 2 pi * 50 cm wheel radius / (gear x final ratio 2.81)),
-# and the automatic shift points sit under that, so automatic uses every gear too.
+# History:
+# - Template: ratios 4.25 / 2.52 / 1.66 / 1.22 / 1.0, 750 Nm. 1st alone reached ~2200 cm/s and the automatic box
+#   (up at 6000 rpm) never left 1st, so shifting didn't matter.
+# - 18 Oct: 9.5 / 5.94 / 4.32 / 3.39 / 2.79, up 4700 / down 2600 rpm. PIE tops per gear ~1200 / 1690 / 2135 /
+#   2690 / 3000 cm/s. The user: still too fast, the top speed should be much less.
+# - 18 Oct, below: taller ratios with less torque (about the same pull at the wheels in each gear, so the launch
+#   feels the same) and so less power: lower tops in every gear. PIE tops per gear ~806 / 1055 / 1260 / 1572 /
+#   1891 cm/s (was 907 / 1191 / 1451 / 1820 / 2127 with 14.25 / 8.9 / 6.5 / 5.1 / 4.2 and 500 Nm, still too fast).
 import unreal
 
-FORWARD = [9.5, 5.94, 4.32, 3.39, 2.79]
+FORWARD = [16.4, 10.2, 7.5, 5.9, 4.85]
+MAX_TORQUE = 435.0
 CHANGE_UP_RPM = 4700.0
 CHANGE_DOWN_RPM = 2600.0
+SAVE = True
 
 BP_PATH = "/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"
 
 bp_class = unreal.load_class(None, BP_PATH + ".BP_OffroadCar_Pawn_C")
 cdo = unreal.get_default_object(bp_class)
 movement = cdo.get_components_by_class(unreal.ChaosWheeledVehicleMovementComponent)[0]
+
 setup = movement.get_editor_property("transmission_setup")
-before = list(setup.get_editor_property("forward_gear_ratios"))
 setup.set_editor_property("forward_gear_ratios", FORWARD)
 setup.set_editor_property("change_up_rpm", CHANGE_UP_RPM)
 setup.set_editor_property("change_down_rpm", CHANGE_DOWN_RPM)
 movement.set_editor_property("transmission_setup", setup)
 
+engine = movement.get_editor_property("engine_setup")
+engine.set_editor_property("max_torque", MAX_TORQUE)
+movement.set_editor_property("engine_setup", engine)
+
 blueprint = unreal.load_asset(BP_PATH)
 unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
-unreal.EditorAssetLibrary.save_asset(BP_PATH, only_if_is_dirty=False)
+if SAVE:
+    unreal.EditorAssetLibrary.save_asset(BP_PATH, only_if_is_dirty=False)
 
 after = movement.get_editor_property("transmission_setup")
-unreal.log("SetGearbox: %s -> %s, up %s, down %s" % (before, list(after.get_editor_property("forward_gear_ratios")),
-    after.get_editor_property("change_up_rpm"), after.get_editor_property("change_down_rpm")))
+unreal.log("SetGearbox: ratios %s, torque %s, up %s, down %s, saved %s" % (list(after.get_editor_property("forward_gear_ratios")),
+    movement.get_editor_property("engine_setup").get_editor_property("max_torque"),
+    after.get_editor_property("change_up_rpm"), after.get_editor_property("change_down_rpm"), SAVE))
