@@ -32,7 +32,9 @@ TRAIL_LAYER = "/Game/Maps/LI_Trail"
 QUAD_SIZE = 200.0      # cm per landscape quad (4 m halves the landscape's size on disk)
 LANDSCAPE_MARGIN = 30000.0  # cm of landscape beyond the road on every side
 # Layers ANBRoute builds without collision.
-NO_COLLISION_LAYERS = ("Road", "Lines", "Markers", "Water")
+NO_COLLISION_LAYERS = ("Road", "Lines", "Water")
+# Props the car knocks over instead of hitting (ANBProp::bKnockable).
+KNOCKABLE_MESHES = ("SM_construction_cone",)
 # Layers that sit on the road and follow its profile: SnapToGround leaves them alone.
 ROAD_LAYERS = ("Road", "Lines", "Bumps", "Rocks", "Pillars", "Hills", "Planks", "Water", "Pebbles", "Boundary")
 REBAKE = globals().get("REBAKE", False)
@@ -132,10 +134,14 @@ for component in builder.get_components_by_class(unreal.InstancedStaticMeshCompo
         for i, t in enumerate(transforms):
             prop = eas.spawn_actor_from_class(unreal.NBProp, t.translation, t.rotation.rotator())
             prop.set_actor_scale3d(t.scale3d)
+            # Traffic cones get knocked over (a light physics body each) instead of blocking.
+            knockable = mesh.get_name() in KNOCKABLE_MESHES
+            prop.set_editor_property("knockable", knockable)
             prop.set_prop(mesh, fraction, builder.get_prop_block_at_pivot(mesh))
             prop_mesh = prop.get_editor_property("mesh")
             prop_mesh.set_cast_shadow(component.cast_shadow)
-            prop_mesh.set_mobility(unreal.ComponentMobility.STATIC)
+            if not knockable:
+                prop_mesh.set_mobility(unreal.ComponentMobility.STATIC)
             prop.set_actor_label("%s_%d" % (mesh.get_name().replace("SM_", ""), i))
             prop.set_folder_path("Route/Props/" + mesh.get_name().replace("SM_", ""))
             tag_ground(prop)
@@ -144,7 +150,8 @@ for component in builder.get_components_by_class(unreal.InstancedStaticMeshCompo
         continue
     materials = [baked_material(component.get_material(i)) for i in range(component.get_num_materials())]
     # Python reads every instanced layer as colliding, so the layers built without collision (ANBRoute::MakeLayer)
-    # are named here: the water (the car drove on it), the road paint, and the markers and sign boards.
+    # are named here: the water (the car drove on it) and the road paint. The red corner posts and sign boards
+    # (Markers) collide since 18 Oct.
     collides = not layer.startswith(NO_COLLISION_LAYERS)
 
     def style(smc):

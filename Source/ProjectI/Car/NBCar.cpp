@@ -172,6 +172,8 @@ void ANBCar::BeginPlay()
 
 	// The wheels drive through river water to the riverbed, never on top of it.
 	GetChaosVehicleMovement()->SetWheelTraceResponseToChannel(NBCollision::Water, ECR_Ignore);
+	// Knocked-over cones and spilled acorns get shoved, not driven up onto.
+	GetChaosVehicleMovement()->SetWheelTraceResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
 
 	if (HasAuthority())
 	{
@@ -302,6 +304,9 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 		const float Rough = FMath::GetMappedRangeValueClamped(FVector2f(RoughJoltStart, RoughJoltFull), FVector2f(0.f, 1.f), SmoothedJolt[Wheel]);
 		Tire->AddWear(RoughTireWearRate * Rough * DeltaSeconds);
 	}
+
+	// Off the trail: grip fades, tyres and engine wear, the scrub drags.
+	UpdateOffroad(DeltaSeconds, Speed);
 
 	// Fording: the water holds the car back and the stones nobody can see chew the tyres.
 	if (const ANBRoute* Route = ANBRoute::Find(GetWorld()))
@@ -458,6 +463,7 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, bFlipped);
 	DOREPLIFETIME(ANBCar, Acorns);
 	DOREPLIFETIME(ANBCar, LastJumpPoints);
+	DOREPLIFETIME(ANBCar, RepOffroad);
 	DOREPLIFETIME(ANBCar, JumpCount);
 	DOREPLIFETIME(ANBCar, RepEngineRPM);
 	DOREPLIFETIME(ANBCar, RepGear);
@@ -803,9 +809,80 @@ void ANBCar::SetBrakePowerScale(float Scale)
 
 void ANBCar::SetWheelGripScale(int32 WheelIndex, float Scale)
 {
-	if (BaseFriction.IsValidIndex(WheelIndex))
+	if (WheelIndex >= 0 && WheelIndex < 4)
 	{
-		GetChaosVehicleMovement()->SetWheelFrictionMultiplier(WheelIndex, BaseFriction[WheelIndex] * FMath::Max(Scale, 0.f));
+		PartGrip[WheelIndex] = FMath::Max(Scale, 0.f);
+		ApplyWheelGrip(WheelIndex);
+	}
+}
+
+void ANBCar::ApplyWheelGrip(int32 WheelIndex)
+{
+	if (BaseFriction.IsValidIndex(WheelIndex) && WheelIndex < 4)
+	{
+		const float Offroad = 1.f - (1.f - OffroadMinGrip) * OffroadLevel * WheelOffroad[WheelIndex];
+		GetChaosVehicleMovement()->SetWheelFrictionMultiplier(WheelIndex, BaseFriction[WheelIndex] * PartGrip[WheelIndex] * Offroad);
+	}
+}
+
+void ANBCar::UpdateOffroad(float DeltaSeconds, float Speed)
+{
+	const ANBRoute* Route = ANBRoute::Find(GetWorld());
+	const UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	OffroadSampleTimer += DeltaSeconds;
+	if (!Route || OffroadSampleTimer < OffroadSampleInterval)
+	{
+		return;
+	}
+	const float Step = OffroadSampleTimer;
+	OffroadSampleTimer = 0.f;
+
+	// Which wheels are off the trail: sampled where each touches the ground (a wheel in the air keeps its last value).
+	float MeanOff = 0.f;
+	const int32 NumWheels = FMath::Min(Movement->GetNumWheels(), 4);
+	for (int32 i = 0; i < NumWheels; ++i)
+	{
+		const FWheelStatus& Wheel = Movement->GetWheelState(i);
+		if (Wheel.bInContact)
+		{
+			WheelOffroad[i] = 1.f - FMath::Clamp(Route->GetTrailWeight(Wheel.HitLocation.X, Wheel.HitLocation.Y), 0.f, 1.f);
+		}
+		MeanOff += WheelOffroad[i] / FMath::Max(NumWheels, 1);
+	}
+
+	// Builds up the longer the car stays off, so a quick shortcut is fine and a long one isn't.
+	const float Target = MeanOff;
+	OffroadLevel = OffroadLevel < Target
+		? FMath::Min(Target, OffroadLevel + Step / OffroadRampSeconds)
+		: FMath::Max(Target, OffroadLevel - Step / OffroadRecoverSeconds);
+	RepOffroad = static_cast<uint8>(FMath::RoundToInt(OffroadLevel * 255.f));
+	for (int32 i = 0; i < NumWheels; ++i)
+	{
+		ApplyWheelGrip(i);
+	}
+
+	if (OffroadLevel > 0.f)
+	{
+		const float Moving = FMath::Clamp(Speed / 800.f, 0.f, 1.f);
+		for (UNBTirePart* Tire : {TireFL, TireFR, TireBL, TireBR})
+		{
+			const int32 Wheel = Tire->GetWheelIndex();
+			if (Wheel >= 0 && Wheel < 4)
+			{
+				Tire->AddWear(OffroadTireWearRate * OffroadLevel * WheelOffroad[Wheel] * Moving * Step);
+			}
+		}
+		EnginePart->AddWear(OffroadEngineWearRate * OffroadLevel * MeanOff * Moving * Step);
+		// Grass and scrub hold the car back.
+		GetMesh()->AddImpulse(-FVector::VectorPlaneProject(GetVelocity(), FVector::UpVector) * FMath::Min(OffroadDrag * OffroadLevel * MeanOff * Step, 1.f),
+			NAME_None, /*bVelChange=*/true);
+	}
+
+	const bool bOffroad = MeanOff > 0.5f;
+	if (bOffroad != bWasOffroad)
+	{
+		bWasOffroad = bOffroad;
+		UE_LOG(LogTemp, Log, TEXT("NBOffroad: car %s the trail (level %.2f)"), bOffroad ? TEXT("leaves") : TEXT("is back on"), OffroadLevel);
 	}
 }
 

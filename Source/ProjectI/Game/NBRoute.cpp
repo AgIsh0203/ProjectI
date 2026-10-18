@@ -847,6 +847,16 @@ float ANBRoute::GetGroundHeight(float X, float Y) const
 	return GetActorTransform().TransformPosition(FVector(Local.X, Local.Y, GroundZ(Local.X, Local.Y))).Z;
 }
 
+float ANBRoute::GetTrailWeight(float X, float Y) const
+{
+	if (!bUseTerrain)
+	{
+		return 1.f;
+	}
+	const FVector Local = GetActorTransform().InverseTransformPosition(FVector(X, Y, 0.f));
+	return SampleGround(Local.X, Local.Y).Trail;
+}
+
 float ANBRoute::GetTerrainHeight(float X, float Y) const
 {
 	const FVector Local = GetActorTransform().InverseTransformPosition(FVector(X, Y, 0.f));
@@ -1170,7 +1180,7 @@ void ANBRoute::BuildGeometry()
 	Pillars = MakeLayer(TEXT("Pillars"), FLinearColor(1.f, 0.4f, 0.05f),    true,  true);
 	Hills   = MakeLayer(TEXT("Hills"),   FLinearColor(0.45f, 0.5f, 0.2f),   true,  true);
 	Planks  = MakeLayer(TEXT("Planks"),  FLinearColor(0.45f, 0.28f, 0.14f), true,  true);
-	Markers = MakeLayer(TEXT("Markers"), FLinearColor(0.85f, 0.1f, 0.1f),   false, true);
+	Markers = MakeLayer(TEXT("Markers"), FLinearColor(0.85f, 0.1f, 0.1f),   true, true);
 	Walls   = MakeLayer(TEXT("Walls"),   FLinearColor(0.5f, 0.5f, 0.55f),   true,  true);
 	Pebbles = MakeLayer(TEXT("Pebbles"), FLinearColor(0.3f, 0.27f, 0.24f), true,  false);
 	if (bUseTerrain)

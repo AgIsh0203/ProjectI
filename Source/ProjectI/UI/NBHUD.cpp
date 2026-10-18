@@ -450,6 +450,7 @@ void ANBHUD::DrawHUD()
 	DrawCallouts();
 	DrawHornBubble();
 	DrawJumpBubble();
+	DrawOffroadWarning();
 
 	DrawEjectReason(*Squirrel);
 	const float RespawnLeft = Squirrel->GetRespawnSecondsLeft();
@@ -585,6 +586,23 @@ void ANBHUD::DrawHornBubble()
 		}
 		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, Age));
 		DrawShoutText(TEXT("HONK!"), Screen.X, Screen.Y - 30.f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - Age) / 0.2f, 0.f, 1.f)), 2.f * Pop);
+	}
+}
+
+void ANBHUD::DrawOffroadWarning()
+{
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		const float Level = It->GetOffroadLevel();
+		if (Level < 0.15f)
+		{
+			continue;
+		}
+		// Brighter and shakier as the grip goes, so the driver knows to get back on the trail.
+		const float Pulse = 0.75f + 0.25f * FMath::Sin(GetWorld()->GetTimeSeconds() * (4.f + 8.f * Level));
+		const FString Text = FString::Printf(TEXT("OFF THE TRAIL!  grip -%d%%"), FMath::RoundToInt(Level * (1.f - It->GetOffroadMinGrip()) * 100.f));
+		DrawShoutText(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 185.f, FLinearColor(1.f, 0.55f, 0.15f, Pulse), 0.6f + 0.25f * Level);
+		return;
 	}
 }
 

@@ -121,6 +121,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Car|Cargo")
 	int32 GetMaxAcorns() const { return MaxAcorns; }
 
+	/** 0..1: how far the off-trail grip loss has built up (replicated coarsely, for the HUD). */
+	float GetOffroadLevel() const { return HasAuthority() ? OffroadLevel : RepOffroad / 255.f; }
+	float GetOffroadMinGrip() const { return OffroadMinGrip; }
+
 	/** Air points banked this run from clean landings (server; added to the score on delivery). */
 	int32 GetAirPoints() const { return AirPoints; }
 
@@ -377,6 +381,33 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
 	float RoughJoltFull = 4.f;
 
+	// --- Off the trail (18 Oct: "you can take the path but not for long"). The trail is the route's dirt
+	// track (ANBRoute::GetTrailWeight); grass, hillsides and shortcuts are off it. ---
+
+	/** Grip of a wheel off the trail once the off-road level has built up fully... */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad", meta = (ClampMin = "0", ClampMax = "1"))
+	float OffroadMinGrip = 0.45f;
+
+	/** ...which takes this long with the whole car off the trail... */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad", meta = (ClampMin = "0.1"))
+	float OffroadRampSeconds = 5.f;
+
+	/** ...and this long to recover once back on it. */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad", meta = (ClampMin = "0.1"))
+	float OffroadRecoverSeconds = 2.f;
+
+	/** Wear per second on each tyre off the trail at full off-road level, while moving. */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad")
+	float OffroadTireWearRate = 0.05f;
+
+	/** Engine wear per second with the whole car off the trail at full level (it labours on grass). */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad")
+	float OffroadEngineWearRate = 0.015f;
+
+	/** Velocity lost per second with the whole car off the trail at full level (0..1). */
+	UPROPERTY(EditAnywhere, Category = "Car|Offroad", meta = (ClampMin = "0", ClampMax = "1"))
+	float OffroadDrag = 0.2f;
+
 	// --- Crash damage (friend test 2: "random damage ... should be a punishment for hitting stuff"). ---
 
 	/** A sideways or head-on hit (horizontal velocity change over 0.1 s, cm/s) at least this hard damages the part
@@ -538,6 +569,21 @@ private:
 	/** Server: per wheel, last tick's suspension length and its smoothed rate of change (rough ground). */
 	float LastSuspension[4] = {};
 	float SmoothedJolt[4] = {};
+
+	/** Server: off-trail state. Sampled every OffroadSampleInterval; grip = parts' scale x off-road scale. */
+	void UpdateOffroad(float DeltaSeconds, float Speed);
+	void ApplyWheelGrip(int32 WheelIndex);
+	static constexpr float OffroadSampleInterval = 0.1f;
+	float OffroadSampleTimer = 0.f;
+	float OffroadLevel = 0.f;
+	/** Per wheel, 0 = on the trail, 1 = fully off it (last sample). */
+	float WheelOffroad[4] = {};
+	/** Per wheel, the grip scale the parts set (a flat tyre). */
+	float PartGrip[4] = {1.f, 1.f, 1.f, 1.f};
+	bool bWasOffroad = false;
+
+	UPROPERTY(Replicated)
+	uint8 RepOffroad = 0;
 
 	/** Server: tracks airtime in CheckSpill; returns true while a clean landing's grace is running. */
 	bool UpdateJump(double Now);

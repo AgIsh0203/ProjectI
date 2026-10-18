@@ -28,7 +28,29 @@ ANBProp::ANBProp()
 void ANBProp::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	// A knockable prop moves in the game, so it can't be static.
+	Mesh->SetMobility(bKnockable ? EComponentMobility::Movable : EComponentMobility::Static);
+	Blocker->SetMobility(Mesh->Mobility);
 	FitBlocker();
+}
+
+void ANBProp::BeginPlay()
+{
+	Super::BeginPlay();
+	if (!bKnockable || !Mesh->GetStaticMesh())
+	{
+		return;
+	}
+	Mesh->SetMobility(EComponentMobility::Movable);
+	Mesh->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
+	// The chase camera would snap in front of every cone it brushes.
+	Mesh->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	Mesh->SetMassOverrideInKg(NAME_None, KnockMass, true);
+	Mesh->SetLinearDamping(0.4f);
+	Mesh->SetAngularDamping(0.6f);
+	Mesh->SetSimulatePhysics(true);
+	// Resting until something hits it, so hundreds of cones cost nothing.
+	Mesh->PutRigidBodyToSleep();
 }
 
 void ANBProp::SetProp(UStaticMesh* NewMesh, float NewBlockFraction, bool bNewBlockAtPivot)
@@ -58,7 +80,7 @@ void ANBProp::BlockerBox(const UStaticMesh* Mesh, float Fraction, bool bAtPivot,
 void ANBProp::FitBlocker()
 {
 	const UStaticMesh* StaticMesh = Mesh->GetStaticMesh();
-	if (!StaticMesh || BlockFraction <= 0.f)
+	if (!StaticMesh || BlockFraction <= 0.f || bKnockable)
 	{
 		Blocker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Blocker->SetBoxExtent(FVector(1.f), false);

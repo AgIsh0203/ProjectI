@@ -23,6 +23,7 @@ public:
 	ANBProp();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void BeginPlay() override;
 
 	/** For the bake script. */
 	UFUNCTION(BlueprintCallable, Category = "Prop")
@@ -46,6 +47,16 @@ protected:
 	 *  off = centred on the mesh's bounds (rocks, logs, fences). */
 	UPROPERTY(EditAnywhere, Category = "Prop")
 	bool bBlockAtPivot = false;
+
+	/** A light physics body the car (or a squirrel) knocks over instead of a fixed blocker: traffic cones.
+	 *  Each machine simulates it on its own (not replicated), so a cone may lie a little differently per player.
+	 *  Needs simple collision on the mesh. BlockFraction is ignored. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Prop")
+	bool bKnockable = false;
+
+	/** Mass of a knockable prop: light enough that hitting it doesn't slow the car. */
+	UPROPERTY(EditAnywhere, Category = "Prop", meta = (ClampMin = "0.1", EditCondition = "bKnockable"))
+	float KnockMass = 4.f;
 
 private:
 	void FitBlocker();

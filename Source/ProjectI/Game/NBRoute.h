@@ -129,6 +129,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Route|Terrain")
 	float GetGroundHeight(float X, float Y) const;
 
+	/** How much a world X/Y is on the dirt trail: 1 on it (and everywhere without terrain), fading to 0
+	 *  across its shoulders. The car loses grip the longer its wheels stay off it. */
+	UFUNCTION(BlueprintPure, Category = "Route|Terrain")
+	float GetTrailWeight(float X, float Y) const;
+
 	/** The ground's height model without the road (world Z, cm). */
 	UFUNCTION(BlueprintPure, Category = "Route|Terrain")
 	float GetTerrainHeight(float X, float Y) const;

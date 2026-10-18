@@ -130,6 +130,11 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Keys: click Horn, press J: J honks and H doesn't; bind Horn to E and Get in takes H (swap); Reset keys brings back the defaults; the bottom hints and the WHEEL / PEDALS lines show the new keys; the bindings survive a relaunch.
 - [ ] Display: window mode, resolution, quality, frame cap and VSync apply at once and survive a relaunch. The editor only shows placeholder values here.
 
+## Cones, markers, off the trail (18 Oct): check by hand
+- [ ] Traffic cones fly when the car hits them, without slowing it; a squirrel can kick them too. In a 2-PC run each player's cones may lie differently (they aren't replicated): does anyone notice?
+- [ ] The red corner posts and sign boards are solid now: fair obstacles, or do they catch the car on tight corners?
+- [ ] Off the trail: a short cut across the grass is fine, a long one gets slippery ("OFF THE TRAIL!  grip -N%"), wears the tyres and slows the car. Too harsh or too soft? (`OffroadMinGrip`, `OffroadRampSeconds`, `OffroadDrag` on BP_OffroadCar_Pawn.)
+
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s: 7:52 against the 9:00 deadline, no stuck points, 17 acorns lost).
 - [ ] Is 9:00 still enough with breakdowns on the mountain trail? The autopilot alone needs 7:52.

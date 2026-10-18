@@ -98,6 +98,8 @@ private:
 
 	/** "AIR TIME! +N" over the car for a moment after each clean jump landing. */
 	void DrawJumpBubble();
+	/** "OFF THE TRAIL!" above the hints while the car's off-road grip loss builds up. */
+	void DrawOffroadWarning();
 
 	/** Who is who: a bobbing YOU arrow over this player's squirrel, and every other squirrel's
 	 *  name (plus its seat) in its fur colour. Friend test 1: nobody knew which squirrel they were. */

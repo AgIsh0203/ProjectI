@@ -138,6 +138,7 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Door | throws a squirrel on its side out every 2 s above 250 cm/s (was 3 s / 300); with nobody on that side, 2 acorns fall out instead; repair: 3 presses | `UNBDoorPart` |
 | Flip | counts as flipped when the up axis is below 0.35 and speed below 200 cm/s for 1.5 s; push: 2 squirrels for 2 s; lifts 120 cm | `ANBCar` |
 | Acorns | 40; a velocity change above 350 cm/s per 0.1 s spills 1, plus 1 per 120 cm/s more; a flip dumps 25 %. Jumps: airborne ≥ 0.5 s and landing upright at ≥ 600 cm/s is a clean landing: only sideways jolts spill (during the flight and 0.3 s after), and it earns 25 air points per second airborne (score line "Air bonus") | `ANBCar` |
+| Off the trail | grip of an off-trail wheel down to 0.45 after 5 s fully off (back in 2 s), tyres 0.05/s, engine 0.015/s, 20 %/s speed lost at full level | `ANBCar` "Car\|Offroad" |
 | Crash feedback | from a 500 cm/s change per 0.1 s; full intensity at 1600 | `ANBCar` |
 | Squirrel | ragdoll 2.5 s; respawn 8 s; jumping out above 600 cm/s throws you; eject kick 350 out + 450 up (cm/s) | `ANBSquirrel` |
 | Camera | arm 320 cm on foot; seated 650 cm, pivot 150 cm above the seat, follow pitch -12° (was 1100 cm / 420 cm / level until friend test 1: the car was a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
