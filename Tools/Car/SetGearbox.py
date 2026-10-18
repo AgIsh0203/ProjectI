@@ -10,10 +10,14 @@
 # - 18 Oct, below: taller ratios with less torque (about the same pull at the wheels in each gear, so the launch
 #   feels the same) and so less power: lower tops in every gear. PIE tops per gear ~806 / 1055 / 1260 / 1572 /
 #   1891 cm/s (was 907 / 1191 / 1451 / 1820 / 2127 with 14.25 / 8.9 / 6.5 / 5.1 / 4.2 and 500 Nm, still too fast).
+# - 18 Oct, 435 -> 80 Nm (the user: "the pickup is too high"; most of the game should be in 3rd-4th, 2nd for slow
+#   parts, 5th only after 10+ s on a straight). The torque curve FC_OffroadCar_Torque is 0 from 5000 rpm, so the
+#   ratios set each gear's top and the torque how fast you get there; at low speed the car was grip-limited, so
+#   200-260 Nm launched no slower. Automatic from a standstill at 85 Nm: 5th at 9.9 s; top ~1650 cm/s.
 import unreal
 
 FORWARD = [16.4, 10.2, 7.5, 5.9, 4.85]
-MAX_TORQUE = 435.0
+MAX_TORQUE = 80.0
 CHANGE_UP_RPM = 4700.0
 CHANGE_DOWN_RPM = 2600.0
 SAVE = True
