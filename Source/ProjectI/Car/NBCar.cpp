@@ -711,7 +711,9 @@ bool ANBCar::ResetToTrail()
 		return false;
 	}
 	const FVector From = GetActorLocation();
-	const float Along = Route->GetDistanceAlong(From);
+	// Back where it left the trail (a little before, clear of the edge), never the nearest trail anywhere:
+	// below a cliff that could be a later leg of the hairpin.
+	const float Along = LastOnTrailDistance >= 0.f ? FMath::Max(LastOnTrailDistance - ResetBackOff, 0.f) : Route->GetDistanceAlong(From);
 	const FTransform Spot = Route->GetTransformAt(Along, 150.f);
 	SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
@@ -930,6 +932,17 @@ void ANBCar::UpdateOffroad(float DeltaSeconds, float Speed)
 		// Grass and scrub hold the car back.
 		GetMesh()->AddImpulse(-FVector::VectorPlaneProject(GetVelocity(), FVector::UpVector) * FMath::Min(OffroadDrag * OffroadLevel * MeanOff * Step, 1.f),
 			NAME_None, /*bVelChange=*/true);
+	}
+
+	// Remember where the car last was on the trail, with its wheels down, for the reset.
+	int32 InContact = 0;
+	for (int32 i = 0; i < NumWheels; ++i)
+	{
+		InContact += Movement->GetWheelState(i).bInContact ? 1 : 0;
+	}
+	if (MeanOff < 0.5f && InContact >= 3)
+	{
+		LastOnTrailDistance = Route->GetDistanceAlong(GetActorLocation());
 	}
 
 	const bool bOffroad = MeanOff > 0.5f;

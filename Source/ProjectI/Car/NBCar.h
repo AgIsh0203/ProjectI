@@ -264,6 +264,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Reset", meta = (ClampMin = "0"))
 	float ResetCooldown = 15.f;
 
+	/** The reset lands this far (cm) back along the trail from where the car last was on it, clear of the edge it went off. */
+	UPROPERTY(EditAnywhere, Category = "Car|Reset", meta = (ClampMin = "0"))
+	float ResetBackOff = 800.f;
+
 	/** Every part. Filled in BeginPlay. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNBCarPartComponent>> Parts;
@@ -607,6 +611,10 @@ private:
 	/** Per wheel, the grip scale the parts set (a flat tyre). */
 	float PartGrip[4] = {1.f, 1.f, 1.f, 1.f};
 	bool bWasOffroad = false;
+
+	/** Server: distance along the route at the last sample with the car on the trail (-1 = none yet). The reset
+	 *  goes back here, not to the nearest trail anywhere, so a fall off a cliff can't skip down to a later leg. */
+	float LastOnTrailDistance = -1.f;
 
 	UPROPERTY(Replicated)
 	uint8 RepOffroad = 0;

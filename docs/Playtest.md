@@ -136,7 +136,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Off the trail: a short cut across the grass is fine, a long one gets slippery ("OFF THE TRAIL!  grip -N%"), wears the tyres and slows the car. Too harsh or too soft? (`OffroadMinGrip`, `OffroadRampSeconds`, `OffroadDrag` on BP_OffroadCar_Pawn.)
 
 ## Car reset (18 Oct): check by hand
-- [ ] Drive off a cliff or into a gully: after ~3 s stuck, "STUCK?  Hold R" shows; holding R fills the bar and puts the car back on the trail, upright and facing the right way, with riders aboard and anyone on foot back at the car (no respawn penalty). "CAR RESET!  -3 acorns" shows.
+- [ ] Drive off a cliff or into a gully: after ~3 s stuck, "STUCK?  Hold R" shows; holding R fills the bar and puts the car back on the trail 8 m before where it went off (not on a lower leg of the hairpin below), upright and facing the right way, with riders aboard and anyone on foot back at the car (no respawn penalty). "CAR RESET!  -3 acorns" shows.
 - [ ] A second reset within 15 s says "Reset ready in N s". Is 3 acorns + 15 s the right price, or do players use it as a shortcut?
 - [ ] Gamepad View works; rebinding Reset in Options works.
 
