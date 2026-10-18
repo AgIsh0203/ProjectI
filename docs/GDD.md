@@ -88,6 +88,9 @@ Viewers can't hear game state, so every failure must read on screen in under 2 s
 - Four boards on the left of THE PARK, in the order they are needed: "E: GET IN / HOP SEAT" (in view from the start), "LMB: FIX BROKEN PARTS", "SPACE: JUMP OUT", "H: HONK!". Keyboard only.
 - The controls hint stays on the HUD (Built), as key or Xbox button icons that follow whichever device was used last (14 Oct).
 
+## Gears seat — Friend test 3 (G5)
+The PassengerSeat beside the wheel. It always holds the **handbrake** (hold Shift / RB: the rear wheels lock, for THE HAIRPIN and the cliff bends, or a spin at the wrong moment). With the host's **Manual gears** option on it also shifts (W/S), and an empty Gears seat leaves the car stuck in its gear; manual runs score ×1.25. The pedals stay one seat (gas + brake). Spec: [Roadmap.md](Roadmap.md#friend-test-3-scope-locked-18-oct).
+
 ## Co-op levers — Demo, if the playtest agrees
 - **The pedal squirrel can't see the road (#9).** Its camera sits low in the footwell, so the WHEEL squirrel has to shout GAS / BRAKE. Asymmetric information forces talking, and talking is what makes streams funny. **Not decided:** it bends the locked chase-camera rule for one seat.
 - **Pick spilled acorns back up (#11)** and throw them into the bed: "run back for them!" moments.

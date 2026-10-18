@@ -119,6 +119,16 @@ For the testers of 19–25 Oct, who play `2026-10-17-fix` (the restart crash, di
 - **Name ideas:** Squarrel (squirrel + quarrel), Go Nuts.
 - GPUs: RTX 3070 Ti, GTX 1080 Ti.
 
+### Luigi's extra review (Discord, 18 Oct, same 17 Oct package)
+Written after the form above, so it's about the flat route before F1–F9 and the terrain.
+- **"Right now, the game is incredibly easy."** Wants a much narrower track, a real risk of falling from heights, much harder obstacles to dodge, and moving ones (swinging wrecking balls). "Ramp up the difficulty about 20x."
+- **One job each:** suggested P1 accelerate, P2 brake, P3 steer, P4 repair. (The user's call: the pedals stay one seat; the Gears seat gets a handbrake instead.)
+- **Camera:** first person, or a much closer third person; "it feels unnecessarily distant".
+- **Repairs:** find a way to do every repair from inside the car.
+- **"RV There Yet?"** has a near perfect framework for this genre; take more from it (not a copy).
+- **Setting:** nothing ties the game to the players being squirrels. Suggests squirrels getting home over dangerous tree branches and rivers, using the environment, with reasons to get out of the vehicle, e.g. finding spare parts for a makeshift (Flintstones-style) car.
+- Where each point went: [Roadmap.md](Roadmap.md#luigis-review-18-oct-where-it-went).
+
 ## Next test: check the friend-test fixes
 - [ ] The restart works on Steam: the end screen, then the next run, with every client still in and in voice.
 - [ ] Voice is loud enough without Discord. Esc → Options → Sound: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
