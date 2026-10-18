@@ -129,6 +129,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
 	void RespawnAtCar();
 
+	/** Server only. RespawnAtCar without the respawn penalty: the car left this squirrel behind (a reset). */
+	void ReturnToCar();
+
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	bool IsRagdolled() const { return Ragdoll.bActive; }
 
@@ -143,6 +146,13 @@ public:
 	/** Local: the last wrong-key hint for this seat and the world time it was given. */
 	ENBSeatHint GetSeatHint() const { return SeatHint; }
 	double GetSeatHintTime() const { return SeatHintTime; }
+
+	/** Local: 0..1 while the reset key is held, 0 otherwise. */
+	float GetResetHoldProgress() const;
+
+	/** Hold the reset key (R / gamepad View) this long to put the car back on the trail. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	float ResetHoldSeconds = 1.5f;
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void FellOutOfWorld(const UDamageType& DamageType) override;
@@ -423,6 +433,18 @@ private:
 	/** H / gamepad Y. Seated only. */
 	void HornPressed();
 
+	/** R / gamepad View, held: put the car back on the trail. Anyone can, seated or not. */
+	void ResetPressed();
+	void ResetReleased();
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestCarReset();
+
+	/** Shared by RespawnAtCar (bPenalty) and ReturnToCar. */
+	void BackToCar(bool bPenalty);
+
+	double ResetHoldStart = -1.0;
+
 	UFUNCTION(Server, Reliable)
 	void Server_Honk();
 
@@ -618,6 +640,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> HornAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ResetAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)

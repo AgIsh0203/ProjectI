@@ -12,6 +12,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "Car/NBAcorn.h"
 #include "Car/NBSeatComponent.h"
@@ -464,6 +465,8 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, Acorns);
 	DOREPLIFETIME(ANBCar, LastJumpPoints);
 	DOREPLIFETIME(ANBCar, RepOffroad);
+	DOREPLIFETIME(ANBCar, ResetReadyTime);
+	DOREPLIFETIME(ANBCar, ResetCount);
 	DOREPLIFETIME(ANBCar, JumpCount);
 	DOREPLIFETIME(ANBCar, RepEngineRPM);
 	DOREPLIFETIME(ANBCar, RepGear);
@@ -685,6 +688,57 @@ bool ANBCar::UpdateJump(double Now)
 void ANBCar::OnRep_JumpCount()
 {
 	LastJumpSeenTime = GetWorld()->GetTimeSeconds();
+}
+
+void ANBCar::OnRep_ResetCount()
+{
+	LastResetSeenTime = GetWorld()->GetTimeSeconds();
+}
+
+float ANBCar::GetResetCooldownLeft() const
+{
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	const double Now = GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds();
+	return FMath::Max(static_cast<float>(ResetReadyTime - Now), 0.f);
+}
+
+bool ANBCar::ResetToTrail()
+{
+	check(HasAuthority());
+	const ANBRoute* Route = ANBRoute::Find(GetWorld());
+	if (!Route || bRunLocked || GetResetCooldownLeft() > 0.f)
+	{
+		return false;
+	}
+	const FVector From = GetActorLocation();
+	const float Along = Route->GetDistanceAlong(From);
+	const FTransform Spot = Route->GetTransformAt(Along, 150.f);
+	SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
+	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	// The teleport's sudden stop isn't a crash.
+	LastSpillVelocity = FVector::ZeroVector;
+	NextCrashDamageTime = GetWorld()->GetTimeSeconds() + CrashDamageCooldown;
+	SetFlipped(false);
+
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	ResetReadyTime = static_cast<float>((GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds()) + ResetCooldown);
+	++ResetCount;
+	OnRep_ResetCount();
+	const int32 Lost = SpillAcorns(FMath::Min(AcornsLostOnReset, Acorns));
+	Multicast_Feedback(ENBCarFeedback::Righted, 1.f);
+
+	// The crew comes along: anyone on foot is put back at the car, without a respawn penalty.
+	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsSeated())
+		{
+			It->ReturnToCar();
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("NBReset: car moved %.0f m back to the trail at %.0f m, %d acorns lost"),
+		FVector::Dist(From, Spot.GetLocation()) / 100.f, Along / 100.f, Lost);
+	return true;
 }
 
 UNBSeatComponent* ANBCar::FindNearestFreeSeat(const FVector& Location, float MaxDistance) const

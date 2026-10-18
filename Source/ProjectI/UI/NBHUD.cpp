@@ -451,6 +451,7 @@ void ANBHUD::DrawHUD()
 	DrawHornBubble();
 	DrawJumpBubble();
 	DrawOffroadWarning();
+	DrawCarReset(*Squirrel);
 
 	DrawEjectReason(*Squirrel);
 	const float RespawnLeft = Squirrel->GetRespawnSecondsLeft();
@@ -586,6 +587,53 @@ void ANBHUD::DrawHornBubble()
 		}
 		const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, Age));
 		DrawShoutText(TEXT("HONK!"), Screen.X, Screen.Y - 30.f, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - Age) / 0.2f, 0.f, 1.f)), 2.f * Pop);
+	}
+}
+
+void ANBHUD::DrawCarReset(const ANBSquirrel& Squirrel)
+{
+	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
+	const ANBCar* Car = nullptr;
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		Car = *It;
+		break;
+	}
+	if (!Car || !State || State->GetPhase() != ENBRunPhase::Driving)
+	{
+		StuckSeconds = 0.f;
+		return;
+	}
+	const FString Key = bUsingGamepad ? FString(TEXT("View")) : KeyLabel(ENBBinding::ResetCar);
+	const float Now = GetWorld()->GetTimeSeconds();
+
+	// After a reset.
+	if (Now - Car->GetLastResetSeenTime() < 2.5f)
+	{
+		DrawShoutText(FString::Printf(TEXT("CAR RESET!  -%d acorns"), Car->GetAcornsLostOnReset()), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.42f, ProgressColor, 1.2f);
+	}
+
+	// Holding the key: a bar that fills.
+	const float Hold = Squirrel.GetResetHoldProgress();
+	if (Hold > 0.f)
+	{
+		const float Cooldown = Car->GetResetCooldownLeft();
+		const float W = 320.f, X = (Canvas->ClipX - W) * 0.5f, Y = Canvas->ClipY * 0.5f + 60.f;
+		DrawShoutText(Cooldown > 0.f ? FString::Printf(TEXT("Reset ready in %d s"), FMath::CeilToInt(Cooldown)) : FString(TEXT("Back to the trail...")),
+			Canvas->ClipX * 0.5f, Y - 22.f, Cooldown > 0.f ? BadColor : FLinearColor::White, 0.6f);
+		DrawBar(X, Y, W, 14.f, Cooldown > 0.f ? 0.f : Hold, ProgressColor);
+	}
+
+	// Stuck: slow and off the trail, or upside down, for a few seconds.
+	const bool bStuck = Car->GetVelocity().Size() < 150.f && (Car->GetOffroadLevel() > 0.3f || Car->IsFlipped());
+	StuckSeconds = bStuck ? StuckSeconds + GetWorld()->GetDeltaSeconds() : 0.f;
+	if (StuckSeconds > 3.f && Hold <= 0.f)
+	{
+		const float Cooldown = Car->GetResetCooldownLeft();
+		const FString Text = Cooldown > 0.f ? FString::Printf(TEXT("STUCK?  Reset ready in %d s"), FMath::CeilToInt(Cooldown))
+			: FString::Printf(TEXT("STUCK?  Hold %s: back on the trail (-%d acorns)"), *Key, Car->GetAcornsLostOnReset());
+		const float Bob = 4.f * FMath::Sin(Now * 3.f);
+		DrawShoutText(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 230.f + Bob, FLinearColor(1.f, 0.85f, 0.3f), 0.7f);
 	}
 }
 

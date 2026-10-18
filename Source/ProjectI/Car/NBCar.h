@@ -90,6 +90,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Car|Flip")
 	bool IsFlipped() const { return bFlipped; }
 
+	/**
+	 * Server: put the car back on the trail (a squirrel held the reset key), at the nearest point of the
+	 * route, upright, facing along it, riders aboard. Squirrels on foot come back to it without a respawn
+	 * penalty. Costs AcornsLostOnReset and then waits ResetCooldown. False if refused.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Reset")
+	bool ResetToTrail();
+
+	/** Seconds until the car can be reset again (0 = now), on any machine. */
+	float GetResetCooldownLeft() const;
+
+	/** Local time this machine saw the last reset (for the HUD's "CAR RESET!"). */
+	double GetLastResetSeenTime() const { return LastResetSeenTime; }
+	int32 GetAcornsLostOnReset() const { return AcornsLostOnReset; }
+
 	/** cm/s along the car's forward axis. */
 	UFUNCTION(BlueprintPure, Category = "Car")
 	float GetForwardSpeed() const;
@@ -122,6 +137,7 @@ public:
 	int32 GetMaxAcorns() const { return MaxAcorns; }
 
 	/** 0..1: how far the off-trail grip loss has built up (replicated coarsely, for the HUD). */
+	UFUNCTION(BlueprintPure, Category = "Car|Offroad")
 	float GetOffroadLevel() const { return HasAuthority() ? OffroadLevel : RepOffroad / 255.f; }
 	float GetOffroadMinGrip() const { return OffroadMinGrip; }
 
@@ -237,6 +253,16 @@ protected:
 	/** Righted cars are lifted this far before being dropped back on their wheels. */
 	UPROPERTY(EditAnywhere, Category = "Car|Flip")
 	float RightingLift = 120.f;
+
+	// --- Reset to the trail (18 Oct: a car down a cliff couldn't get back up). ---
+
+	/** Acorns the reset spills (the price of the tow). */
+	UPROPERTY(EditAnywhere, Category = "Car|Reset", meta = (ClampMin = "0"))
+	int32 AcornsLostOnReset = 3;
+
+	/** Seconds before the car can be reset again. */
+	UPROPERTY(EditAnywhere, Category = "Car|Reset", meta = (ClampMin = "0"))
+	float ResetCooldown = 15.f;
 
 	/** Every part. Filled in BeginPlay. */
 	UPROPERTY(Transient)
@@ -600,6 +626,19 @@ private:
 
 	UFUNCTION()
 	void OnRep_JumpCount();
+
+	/** Server world time the next reset is allowed. */
+	UPROPERTY(Replicated)
+	float ResetReadyTime = 0.f;
+
+	/** Bumped per reset so every machine sees each one. */
+	UPROPERTY(ReplicatedUsing = OnRep_ResetCount)
+	uint8 ResetCount = 0;
+
+	UFUNCTION()
+	void OnRep_ResetCount();
+
+	double LastResetSeenTime = -100.0;
 
 	/** Local time this machine saw the last jump. */
 	double LastJumpSeenTime = -100.0;

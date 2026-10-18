@@ -100,6 +100,11 @@ private:
 	void DrawJumpBubble();
 	/** "OFF THE TRAIL!" above the hints while the car's off-road grip loss builds up. */
 	void DrawOffroadWarning();
+	/** The car reset: "STUCK? Hold R" once the car has sat stuck for a few seconds, the hold bar,
+	 *  and "CAR RESET!" afterwards. */
+	void DrawCarReset(const class ANBSquirrel& Squirrel);
+	/** Seconds the car has been stuck (slow and off the trail, or flipped), measured locally. */
+	float StuckSeconds = 0.f;
 
 	/** Who is who: a bobbing YOU arrow over this player's squirrel, and every other squirrel's
 	 *  name (plus its seat) in its fur colour. Friend test 1: nobody knew which squirrel they were. */

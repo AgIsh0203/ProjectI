@@ -49,6 +49,7 @@ FKey UNBControlSettings::GetDefaultKey(ENBBinding Binding)
 	case ENBBinding::Interact: return EKeys::E;
 	case ENBBinding::Work: return EKeys::LeftMouseButton;
 	case ENBBinding::Horn: return EKeys::H;
+	case ENBBinding::ResetCar: return EKeys::R;
 	default: return EKeys::Invalid;
 	}
 }
@@ -65,6 +66,7 @@ const TCHAR* UNBControlSettings::GetBindingLabel(ENBBinding Binding)
 	case ENBBinding::Interact: return TEXT("Get in / hop seat");
 	case ENBBinding::Work: return TEXT("Work on a part");
 	case ENBBinding::Horn: return TEXT("Horn");
+	case ENBBinding::ResetCar: return TEXT("Reset the car (hold)");
 	default: return TEXT("?");
 	}
 }

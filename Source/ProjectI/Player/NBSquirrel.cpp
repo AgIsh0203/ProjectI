@@ -206,6 +206,7 @@ void ANBSquirrel::BuildInputAssets()
 	ActionAction = NewObject<UInputAction>(this, TEXT("IA_Action"));
 	MenuAction = NewObject<UInputAction>(this, TEXT("IA_Menu"));
 	HornAction = NewObject<UInputAction>(this, TEXT("IA_Horn"));
+	ResetAction = NewObject<UInputAction>(this, TEXT("IA_ResetCar"));
 
 	PingActions.Reset();
 	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
@@ -273,6 +274,8 @@ void ANBSquirrel::MapKeys()
 	InputContext->MapKey(MenuAction, EKeys::Gamepad_Special_Right);
 	InputContext->MapKey(HornAction, KeyFor(ENBBinding::Horn));
 	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
+	InputContext->MapKey(ResetAction, KeyFor(ENBBinding::ResetCar));
+	InputContext->MapKey(ResetAction, EKeys::Gamepad_Special_Left);
 }
 
 void ANBSquirrel::UpdateKeyBindings()
@@ -319,6 +322,8 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(ActionAction, ETriggerEvent::Completed, this, &ANBSquirrel::ActionReleased);
 	Input->BindAction(MenuAction, ETriggerEvent::Started, this, &ANBSquirrel::NBMenu);
 	Input->BindAction(HornAction, ETriggerEvent::Started, this, &ANBSquirrel::HornPressed);
+	Input->BindAction(ResetAction, ETriggerEvent::Started, this, &ANBSquirrel::ResetPressed);
+	Input->BindAction(ResetAction, ETriggerEvent::Completed, this, &ANBSquirrel::ResetReleased);
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
@@ -462,6 +467,37 @@ void ANBSquirrel::HornPressed()
 	if (CurrentSeat)
 	{
 		Server_Honk();
+	}
+}
+
+void ANBSquirrel::ResetPressed()
+{
+	ResetHoldStart = GetWorld()->GetTimeSeconds();
+}
+
+void ANBSquirrel::ResetReleased()
+{
+	ResetHoldStart = -1.0;
+}
+
+float ANBSquirrel::GetResetHoldProgress() const
+{
+	if (ResetHoldStart < 0.0)
+	{
+		return 0.f;
+	}
+	return FMath::Clamp(static_cast<float>((GetWorld()->GetTimeSeconds() - ResetHoldStart) / FMath::Max(ResetHoldSeconds, 0.1f)), 0.f, 1.f);
+}
+
+void ANBSquirrel::Server_RequestCarReset_Implementation()
+{
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		if (It->ResetToTrail())
+		{
+			UE_LOG(LogTemp, Log, TEXT("NBReset: asked for by %s"), *GetName());
+		}
+		break;
 	}
 }
 
@@ -1196,6 +1232,12 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 		}
 		UpdateVoiceMute();
 		UpdateKeyBindings();
+		if (GetResetHoldProgress() >= 1.f)
+		{
+			// Held long enough: one request per hold.
+			ResetHoldStart = -1.0;
+			Server_RequestCarReset();
+		}
 		UpdateSeatedCamera(DeltaSeconds);
 		UpdateCameraPunch(DeltaSeconds);
 	}
@@ -1253,6 +1295,16 @@ void ANBSquirrel::Recover()
 
 void ANBSquirrel::RespawnAtCar()
 {
+	BackToCar(true);
+}
+
+void ANBSquirrel::ReturnToCar()
+{
+	BackToCar(false);
+}
+
+void ANBSquirrel::BackToCar(bool bPenalty)
+{
 	check(HasAuthority());
 	ClearRespawn();
 	if (Ragdoll.bActive)
@@ -1278,7 +1330,8 @@ void ANBSquirrel::RespawnAtCar()
 	{
 		return;
 	}
-	if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+	ANBPlayerState* Stats = bPenalty ? GetPlayerState<ANBPlayerState>() : nullptr;
+	if (Stats)
 	{
 		Stats->AddRespawn();
 	}

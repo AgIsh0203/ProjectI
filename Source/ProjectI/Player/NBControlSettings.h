@@ -18,6 +18,7 @@ enum class ENBBinding : uint8
 	Interact,
 	Work,
 	Horn,
+	ResetCar,
 	Count
 };
 
