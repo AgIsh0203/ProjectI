@@ -22,16 +22,15 @@
 - Art (2026-10-14): a low-poly squirrel and acorn (CC-BY, Poly Pizza) and Kenney nature/road props along the route.
 - Every sound slot is filled (2026-10-14) with CC0 clips from Kenney and OpenGameArt (list in `CREDITS.md`), plus menu/run music and run-event sounds on the HUD. VFX (14 Oct) are code-built toon puffs (`FNBPuff`) on every slot that needs one. The font is Lilita One (OFL). None of it has been heard in a build yet.
 - **Friend test 1 happened on Sat 17 Oct** (3 friends, 2 runs, build `dc7593b`): results in `docs/Playtest.md`, ranked fixes F1–F9 in `docs/Roadmap.md`. Fixed the same night: the restart crash, the director bug, and part wear (build `ProjectI_Builds\2026-10-17-fix\`, 258 MB zip, unplayed). Then F1–F9 (voice, who-is-who HUD, camera, failures that matter, damage meter, jumps, prop collision, "IS ON IT", calm/storm) and the 5.4 km route baked into the editable map L_Route, all checked only in single-player PIE; no build has them yet.
-- **No 24 Oct demo any more** (the user, 18 Oct): testers liked the last build, and more testers next week will play that package. The schedule in `docs/Roadmap.md` is history until a new date is set.
+- **No 24 Oct demo any more** (the user, 18 Oct). The new target is **friend test 3 on Sat 28 Nov** (a test, not a launch; public demo ~12 Dec, tentative). The plan, its locked scope and its order are in `docs/Roadmap.md` (Plan to friend test 3).
 - **Terrain (18 Oct):** L_Route is now a mountain trail over a Landscape: 27–156 m high, climbs up to 18 %, cliffs, a rough dirt track, two fords with hidden pebbles (a squirrel on foot in a river is swept away), a river in a gorge under THE BRIDGE. The server autopilot (`NBAuto`) drives it end to end in 7:52 with no stuck points. Checked in single-player PIE and in a packaged 2-instance run (`D:\Games-Unreal\ProjectI_Builds\2026-10-18-terrain\`, Development, commit `da28390`: a 265 MB zip that installs to 507 MB). Nobody has played it by hand yet. Details in `docs/Terrain.md`.
 - **Next** (details in `docs/Roadmap.md`):
-  1. ~~Slim the package~~ (done: the 254 MB build above).
-  2. 2-PC playtest with the slim build (Tue 13). That build predates item 3's code, so package a fresh one if the test should include it.
-  3. Blockers from the playtest. All Tier 1 code was pulled forward and is done (2026-10-13): horn #3, squirrel sound slots #4, acorn pile #5, readable failures #6, charm pass #7, onboarding #8. The pile, callouts and charm parts are checked in 3-client PIE; the horn and the seat labels can't be (Python can't press keys or read the canvas). The #6 font (Lilita One) went in later the same day, compiled but not yet run. The 2026-10-17 build has all of it; none of it has been played by hand.
-  4. ~~Sounds in the slots~~ (done 14 Oct, unheard). ~~VFX~~ (done 14 Oct as code-built puffs). ~~Input prompts~~ (done 14 Oct). Still to do: the private itch page (Sat 17 – Mon 19).
-  5. More testers next week on the previous package; then a new build with the terrain and its hands-on checks (`docs/Playtest.md`, Mountain trail).
-  6. ~~Public itch demo Sat 24 Oct~~ (dropped 18 Oct; a new date is the user's call).
-- **Budget:** about 65 h total; weekdays 2–3 h, weekends 5–6 h. About 41 h remain from Mon 12 by the plan's calendar.
+  1. 19–25 Oct: more testers on the 17 Oct build, told the known problems first (`docs/Playtest.md`). The user installs Blender 4.x LTS.
+  2. To 6 Nov, in order: the Gears seat with the host's Manual gears option (G5), the rigged squirrel (A1), then #10 awards, #12 fallen-squirrel cam, #14 gamepad pings, #13 the dog, the roadblocks (G6). Each checked in 4-client PIE.
+  3. Sat 7 Nov: a build of `main` played by the user plus one friend online.
+  4. 8–22 Nov: the 7 Nov fixes, then the stretch: the new car (A2), then side tasks (design session first).
+  5. 23–27 Nov: package, smoke test, questionnaire update, send. Sat 28 Nov: friend test 3.
+- **Budget:** ~15 h a week (weekdays 2–3 h, weekends 5–6 h): ~90 h to 28 Nov, ~65 h planned and ~25 h kept for what testers find.
 
 ## Locked decisions (don't relitigate)
 - **Players and camera:** 2-player minimum, no bots. Third-person chase camera, wider while seated. Arcade feel. Repair juggling is the heart of the game.

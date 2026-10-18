@@ -1,26 +1,42 @@
 # Roadmap to the itch demo
 
-Living doc, last updated 2026-10-12. The schedule, the ranked backlog and the decisions waiting on you, from now to the public demo on **Sat 24 Oct**. It folds the two research notes from 2026-10-09 (`assets-and-improvements.md`, `free-assets-and-improvements.md`) into the approved plan and replaces that plan's schedule. Design detail lives in [GDD.md](GDD.md), asset sources and licences in [Assets.md](Assets.md), hands-on checks in [Playtest.md](Playtest.md).
+Living doc, last updated 2026-10-18. The plan to friend test 3 (**Sat 28 Nov**), the ranked backlog and the decisions waiting on you. It folds the two research notes from 2026-10-09 (`assets-and-improvements.md`, `free-assets-and-improvements.md`) into the approved plan and replaces that plan's schedule. Design detail lives in [GDD.md](GDD.md), asset sources and licences in [Assets.md](Assets.md), hands-on checks in [Playtest.md](Playtest.md).
 
 Effort: **S** < 2 h, **M** 2–5 h, **L** > 5 h.
 
-## Update 18 Oct: no 24 Oct demo
-The user dropped the 24 Oct public demo: friend test 1 went well, and more testers next week will play the previous package. The schedule below is history until a new date is set; the backlog and the size rules still apply. The terrain work (above in the backlog) is the first thing after that change.
+## Plan to friend test 3 (decided 18 Oct)
+The 24 Oct demo is dropped. Friend test 3 on **Sat 28 Nov** checks whether the redesign (mountain trail, earned damage, failures that matter, the new seat) is fun. It is a test, not a launch: the public demo comes after a round of fixes.
 
-## Where we are (2026-10-12)
+- **The test:** 4 players if possible, at least 2 who have never played (the only real check of onboarding and the who-is-who HUD), 3 runs each (is it still fun once the route is known?).
+- **Next week (19–25 Oct):** more testers play the **17 Oct build** (`2026-10-17-fix`), told the known problems first ([Playtest.md](Playtest.md#known-problems-in-the-17-oct-build-tell-testers-first)). New problems they find get extra time from the user; **the scope below is locked**.
+- **Budget:** ~90 h to 28 Nov (~15 h a week): ~65 h planned, ~25 h spare for what testers find. All work done by **Sun 22 Nov**.
+- **No hands-on run by the user is guaranteed before 7 Nov** (a 2-PC run is hard to set up); 4-client PIE is the check until then.
+
+| When | ~h | Work | Done when |
+|---|---|---|---|
+| 19 Oct – 6 Nov | 45 | In order: **1. Gears seat** (G5). **2. Rigged squirrel** (A1; the user installs Blender 4.x LTS this week). **3.** #10 awards, #12 fallen-squirrel cam, #14 gamepad pings, #13 the dog, the roadblocks (G6). | All of it works in 4-client PIE. If the rig runs late it moves to the second half and the 7 Nov build goes without it. |
+| **Sat 7 Nov** | 3 | **Mid-point check:** a Development build of `main`; **the user plus one friend online** (each on their own PC), against the Playtest.md checklists. | A run start to finish by hand; the worst problems listed. |
+| 8 – 22 Nov | 20 + spare | The 7 Nov fixes first. Then the stretch, in order: **the new car** (A2), then **side tasks** (they get their own design session before any code). | Nothing open from 7 Nov. |
+| 23 – 27 Nov | 4 | Package, a smoke test, update the questionnaire (gears, roadblocks, the title shortlist), send the build out. | Testers have the build. |
+| **Sat 28 Nov** | — | **Friend test 3.** Record it; the form. | Recordings and answers collected. |
+| 29 Nov – ~12 Dec | — | Fixes from the test, then the release work: Shipping build (size phases C and D), itch page, AppID 480, final title. | **Public demo ~Sat 12 Dec** (tentative, the user's call after the test). |
+
+**Out of scope this month:** #9 (pedal-seat blind camera), #11 (pick acorns back up), more route length (wait for the 7 Nov run's time), Tier 3.
+
+## History: where we were (2026-10-12)
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
 - That build is a **1.04 GB download that installs to 3 GB**, though players need only about 0.7 GB of it ([Package size](#package-size-slim-it-before-the-playtest)).
 - Every sound slot is filled with CC0 clips (14 Oct); VFX are code-built toon puffs (14 Oct). The squirrel is built from primitives: since 13 Oct it has a head, googly eyes, ears and a wobbly tail (#7).
 
-## Rules for the last two weeks
+## Rules
 1. **Playtest before adding anything.** Every number (spill threshold, failure rate, deadline, tire cling) is a guess until two people have played a run.
 2. **Sound first.** Silent chaos reads as a bug on stream. Filling the slots is asset work, not code.
 3. **Show the game state.** Viewers can't hear it. Acorns, failures and falls must read on screen in under 2 s with the sound off (the plan's viewer-fun check).
 4. **Tier 2 waits for the playtest.** Nothing in it starts until the 2-PC test says the core loop is fun.
 5. **Small download.** Nobody downloads a multi-GB jam game. The demo ships at ≤ 200 MB zipped, and every build's size gets written down.
 
-## Schedule
+## History: the old schedule to 24 Oct (dropped 18 Oct)
 Hours follow the plan's calendar (weekdays ~2.5 h, weekends ~5.5 h): about 41 h from Mon 12 to Sat 24. The 9 Oct notes guessed ~25 h. If that's nearer the truth, drop Tier 2 and the route dressing first.
 
 | Dates | ~h | Block | Who | Done when |
@@ -135,7 +151,18 @@ Two more answers on the 17 Oct package ([Playtest.md](Playtest.md#friend-test-2-
 
 Design and tools: [Terrain.md](Terrain.md). Hands-on checks: [Playtest.md](Playtest.md#mountain-trail-18-oct-check-by-hand).
 
-Ideas from the test, after the demo unless you pull one forward: a **Gears seat** (manual up/down shifting; over-revving wears the engine) **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
+Ideas from the test, after the demo unless you pull one forward (the Gears seat was pulled forward as G5): **branching sections**, **side tasks / vehicle swaps** (R.V. There Yet?), **roadside distractions** (billboards, ads), a **Linux build**.
+
+### Friend test 3 scope (locked 18 Oct)
+Built in this order (see [the plan](#plan-to-friend-test-3-decided-18-oct)). The Tier 2 picks (#10, #12, #13, #14) are in their table below.
+
+| # | Item | Why | Effort | Touches |
+|---|---|---|---|---|
+| G5 | **Gears seat** on the PassengerSeat (beside the wheel): W/S shift up / down. **Host option** "Manual gears: OFF / ON" on the host's lobby page next to Start the run (and on Practice alone), seen by every client, locked once the countdown starts. Off = automatic, as today. On = manual, and with the Gears seat empty the car **stays in its gear** (bogs on climbs, tops out on the flat) until someone hops over. Too high a gear bogs, over-revving wears the engine and can break it. The HUD shows the gear and an RPM needle with a red zone to everyone; "nobody!" flashes for an empty Gears seat as for the Wheel. Manual gears score **×1.25** ("Manual gears ×1.25" on the end screen; bad endings still score 0). | Gives a 3rd and 4th squirrel a real job; the 18 % climbs make the gear matter. Asked for in friend test 1 | M | `ANBCar` (Chaos manual transmission, over-rev wear in `UpdateWear`), `ANBSquirrel` seated input, `ANBRunGameState` (replicated option), `UNBLobbyMenu`, `ANBRunGameMode` score, `ANBHUD` |
+| A1 | **Rigged squirrel** (the first of the [art upgrades](#art-upgrades-the-user-asked-for-14-oct)): rig the current Poly Pizza model with Blender's Python (spine, tail, head, 4 limbs, automatic weights), export FBX. **Cosmetic only**: the replicated ball stays the physics; bones are driven in code on each machine, no replication. Poses: flail while flying, grip while seated, a simple run cycle on foot, mash / tug while repairing. No physics-asset ragdoll. Fallback if the weights look bad: a cheap paid rigged model in `ThirdParty_Private`. | A squirrel flailing as it flies out is the clip | M–L | `ANBSquirrel` (`ModelVisual` becomes a skeletal mesh; the charm code drives the bones). The user installs Blender 4.x LTS |
+| G6 | **Roadblocks on narrow roads:** a **broken-down car** on a cliff ledge at PINE PASS (Kenney Car Kit, CC0), a **fallen tree** across the inside of THE HAIRPIN, a **small rockslide** on ROCKY ROAD. Each leaves a gap of about a car width + 1 m beside a drop: slow and careful gets through; rushing it clips the block (crash damage) or goes over the edge (Hold R, −3 acorns). Placed as level actors in L_Route with `Ground=` tags (SnapToGround), **no re-bake**, so the hand edits survive. | Makes Wheel and Pedals talk ("slow… slow… STOP"). More hazards later | S–M | L_Route via MCP / Python; `ANBProp` |
+| A2 | Stretch, after 7 Nov: **the new car** (steps under [art upgrades](#art-upgrades-the-user-asked-for-14-oct)) | Fixes the bolted-on door and the acorns on the engine deck | L | See the art upgrades |
+| — | Stretch, after the car: **side tasks / vehicle swaps** (R.V. There Yet?). A design session comes first | "Too short" in 4 of 5 answers | L | — |
 
 ### Tier 1: before the friend test
 | # | Item | Why it's fun | Effort | Touches |
@@ -153,13 +180,13 @@ Ideas from the test, after the demo unless you pull one forward: a **Gears seat*
 | # | Item | Why | Effort | Touches |
 |---|---|---|---|---|
 | 9 | **The pedal squirrel can't see the road** (its camera sits low in the footwell) | The strongest co-op lever available: the Wheel squirrel has to shout GAS / BRAKE, and Acorn in Mouth on the Wheel seat becomes devastating. **Needs your OK: it changes the locked chase-camera rule for one seat.** | S–M | Seated camera setup in `ANBSquirrel::RefreshAttachedState`, Pedals seat only |
-| 10 | **More end-screen awards**, one per squirrel: Frequent Flyer (most falls), Butterfingers (most acorns spilled), Firefighter (most fires out), Backseat Driver (most pings), Longest Flight (farthest single throw) | End-screen screenshots are free advertising. | S–M | The first three use existing `ANBPlayerState` stats; add `PingsSent` and `LongestFlight`; pick them in `EndRun`; draw them on the end screen |
+| 10 | (friend test 3) **More end-screen awards**, one per squirrel: Frequent Flyer (most falls), Butterfingers (most acorns spilled), Firefighter (most fires out), Backseat Driver (most pings), Longest Flight (farthest single throw) | End-screen screenshots are free advertising. | S–M | The first three use existing `ANBPlayerState` stats; add `PingsSent` and `LongestFlight`; pick them in `EndRun`; draw them on the end screen |
 | 11 | **Pick spilled acorns back up** and throw them into the bed | "Run back for them!" moments, and a risk/reward between score and time. | M | Spilled `ANBAcorn`s are already server-spawned replicated actors. Extend their 20 s lifespan, add carry/throw on `ANBSquirrel`, and a bed volume on `ANBCar` that adds to `Acorns` (capped at `MaxAcorns`) |
-| 12 | **Fallen-squirrel cam:** while tumbling and while far behind, frame the car as well as the squirrel | A streamer who fell out still shows the chaos. The 8 s before respawn isn't idle (the squirrel can run after the car), so this frames the car rather than taking control away. | S–M | `ANBSquirrel` camera in the tumbling / on-foot states |
-| 13 | **One hazard with a face:** a dog that chases the car on WIGGLY ROAD, or a sprinkler in THE PARK | Named, recurring moments ("the dog got us again") give runs a story. | M | `ANBRoute`; Quaternius pug (CC0) for the dog |
-| 14 | **Gamepad parity:** horn on Y, pings on the D-pad (1–4) and LB + D-pad (5–8) | Co-op crowds use controllers, and pings are keys 1–8 only today. | S | `ANBSquirrel` input setup |
+| 12 | (friend test 3) **Fallen-squirrel cam:** while tumbling and while far behind, frame the car as well as the squirrel | A streamer who fell out still shows the chaos. The 8 s before respawn isn't idle (the squirrel can run after the car), so this frames the car rather than taking control away. | S–M | `ANBSquirrel` camera in the tumbling / on-foot states |
+| 13 | (friend test 3) **One hazard with a face:** a dog that chases the car on WIGGLY ROAD. It bites a tyre (wear, sometimes a flat) or grabs a squirrel on foot and drags it a few metres; **a honk scares it off** for 10 s | Named, recurring moments ("the dog got us again") give runs a story, and the horn gets a job. | M | `ANBRoute`; Quaternius pug (CC0) for the dog |
+| 14 | (friend test 3; the horn on Y is done) **Gamepad parity:** horn on Y, pings on the D-pad (1–4) and LB + D-pad (5–8) | Co-op crowds use controllers, and pings are keys 1–8 only today. | S | `ANBSquirrel` input setup |
 | 15 | **Shorter run for clips** (e.g. 5 sections, ~4 min), if the 2-PC run dragged at 8:00 | Viewers should see a whole run. **Needs your OK: the 6–10 min run is in the locked plan.** | S | Segment list and `DeadlineSeconds` in `ANBRoute` |
-| 16 | **Crashes break parts**, if failures feel random in the playtest | The GDD always meant breakdowns to escalate with crash damage too, but today only the director's timer breaks parts. A hard crash breaking something gives viewers cause and effect. | S | `ANBCar`'s crash detection calls `Fail()` on a healthy part, within `UNBFailureDirector`'s concurrency cap |
+| 16 | (done 18 Oct as G1) **Crashes break parts**, if failures feel random in the playtest | The GDD always meant breakdowns to escalate with crash damage too, but today only the director's timer breaks parts. A hard crash breaking something gives viewers cause and effect. | S | `ANBCar`'s crash detection calls `Fail()` on a healthy part, within `UNBFailureDirector`'s concurrency cap |
 
 ### Art upgrades the user asked for (14 Oct)
 - **A rigged squirrel.** The squirrel is now a static low-poly model (CC-BY, Poly Pizza #3). A rigged one would let it flail while flying and grip the wheel. No free rigged CC0/CC-BY squirrel has turned up yet (the Sketchfab ones are NC or detailed, and the itch one needs payment). Options: rig the current model in Blender (a spine, tail and 4 limbs is enough for a wobbly ragdoll), or buy a cheap licence. Effort M–L.
@@ -179,9 +206,9 @@ Ideas from the test, after the demo unless you pull one forward: a **Gears seat*
 | 20 | Route variety: shuffled sections, a daily route | Replayability for a paid version. |
 | 21 | Kill-cam / instant replay of the run's worst crash | Great for clips, but a replay system is a big build. |
 | 22 | Bird steals a squirrel; pothole frenzy | GDD events. Good clip material once Tier 1 is proven. |
-| 23 | Key rebinding | Input is built in code, so a rebinding UI is a big build. |
+| 23 | (done 18 Oct) Key rebinding | On the Options > Controls tab. |
 
-## Release checklist (Sat 24)
+## Release checklist (public demo, ~Sat 12 Dec)
 - [ ] A 15–20 s GIF of a squirrel thrown out of the car, from the friend-test recordings. It's the itch page's most important asset.
 - [ ] Top of the page: "2–4 players (needs 2). Voice chat recommended. Steam must be running."
 - [ ] Every CC-BY asset is credited on the page and in the game ([CREDITS.md](../CREDITS.md)).
@@ -194,9 +221,11 @@ Ideas from the test, after the demo unless you pull one forward: a **Gears seat*
 ## Decisions waiting on you
 | Decision | By | Recommendation |
 |---|---|---|
-| Ship the public itch build on **AppID 480 (Spacewar)**? Players see "Spacewar" in Steam and need Steam running, and 480 is Valve's test app. The free alternative, Epic Online Services, is a big late change. | Wed 21 | Keep 480 for the demo (no code change, proven on 2 PCs). Move to your own AppID with the Steam release. |
-| **Lighting without Lumen** ([size phase B](#b-simpler-lighting-mon-12-it-changes-the-look-so-you-check-it)) | Mon 12, after the look check | Accept it: a smaller download, a much better frame rate on weak PCs, and flat-colour art doesn't need bounce light. |
+| Ship the public itch build on **AppID 480 (Spacewar)**? Players see "Spacewar" in Steam and need Steam running, and 480 is Valve's test app. The free alternative, Epic Online Services, is a big late change. | After friend test 3 | Keep 480 for the demo (no code change, proven on 2 PCs). Move to your own AppID with the Steam release. |
+| **Lighting without Lumen** ([size phase B](#b-simpler-lighting-mon-12-it-changes-the-look-so-you-check-it)) | The 7 Nov session | Accept it: a smaller download, a much better frame rate on weak PCs, and flat-colour art doesn't need bounce light. |
 | **Pedal-seat blind camera** (#9) | After the 2-PC test | Try it if the Pedals seat felt like a passenger's job. |
 | **Run length** (#15) | Decided 17 Oct | Done: ~50 % longer (5.4 km, 15 sections, 9:00 deadline), baked into the editable map L_Route. |
 | **Prop collision** (F7) | Done 17 Oct | Trees (trunks), rocks, logs, stumps, fences, lamps and barriers are solid; bushes, flowers, grass and cones aren't. Say if it feels annoying. |
-| **Final title** | Before Sat 24 | — |
+| **Final title** | By friend test 3 (28 Nov): ask the testers | Shortlist from the tests so far: Squarrel, Go Nuts, Roll Deez Nuts, Nuts and Bolts, Rodent Racing |
+| **Public demo date** | After friend test 3 | ~Sat 12 Dec, if the scores are good |
+| **Side tasks** design | After 7 Nov | A design session before any code |

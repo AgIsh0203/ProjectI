@@ -76,6 +76,20 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - Any value that felt wrong, for the [GDD tuning table](GDD.md#tuning-table).
 - If something broke: each PC's log, in the build folder under `ProjectI/Saved/Logs/ProjectI.log`.
 
+## Known problems in the 17 Oct build (tell testers first)
+For the testers of 19–25 Oct, who play `2026-10-17-fix` (the restart crash, director and wear fixes; nothing from F1 on). All of these are fixed or changed in `main`; ask them for everything else (fun, confusion not on this list, Acorn in Mouth, run length).
+1. Voice is quiet and there are no settings: use Discord if you can't hear each other.
+2. No "YOU" marker: you are the squirrel in your fur colour. The WHEEL seat steers (A/D), the PEDALS seat does gas and brake (W/S): two different people.
+3. The WHEEL and PEDALS labels can overlap at the start.
+4. The seated camera is far back; the car looks small.
+5. Some failures barely matter (flat tyre, open door, failed brakes), and parts can break while standing still or for no visible reason.
+6. THE BIG JUMP costs acorns even on a clean landing.
+7. Trees, rocks and fences have no collision.
+8. Being thrown out isn't explained: usually the broken door, or jumping out at speed. 8 s to get back in, or respawn at −25.
+9. The repair prompt may show for squirrels who aren't repairing.
+10. The route is flat (the mountain trail comes next).
+11. Engine repair: mash left-click on the engine deck; nothing on screen says so.
+
 ## Friend test 1 results (Sat 17 Oct, build `dc7593b`)
 3 players over Steam (monty500500, Anya_Musk, bongo24) plus the host, 2 runs. Sources: 3 form answers, the notes doc, the host's chat with them, 3 recordings (Drive) whose Hindi/English voice chat was machine-translated with Whisper, so quotes are approximate.
 - **Runs:** run 1 delivered at 3:50 left (30/40 acorns, score 764); run 2 a total wreck at ~1:30 left. Run 2's restart **crashed every client** (the recording shows the crash toast 12 s into the end screen).
