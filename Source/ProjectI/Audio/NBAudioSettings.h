@@ -48,10 +48,13 @@ private:
 	void ApplyGameVolume() const;
 	void ApplyMicBoost() const;
 	void ApplyVoiceVolume();
+	/** What each voice component's volume is set to: VoiceVolume, independent of GameVolume. */
+	float GetVoiceMultiplier() const;
 	void Save();
 
+	/** Below 1 by default so voices sit on top of the engine and music (friend test 2: "could not hear her over the game sound"). */
 	UPROPERTY(config)
-	float GameVolume = 1.f;
+	float GameVolume = 0.7f;
 
 	/** Above 1 by default: voices were too quiet to use in the 17 Oct friend test. */
 	UPROPERTY(config)

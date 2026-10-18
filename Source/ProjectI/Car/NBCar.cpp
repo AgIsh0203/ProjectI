@@ -284,6 +284,25 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 		}
 	}
 
+	// Rough ground: a tyre whose suspension keeps pumping (rocks, ruts, the cobbles) wears. Smoothed, so a
+	// single kerb or a landing doesn't count, and only while rolling.
+	const UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	const float Smoothing = FMath::Clamp(DeltaSeconds / 0.4f, 0.f, 1.f);
+	for (UNBTirePart* Tire : {TireFL, TireFR, TireBL, TireBR})
+	{
+		const int32 Wheel = Tire->GetWheelIndex();
+		if (Wheel < 0 || Wheel >= 4 || Wheel >= Movement->GetNumWheels() || DeltaSeconds <= 0.f)
+		{
+			continue;
+		}
+		const float Length = Movement->GetWheelState(Wheel).NormalizedSuspensionLength;
+		const float Rate = FMath::Abs(Length - LastSuspension[Wheel]) / DeltaSeconds;
+		LastSuspension[Wheel] = Length;
+		SmoothedJolt[Wheel] = FMath::Lerp(SmoothedJolt[Wheel], Speed > 200.f ? Rate : 0.f, Smoothing);
+		const float Rough = FMath::GetMappedRangeValueClamped(FVector2f(RoughJoltStart, RoughJoltFull), FVector2f(0.f, 1.f), SmoothedJolt[Wheel]);
+		Tire->AddWear(RoughTireWearRate * Rough * DeltaSeconds);
+	}
+
 	// Fording: the water holds the car back and the stones nobody can see chew the tyres.
 	if (const ANBRoute* Route = ANBRoute::Find(GetWorld()))
 	{
@@ -562,12 +581,58 @@ void ANBCar::CheckSpill()
 		NextCrashFeedbackTime = Now + CrashCooldown;
 		Multicast_Feedback(ENBCarFeedback::Crash, FMath::GetMappedRangeValueClamped(FVector2f(CrashMinDeltaV, CrashMaxDeltaV), FVector2f(0.f, 1.f), DeltaV));
 	}
+	// Hitting things breaks things: only the horizontal part, so bumps and landings don't.
+	const FVector HitDeltaV = FVector::VectorPlaneProject(Velocity - LastSpillVelocityBefore, FVector::UpVector);
+	if (!bRunLocked && !bFlipped && HitDeltaV.Size() >= CrashDamageMinDeltaV && Now >= NextCrashDamageTime)
+	{
+		NextCrashDamageTime = Now + CrashDamageCooldown;
+		ApplyCrashDamage(HitDeltaV);
+	}
 
 	if (bRunLocked || Acorns <= 0 || SpillDeltaV < SpillMinDeltaV)
 	{
 		return;
 	}
 	SpillAcorns(1 + FMath::FloorToInt((SpillDeltaV - SpillMinDeltaV) / SpillDeltaVPerAcorn));
+}
+
+void ANBCar::ApplyCrashDamage(const FVector& DeltaVelocity)
+{
+	// The hit pushed the car along DeltaVelocity, so whatever it hit is on the opposite side.
+	const FTransform& Transform = GetActorTransform();
+	const FVector HitDir = Transform.InverseTransformVectorNoScale(-DeltaVelocity).GetSafeNormal2D();
+	if (HitDir.IsNearlyZero())
+	{
+		return;
+	}
+	UNBCarPartComponent* Hit = nullptr;
+	float BestAlign = -2.f;
+	for (UNBCarPartComponent* Part : Parts)
+	{
+		const float Align = FVector::DotProduct(Transform.InverseTransformPosition(Part->GetComponentLocation()).GetSafeNormal2D(), HitDir);
+		if (Align > BestAlign)
+		{
+			BestAlign = Align;
+			Hit = Part;
+		}
+	}
+	if (!Hit)
+	{
+		return;
+	}
+	const float Speed = DeltaVelocity.Size();
+	const float Wear = CrashWear * FMath::GetMappedRangeValueClamped(FVector2f(CrashDamageMinDeltaV, CrashMaxDeltaV), FVector2f(0.f, 1.f), Speed);
+	const bool bBreak = Speed >= CrashBreakDeltaV && !Hit->IsFailed() && GetWorld()->GetTimeSeconds() - Hit->GetLastRepairTime() >= CrashRepairGrace;
+	UE_LOG(LogTemp, Log, TEXT("NBCrash: hit at %.0f cm/s from (%.2f, %.2f): %s %s"), Speed, HitDir.X, HitDir.Y, *Hit->PartName.ToString(),
+		bBreak ? TEXT("breaks") : Hit->IsFailed() ? TEXT("already broken") : *FString::Printf(TEXT("+%.2f wear"), Wear));
+	if (bBreak)
+	{
+		Hit->Fail();
+	}
+	else if (!Hit->IsFailed())
+	{
+		Hit->AddWear(Wear);
+	}
 }
 
 bool ANBCar::UpdateJump(double Now)
@@ -789,7 +854,7 @@ void ANBCar::SetFlipped(bool bNewFlipped)
 	{
 		if (ANBSquirrel* Occupant = Seat ? Seat->GetOccupant() : nullptr)
 		{
-			Occupant->EjectFromCar();
+			Occupant->EjectFromCar(ENBEjectReason::Flipped);
 		}
 	}
 	SteerInput = 0.f;

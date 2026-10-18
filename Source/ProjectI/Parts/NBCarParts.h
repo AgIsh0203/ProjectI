@@ -92,6 +92,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Part|Tire", meta = (ClampMin = "0", ClampMax = "1"))
 	float FlatGrip = 0.3f;
 
+	/** Index into the car's Chaos wheels, or INDEX_NONE before BeginPlay. */
+	int32 GetWheelIndex() const { return WheelIndex; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void ApplyFailedEffect(float FailedSeconds) override;

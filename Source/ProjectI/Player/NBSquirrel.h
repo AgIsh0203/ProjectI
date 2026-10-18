@@ -17,6 +17,26 @@ class USpringArmComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
 
+/** Why a squirrel left the car the hard way; the HUD tells the player (friend test 2: "no idea why I get thrown out"). */
+UENUM(BlueprintType)
+enum class ENBEjectReason : uint8
+{
+	Other,
+	Door,
+	Flipped,
+	Bailed,
+	River,
+};
+
+/** What the local player is told after pressing a key their seat ignores (friend test 2: steering from the pedals). */
+enum class ENBSeatHint : uint8
+{
+	None,
+	PedalsCantSteer,
+	WheelCantDrive,
+	RiderCantDrive,
+};
+
 USTRUCT()
 struct FNBRagdollState
 {
@@ -30,6 +50,9 @@ struct FNBRagdollState
 
 	UPROPERTY()
 	FVector_NetQuantize Velocity;
+
+	UPROPERTY()
+	ENBEjectReason Reason = ENBEjectReason::Other;
 };
 
 /**
@@ -96,11 +119,11 @@ public:
 	 * if it isn't back in a seat RespawnDelay seconds after the fall.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
-	void Eject(FVector LaunchVelocity);
+	void Eject(FVector LaunchVelocity, ENBEjectReason Reason = ENBEjectReason::Other);
 
 	/** Server only. Eject with the car's momentum plus a kick out of the seat's side. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
-	void EjectFromCar();
+	void EjectFromCar(ENBEjectReason Reason = ENBEjectReason::Other);
 
 	/** Server only. Put the squirrel back at the car now (a free seat, else beside it). */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Squirrel")
@@ -112,6 +135,14 @@ public:
 	/** Seconds until the automatic respawn after a fall, or a negative number if none is pending. */
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	float GetRespawnSecondsLeft() const;
+
+	/** Local: why this squirrel last fell out, and the world time it happened (-1000 if never). */
+	ENBEjectReason GetLastEjectReason() const { return LastEjectReason; }
+	double GetLastEjectTime() const { return LastEjectTime; }
+
+	/** Local: the last wrong-key hint for this seat and the world time it was given. */
+	ENBSeatHint GetSeatHint() const { return SeatHint; }
+	double GetSeatHintTime() const { return SeatHintTime; }
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void FellOutOfWorld(const UDamageType& DamageType) override;
@@ -589,6 +620,12 @@ private:
 
 	/** World time of the last non-zero look input (local only). */
 	double LastLookInputTime = -1000.0;
+
+	ENBEjectReason LastEjectReason = ENBEjectReason::Other;
+	double LastEjectTime = -1000.0;
+
+	ENBSeatHint SeatHint = ENBSeatHint::None;
+	double SeatHintTime = -1000.0;
 
 	bool bHasRingPress = false;
 	bool bLastRingPressHit = false;

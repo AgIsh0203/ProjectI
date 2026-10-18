@@ -392,16 +392,19 @@ void ANBHUD::DrawHUD()
 	DrawHornBubble();
 	DrawJumpBubble();
 
-	if (Squirrel->IsRagdolled())
-	{
-		DrawCenteredText(TEXT("WHEEEEE!"), Canvas->ClipY * 0.3f, ProgressColor, 3.f);
-	}
+	DrawEjectReason(*Squirrel);
 	const float RespawnLeft = Squirrel->GetRespawnSecondsLeft();
 	if (RespawnLeft >= 0.f)
 	{
-		const FString Countdown = FString::Printf(TEXT("Get back in the car!  %d"), FMath::CeilToInt(RespawnLeft));
-		DrawCenteredText(Countdown, Canvas->ClipY * 0.3f + 70.f, BadColor, 1.8f);
+		// Say what the countdown is for (friend test 2: "I don't see the point in needing to return the car quickly").
+		const ANBRunGameState* RunState = GetWorld()->GetGameState<ANBRunGameState>();
+		const int32 Penalty = RunState ? RunState->GetRespawnPenalty() : 0;
+		const FString Countdown = FString::Printf(TEXT("Get back in a seat!  %d"), FMath::CeilToInt(RespawnLeft));
+		DrawCenteredText(Countdown, Canvas->ClipY * 0.3f + 90.f, BadColor, 1.8f);
+		DrawCenteredText(Penalty > 0 ? FString::Printf(TEXT("or you respawn at the car: -%d points"), Penalty) : FString(TEXT("or you respawn at the car")),
+			Canvas->ClipY * 0.3f + 130.f, FLinearColor(1.f, 1.f, 1.f, 0.8f), 1.1f);
 	}
+	DrawSeatHint(*Squirrel);
 
 	const UNBInteractableComponent* Interactable = Squirrel->GetFocusedInteractable();
 	if (Interactable)
@@ -709,6 +712,80 @@ void ANBHUD::DrawShoutText(const FString& Text, float CenterX, float Y, const FL
 	Canvas->DrawItem(Item);
 }
 
+void ANBHUD::DrawEjectReason(const ANBSquirrel& Squirrel)
+{
+	const float Age = GetWorld()->GetTimeSeconds() - Squirrel.GetLastEjectTime();
+	if (!Squirrel.IsRagdolled() && Age > 3.f)
+	{
+		return;
+	}
+	const TCHAR* Work = PromptName(ENBPrompt::Work);
+	FString Title = TEXT("WHEEEEE!");
+	FString Help;
+	switch (Squirrel.GetLastEjectReason())
+	{
+	case ENBEjectReason::Door:
+		Title = TEXT("THE DOOR FLUNG YOU OUT!");
+		Help = FString::Printf(TEXT("The door is broken: slam it shut (mash %s at the door)"), Work);
+		break;
+	case ENBEjectReason::Flipped:
+		Title = TEXT("THE CAR FLIPPED!");
+		Help = FString::Printf(TEXT("Push it back up together (%s by the car)"), Work);
+		break;
+	case ENBEjectReason::Bailed:
+		Title = TEXT("YOU BAILED!");
+		Help = TEXT("Jumping out of a fast car throws you");
+		break;
+	case ENBEjectReason::River:
+		Title = TEXT("SWEPT AWAY!");
+		Help = TEXT("Deep water: stay in the car at the fords");
+		break;
+	default:
+		break;
+	}
+	const float Alpha = FMath::Clamp(3.f - Age, 0.f, 1.f);
+	const float Y = Canvas->ClipY * 0.3f;
+	DrawShoutText(Title, Canvas->ClipX * 0.5f, Y, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, Squirrel.IsRagdolled() ? 1.f : Alpha), 1.6f);
+	if (!Help.IsEmpty())
+	{
+		DrawCenteredText(Help, Y + 40.f, FLinearColor(1.f, 1.f, 1.f, Squirrel.IsRagdolled() ? 1.f : Alpha), 1.2f);
+	}
+}
+
+void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
+{
+	const float Age = GetWorld()->GetTimeSeconds() - Squirrel.GetSeatHintTime();
+	if (!Squirrel.IsSeated() || Age > 2.5f)
+	{
+		return;
+	}
+	FString Text;
+	switch (Squirrel.GetSeatHint())
+	{
+	case ENBSeatHint::PedalsCantSteer:
+		Text = bUsingGamepad ? TEXT("You're on the PEDALS: stick up / down. The WHEEL squirrel steers!")
+			: TEXT("You're on the PEDALS: W / S. The WHEEL squirrel steers!");
+		break;
+	case ENBSeatHint::WheelCantDrive:
+		Text = bUsingGamepad ? TEXT("You're on the WHEEL: stick left / right. The PEDALS squirrel drives!")
+			: TEXT("You're on the WHEEL: A / D. The PEDALS squirrel drives!");
+		break;
+	case ENBSeatHint::RiderCantDrive:
+		Text = FString::Printf(TEXT("You're riding. %s hops seats: WHEEL steers, PEDALS drive"), PromptName(ENBPrompt::Interact));
+		break;
+	default:
+		return;
+	}
+	const float Alpha = FMath::Clamp((2.5f - Age) * 2.f, 0.f, 1.f);
+	DrawShoutText(Text, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.68f, FLinearColor(1.f, 0.85f, 0.3f, Alpha), 0.75f);
+}
+
+void ANBHUD::DrawSoundHint()
+{
+	DrawCenteredText(FString::Printf(TEXT("Can't hear your crew?  %s: Sound and voice"), PromptName(ENBPrompt::Menu)),
+		Canvas->ClipY * 0.25f + 140.f, FLinearColor(1.f, 1.f, 1.f, 0.75f), 1.1f);
+}
+
 void ANBHUD::DrawRunStatus()
 {
 	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
@@ -742,11 +819,13 @@ void ANBHUD::DrawRunStatus()
 			: GetNetMode() == NM_Client ? TEXT("Waiting for the host to start...")
 			: FString::Printf(TEXT("Everyone here? %s: start the run"), PromptName(ENBPrompt::Menu));
 		DrawCenteredText(Waiting, Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
+		DrawSoundHint();
 		break;
 	}
 	case ENBRunPhase::Countdown:
 		DrawCenteredText(SecondsLeft > 0.f ? FString::FromInt(FMath::CeilToInt(SecondsLeft)) : TEXT("GO!"), Canvas->ClipY * 0.25f, ProgressColor, 4.f);
 		DrawCenteredText(TEXT("Everyone get in the car!"), Canvas->ClipY * 0.25f + 90.f, FLinearColor::White, 1.5f);
+		DrawSoundHint();
 		break;
 	case ENBRunPhase::Driving:
 	{

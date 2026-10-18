@@ -53,10 +53,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Director")
 	float IgnoredFailureSeconds = 25.f;
 
-	/** Failures still pick at random, but a part's odds are 1 + WearBias * wear^2:
-	 *  a worn-out part is this much + 1 times as likely as a fresh one. */
+	/** Timed failures still pick at random, but a part's odds are FreshWeight + WearBias * wear^2,
+	 *  so a fresh part rarely goes and a worn-out one usually does (friend test 2: "random damage is super annoying"). */
 	UPROPERTY(EditAnywhere, Category = "Director|Wear")
-	float WearBias = 5.f;
+	float WearBias = 10.f;
+
+	UPROPERTY(EditAnywhere, Category = "Director|Wear", meta = (ClampMin = "0.01"))
+	float FreshWeight = 0.3f;
+
+	/** Nothing breaks on its own while the car is slower than this (cm/s), and the timer waits:
+	 *  friend test 2 saw "tires popping … while stationary". Crashes still break parts. */
+	UPROPERTY(EditAnywhere, Category = "Director")
+	float MinMovingSpeed = 300.f;
 
 	/** Above this wear a part may also break on its own between the timed failures... */
 	UPROPERTY(EditAnywhere, Category = "Director|Wear", meta = (ClampMin = "0", ClampMax = "0.99"))

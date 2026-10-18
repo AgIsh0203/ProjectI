@@ -99,6 +99,12 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		bWasFull = false;
 		NextFailureAt = FMath::Max(NextFailureAt, Elapsed + NextInterval(Progress));
 	}
+	if (Car->GetVelocity().Size() < MinMovingSpeed)
+	{
+		// Standing still: nothing wears out by itself, and the timer pauses rather than firing on the first metre.
+		NextFailureAt += DeltaTime;
+		return;
+	}
 	if (Elapsed < FMath::Max(QuietUntil, FirstFailureDelay) || Candidates.IsEmpty())
 	{
 		return;
@@ -126,7 +132,7 @@ void UNBFailureDirector::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	TArray<float, TInlineAllocator<8>> Weights;
 	for (const UNBCarPartComponent* Part : Candidates)
 	{
-		Weights.Add(1.f + WearBias * FMath::Square(Part->GetWear()));
+		Weights.Add(FreshWeight + WearBias * FMath::Square(Part->GetWear()));
 		TotalWeight += Weights.Last();
 	}
 	float Pick = FMath::FRandRange(0.f, TotalWeight);

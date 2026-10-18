@@ -297,7 +297,16 @@ void ANBSquirrel::Move(const FInputActionValue& Value)
 	const FVector2D Axis = Value.Get<FVector2D>();
 	if (CurrentSeat)
 	{
-		SendSeatInput(CurrentSeat->Role == ENBSeatRole::Wheel ? Axis.X : Axis.Y);
+		const ENBSeatRole SeatRole = CurrentSeat->Role;
+		SendSeatInput(SeatRole == ENBSeatRole::Wheel ? Axis.X : Axis.Y);
+		// A key this seat ignores: say whose job it is, rather than nothing happening.
+		const float Ignored = SeatRole == ENBSeatRole::Wheel ? Axis.Y : SeatRole == ENBSeatRole::Pedals ? Axis.X : Axis.GetAbsMax();
+		if (FMath::Abs(Ignored) > 0.5f)
+		{
+			SeatHint = SeatRole == ENBSeatRole::Wheel ? ENBSeatHint::WheelCantDrive
+				: SeatRole == ENBSeatRole::Pedals ? ENBSeatHint::PedalsCantSteer : ENBSeatHint::RiderCantDrive;
+			SeatHintTime = GetWorld()->GetTimeSeconds();
+		}
 		return;
 	}
 	if (ClingTarget)
@@ -670,7 +679,7 @@ void ANBSquirrel::Server_LeaveSeat_Implementation()
 	const ANBCar* Car = GetSeatCar();
 	if (Car && FMath::Abs(Car->GetForwardSpeed()) >= BailSpeed)
 	{
-		EjectFromCar();
+		EjectFromCar(ENBEjectReason::Bailed);
 		return;
 	}
 	LeaveSeat();
@@ -700,19 +709,19 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 	AttachToComponent(Seat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 }
 
-void ANBSquirrel::EjectFromCar()
+void ANBSquirrel::EjectFromCar(ENBEjectReason Reason)
 {
 	check(HasAuthority());
 	const ANBCar* Car = GetSeatCar();
 	if (!Car)
 	{
-		Eject(GetVelocity() + FVector(0.f, 0.f, EjectKick.Y));
+		Eject(GetVelocity() + FVector(0.f, 0.f, EjectKick.Y), Reason);
 		return;
 	}
 	// Keep the car's momentum, plus a kick out of the seat's side of the car and up.
 	const FVector Right = Car->GetActorRightVector();
 	const float Side = FVector::DotProduct(CurrentSeat->GetComponentLocation() - Car->GetActorLocation(), Right) >= 0.f ? 1.f : -1.f;
-	Eject(Car->GetVelocity() + Right * Side * EjectKick.X + FVector(0.f, 0.f, EjectKick.Y));
+	Eject(Car->GetVelocity() + Right * Side * EjectKick.X + FVector(0.f, 0.f, EjectKick.Y), Reason);
 }
 
 void ANBSquirrel::HopToNextSeat()
@@ -1001,7 +1010,7 @@ void ANBSquirrel::UpdateCameraPunch(float DeltaSeconds)
 		DefaultCameraRotation + FRotator(0.f, 0.f, FMath::FRandRange(-1.f, 1.f) * CameraPunchRoll * Strength));
 }
 
-void ANBSquirrel::Eject(FVector LaunchVelocity)
+void ANBSquirrel::Eject(FVector LaunchVelocity, ENBEjectReason Reason)
 {
 	check(HasAuthority());
 	if (Ragdoll.bActive)
@@ -1016,6 +1025,7 @@ void ANBSquirrel::Eject(FVector LaunchVelocity)
 	Ragdoll.bActive = true;
 	Ragdoll.Start = GetActorLocation();
 	Ragdoll.Velocity = LaunchVelocity;
+	Ragdoll.Reason = Reason;
 	StartLocalRagdoll();
 
 	GetWorldTimerManager().SetTimer(RecoverTimer, this, &ANBSquirrel::Recover, RagdollSeconds);
@@ -1048,6 +1058,8 @@ void ANBSquirrel::StartLocalRagdoll()
 		return;
 	}
 	bLocalRagdoll = true;
+	LastEjectReason = Ragdoll.Reason;
+	LastEjectTime = GetWorld()->GetTimeSeconds();
 
 	// The tail, belly and head ride along on the body; the body becomes a free physics ball.
 	for (const TPair<TObjectPtr<USceneComponent>, FTransform>& Part : RideAlongParts)
@@ -1178,7 +1190,7 @@ void ANBSquirrel::UpdateRiver()
 	}
 	// Tumbling off downstream (the scream plays with the ragdoll), then back in a seat before getting up in the water.
 	UE_LOG(LogTemp, Log, TEXT("NBRiver: %s swept away"), *GetName());
-	Eject(Flow * SweepSpeed + FVector(0.f, 0.f, 250.f));
+	Eject(Flow * SweepSpeed + FVector(0.f, 0.f, 250.f), ENBEjectReason::River);
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ANBSquirrel::RespawnAtCar, SweptRespawnDelay);
 	const AGameStateBase* GameState = GetWorld()->GetGameState();
 	RespawnServerTime = (GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds()) + SweptRespawnDelay;

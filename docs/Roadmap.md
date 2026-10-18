@@ -115,6 +115,16 @@ Done 17 Oct, in the `2026-10-17-fix` build: **the restart crash** (every client 
 | F8 | (done 17 Oct: "NAME IS ON IT" when someone else is on the part) **"Widgets are shared":** check whether the repair prompt and progress show on squirrels who aren't repairing | Reported by two players; not confirmed from the video | S | `ANBHUD` prompt / progress drawing |
 | F9 | (done 17 Oct) **Pacing:** a calm cruise, then a storm (e.g. 40 s quiet, 25 s pressure), instead of a steady drip | "I'd prefer a cruising phase … calm before the storm" | S | `UNBFailureDirector` |
 
+### Friend test 2 answers (18 Oct): what they add
+Two more answers on the 17 Oct package ([Playtest.md](Playtest.md#friend-test-2-answers-18-oct-the-package-sent-on-17-oct)); fun 1 and 3. Voice, roles and collision repeat F1, F2 and F7, which that package didn't have yet. New:
+
+| # | Item | Why | Effort | Touches |
+|---|---|---|---|---|
+| G1 | (done 18 Oct, PIE) **Earned damage:** a crash wears (a hard one breaks) the part nearest the impact; rough trail, rocks and fords wear the tyres; timed failures only while the car moves, leaning harder on worn parts | Both: "random damage … should be a punishment for hitting stuff"; "tires popping for no reason … while stationary". Makes driving skill matter and gives viewers a cause they can see | M | `ANBCar::CheckSpill` (impact direction from the velocity change), `ANBCar::UpdateWear` (route roughness under each wheel), `UNBFailureDirector` (speed gate, `WearBias`) |
+| G2 | (done 18 Oct) **Say why you fell out:** a big line for the ejected squirrel (DOOR FLUNG YOU OUT! / CRASH! / BAILED! / SWEPT AWAY! / CAR FLIPPED!), and the countdown explains itself ("Get back in! 8 s, or respawn −25") | "No idea why I get thrown out … don't see the point in needing to return the car quickly" | S | `ANBSquirrel::Eject` callers pass a reason (replicated with the ragdoll state); `ANBHUD` respawn line |
+| G3 | (done 18 Oct: hint + game volume 0.7, voices no longer scaled by the game slider; no ducking) **Find the sound settings:** "Esc: sound and voice" on the HUD while waiting and in the countdown; lower default game volume (or duck it while someone talks) | Both drowned in game sound and couldn't find any setting | S (hint, default), M (ducking) | `ANBHUD` waiting/countdown text; `UNBAudioSettings` defaults |
+| G4 | (done 18 Oct) **Wrong seat for that key:** A/D on the Pedals seat flashes "the WHEEL steers: you're gas and brake", W/S on the Wheel the reverse | Luna tried to steer from the pedals; steering was found by chance | S | `ANBSquirrel` seated input → a local HUD hint |
+
 **Run length went the other way:** all three said "too short", and run 1 was delivered with half the deadline left. That argues against #15 and for more route, harder sections, or side tasks; it needs your decision below.
 
 **Terrain** (done 18 Oct, PIE only): the user redirected it mid-way from rolling hills to **"RV There Yet?"-style mountains**:

@@ -92,6 +92,19 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - **Name ideas:** Nuts and Bolts, Roll Deez Nuts, Rodent Racing.
 - GPUs: RTX 3060, 3070 Ti, 4070 laptop. No frame-rate complaints.
 
+## Friend test 2 answers (18 Oct, the package sent on 17 Oct)
+2 form answers (Luigi, Lunalovegroot; Luna played Pedals with "Tutfrem"). The package predates F1–F9, so voice settings, the who-is-who HUD and prop collision weren't in it.
+- **Scores:** fun **1** and 3. Play again: "no", "maybe another day". Would watch a streamer: no, maybe. Acorn in Mouth: annoying, didn't notice. Run length: about right, too short. First minute: "took a bit" ×2.
+- **Best repair:** brakes, engine. **Worst:** tire, brakes.
+- **Funniest:** reversing and working with the partner to turn the right way (the Wheel/Pedals split works); driving most of the course fine, then the car falling apart on the last stretch.
+- **Failures feel random, not earned (both):** "random damage is super annoying, it should be a punishment for hitting stuff instead"; "tires popping for no reason … better if we had to avoid the cobbles … rather than popping while stationary". The director has no speed gate (parts break while the car stands still) and crashes add no wear.
+- **Ejections unexplained:** "no idea why I get thrown out of the car, I don't see the point in needing to return the car quickly" (probably the "Get back in the car! 8" countdown; the door and the bail never say why).
+- **Voice again (both):** game sound drowned the teammate, one moved to Discord; "could not find a way to change these settings". F1's Sound and voice page wasn't in this build, but they also didn't know where to look.
+- **Roles:** "difficult to understand which position steers"; Luna tried to steer from the Pedals seat and her partner found steering by chance.
+- **Bugs:** no collision on most of the environment (F7 since).
+- **Name ideas:** Squarrel (squirrel + quarrel), Go Nuts.
+- GPUs: RTX 3070 Ti, GTX 1080 Ti.
+
 ## Next test: check the friend-test fixes
 - [ ] The restart works on Steam: the end screen, then the next run, with every client still in and in voice.
 - [ ] Voice is loud enough without Discord. Esc → Sound and voice: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
@@ -104,6 +117,12 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Trees, rocks, fences and lamps are solid: fun obstacles, or annoying?
 - [ ] Calm and storm: does the quiet stretch feel like a breather, and the storm like a storm?
 - [ ] Failures: does fixing one buy a breather now? Does driving flat out break the engine more, and steering hard the front tires? Note the director log lines (`NBDirector: ...`) from the host's log.
+
+## Friend test 2 fixes (18 Oct): check by hand
+- [ ] Damage feels earned: hitting a tree or cliff breaks the part on that side (`NBCrash:` in the host log), rocky stretches wear the tyres, and nothing breaks while parked. Too harsh, or still random?
+- [ ] Falling out says why (THE DOOR FLUNG YOU OUT! etc.) and the countdown explains the −25 respawn.
+- [ ] A/D on the Pedals (or W/S on the Wheel) shows who does that job.
+- [ ] "Can't hear your crew? Esc: Sound and voice" shows before the run; voices stay audible with the Game slider low. Python couldn't look at the HUD, so none of these lines has been seen yet.
 
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s: 7:52 against the 9:00 deadline, no stuck points, 17 acorns lost).

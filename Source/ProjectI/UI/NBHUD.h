@@ -103,6 +103,16 @@ private:
 	/** Who is driving, top left: the WHEEL / PEDALS crew (your own line carries its controls), with
 	 *  "nobody!" flashing when a driving seat is empty during a run. */
 	void DrawRoles();
+	/** For 3 s after a fall: why ("THE DOOR FLUNG YOU OUT!") and what to do about it. Friend test 2:
+	 *  "no idea why I get thrown out of the car". */
+	void DrawEjectReason(const class ANBSquirrel& Squirrel);
+
+	/** For 2.5 s after a key the seat ignores: whose job that is ("The WHEEL squirrel steers"). */
+	void DrawSeatHint(const class ANBSquirrel& Squirrel);
+
+	/** Before the run: where the voice and volume settings are. Friend test 2 couldn't find them. */
+	void DrawSoundHint();
+
 	/** DrawShoutText at 0.8, left-aligned to the screen's left margin. */
 	void DrawLeftShout(const FString& Text, float Y, const FLinearColor& Color);
 	/** Large outlined text centred on CenterX, for anything viewers must read at a glance. */

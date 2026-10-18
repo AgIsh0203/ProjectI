@@ -35,6 +35,8 @@ void UNBAudioSettings::SetGameVolume(float Value)
 {
 	GameVolume = FMath::Clamp(Value, 0.f, MaxGameVolume);
 	ApplyGameVolume();
+	// The primary volume scales voices too; re-balance them so this slider only moves the game.
+	ApplyVoiceVolume();
 	Save();
 }
 
@@ -68,7 +70,7 @@ void UNBAudioSettings::AddVoiceComponent(UAudioComponent* Voice)
 	}
 	VoiceComponents.RemoveAll([](const TWeakObjectPtr<UAudioComponent>& Each) { return !Each.IsValid(); });
 	VoiceComponents.AddUnique(Voice);
-	Voice->SetVolumeMultiplier(VoiceVolume);
+	Voice->SetVolumeMultiplier(GetVoiceMultiplier());
 }
 
 void UNBAudioSettings::ApplyGameVolume() const
@@ -90,13 +92,21 @@ void UNBAudioSettings::ApplyMicBoost() const
 	}
 }
 
+float UNBAudioSettings::GetVoiceMultiplier() const
+{
+	// SetTransientPrimaryVolume turns everything down, voices included (friend test 2: the game drowned
+	// the voices and there was no way to fix it), so divide it back out of the voice. Capped where the
+	// engine's own volume clamp would cut in anyway.
+	return FMath::Min(VoiceVolume / FMath::Max(GameVolume, 0.05f), 4.f);
+}
+
 void UNBAudioSettings::ApplyVoiceVolume()
 {
 	for (const TWeakObjectPtr<UAudioComponent>& Voice : VoiceComponents)
 	{
 		if (Voice.IsValid())
 		{
-			Voice->SetVolumeMultiplier(VoiceVolume);
+			Voice->SetVolumeMultiplier(GetVoiceMultiplier());
 		}
 	}
 }

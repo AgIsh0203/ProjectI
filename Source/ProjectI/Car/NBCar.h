@@ -365,6 +365,39 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
 	float RiverFullDepth = 60.f;
 
+	/** Rough ground: each tyre wears this much per second while its suspension pumps at RoughJoltFull... */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RoughTireWearRate = 0.05f;
+
+	/** ...measured in suspension travels per second (smoothed): below RoughJoltStart the ride counts as smooth. The
+	 *  autopilot on L_Route measured 0.1-0.6 on the trail and 2-4 on rough patches at 16 m/s. */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RoughJoltStart = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float RoughJoltFull = 4.f;
+
+	// --- Crash damage (friend test 2: "random damage ... should be a punishment for hitting stuff"). ---
+
+	/** A sideways or head-on hit (horizontal velocity change over 0.1 s, cm/s) at least this hard damages the part
+	 *  on the side that hit: wear from 0 here up to CrashWear at CrashMaxDeltaV. Straight-down landings never count. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage", meta = (ClampMin = "0"))
+	float CrashDamageMinDeltaV = 600.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Damage", meta = (ClampMin = "0", ClampMax = "1"))
+	float CrashWear = 0.7f;
+
+	/** A hit at least this hard (cm/s) breaks that part outright, unless it was repaired in the last CrashRepairGrace s. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage", meta = (ClampMin = "0"))
+	float CrashBreakDeltaV = 1200.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Damage", meta = (ClampMin = "0"))
+	float CrashRepairGrace = 4.f;
+
+	/** One damaging hit per this many seconds, so a scrape along a wall is one hit, not ten. */
+	UPROPERTY(EditAnywhere, Category = "Car|Damage", meta = (ClampMin = "0"))
+	float CrashDamageCooldown = 1.f;
+
 	// --- Sound and VFX. All optional: assign assets in BP_OffroadCar_Pawn. ---
 
 	/** Plays the engine loop at the engine deck. Add attenuation on this component in the Blueprint. */
@@ -497,6 +530,14 @@ private:
 	FTimerHandle DevChaosTimer;
 	FTimerHandle SpillTimerHandle;
 	FVector LastSpillVelocity = FVector::ZeroVector;
+
+	/** Server: wears (or breaks) the part on the side the car was hit from. DeltaVelocity is horizontal. */
+	void ApplyCrashDamage(const FVector& DeltaVelocity);
+	float NextCrashDamageTime = 0.f;
+
+	/** Server: per wheel, last tick's suspension length and its smoothed rate of change (rough ground). */
+	float LastSuspension[4] = {};
+	float SmoothedJolt[4] = {};
 
 	/** Server: tracks airtime in CheckSpill; returns true while a clean landing's grace is running. */
 	bool UpdateJump(double Now);

@@ -157,7 +157,7 @@ void UNBDoorPart::EjectSquirrelOnDoorSide()
 		// Only seats clearly on the door's side; the deck seat sits on the centre line.
 		if (Occupant && SeatSide * DoorSide > 10.f)
 		{
-			Occupant->EjectFromCar();
+			Occupant->EjectFromCar(ENBEjectReason::Door);
 			return;
 		}
 	}
