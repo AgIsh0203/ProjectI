@@ -1,0 +1,24 @@
+{
+  "_comment": "Joint positions for squirrel_n.glb, in the model's own metres (x forward, y left, z up, before the feet are moved to z = 0). Left-side joints only; the right side mirrors y.",
+  "model": "squirrel_n.glb",
+  "pelvis":   [-0.076, 0.0, -0.315],
+  "spine_02": [-0.027, 0.0, -0.181],
+  "neck":     [ 0.083, 0.0, -0.046],
+  "head":     [ 0.132, 0.0,  0.002],
+  "head_end": [ 0.327, 0.0,  0.015],
+  "upperarm": [ 0.071, 0.06, -0.107],
+  "lowerarm": [ 0.107, 0.05, -0.217],
+  "hand":     [ 0.254, 0.035, -0.193],
+  "hand_end": [ 0.339, 0.035, -0.205],
+  "thigh":    [-0.039, 0.10, -0.278],
+  "calf":     [ 0.083, 0.10, -0.229],
+  "foot":     [-0.015, 0.10, -0.461],
+  "foot_end": [ 0.156, 0.10, -0.486],
+  "tail": [
+    [-0.173, 0.0, -0.425],
+    [-0.295, 0.0, -0.156],
+    [-0.222, 0.0,  0.100],
+    [-0.051, 0.0,  0.283],
+    [-0.259, 0.0,  0.429]
+  ]
+}

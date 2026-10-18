@@ -78,7 +78,7 @@ Kenney and Quaternius share a flat-colour low-poly style, so they mix well.
 ### The squirrel
 No free, rigged, CC0 squirrel exists. Poly Pizza's are static. The [polyducks one](https://polyducks.itch.io/3d-model-squirrel) costs $5, has no rig and can't be redistributed raw. Quaternius and Omabuarts' Quirky Series have no squirrel.
 
-**Plan for the demo:** keep the squirrel built from primitives in C++ and make it funny rather than realistic (Roadmap #7). There's no rig to fight, the fur colours keep working, there's no licence risk, and a stiff, wobbly primitive ragdolls funnier than a realistic one. A Poly Pizza CC0 mesh could replace `BodyVisual` later.
+**Done (18 Oct):** the Poly Pizza squirrel (CC-BY) is rigged and animated by scripts in `Tools/Blender/` (see its README); the source model, its joint file and the exported FBX live in `SourceArt/Squirrel/`, the Unreal assets in `Content/ThirdParty/PolyPizza/squirrel_n/Rigged/`. A new or extra model needs only its own `<model>.rig.json`: every model shares the skeleton, so the animations work on all of them.
 
 ### Textures, materials and skies
 | Source | Licence | Useful for |

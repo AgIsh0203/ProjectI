@@ -13,6 +13,9 @@ class UInputAction;
 class UInputMappingContext;
 class UNBInteractableComponent;
 class UNBSeatComponent;
+class UAnimSequence;
+class UMeshComponent;
+class USkeletalMeshComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
@@ -235,19 +238,75 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
 	TObjectPtr<UStaticMeshComponent> TailVisual;
 
-	/** The low-poly squirrel model (CC-BY, Poly Pizza), tinted with the fur colour. When it loads it
-	 *  replaces the primitive body, belly, head and ears; the googly eyes stay on it, and the tail
+	/** The rigged low-poly squirrel (CC-BY, Poly Pizza; rigged by Tools/Blender/rig_squirrel.py), tinted with the fur
+	 *  colour and animated by UNBSquirrelAnimInstance from what the squirrel is doing (UpdateModelAnimation). When it
+	 *  loads it replaces the primitive body, belly, head and ears; the googly eyes ride on its head bone, and the tail
 	 *  cylinder only shows as the pedal-seat flag. BodyVisual stays as the (hidden) ragdoll ball. */
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
-	TObjectPtr<UStaticMeshComponent> ModelVisual;
+	TObjectPtr<USkeletalMeshComponent> ModelMesh;
 
-	/** Where the model sits on the capsule (it is 1 m tall before this scale). */
+	/** Where the model sits on the capsule: its origin is between its feet, and it is 1 m tall before this scale. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
-	FTransform ModelTransform = FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, 2.f), FVector(0.48f));
+	FTransform ModelMeshTransform = FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, -22.f), FVector(0.48f));
 
-	/** With the model, HeadRoot (the googly eyes) moves here, onto the model's face. */
+	/** Where the googly eyes (HeadRoot) sit on the capsule in the model's rest pose; they then follow ModelHeadBone. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
 	FVector ModelHeadOffset = FVector(8.f, 0.f, 14.f);
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel")
+	FName ModelHeadBone = TEXT("head");
+
+	/** The model's animations (made by Tools/Blender/squirrel_anims.py), picked by UpdateModelAnimation. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> IdleAnim;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> RunAnim;
+
+	/** Thrown out and tumbling. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> FlailAnim;
+
+	/** In the Wheel or Pedals seat. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> GripAnim;
+
+	/** Mash and timing-ring repairs (the door, the brakes). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> MashAnim;
+
+	/** Clinging to a tire, holding, or pushing the flipped car. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> TugAnim;
+
+	/** Putting out the engine fire: back to the flames, fanning them with the tail. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> TailFanAnim;
+
+	/** Seat to seat, and in the air on foot. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	TObjectPtr<UAnimSequence> HopAnim;
+
+	/** On foot, the run cycle plays at its own rate at this speed (cm/s), slower or faster with the squirrel. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	float RunAnimSpeed = 450.f;
+
+	/** Seat to seat (or ground to seat), the model hops over in this long (s), arcing this high (cm).
+	 *  Cosmetic: the squirrel itself is in the new seat at once. */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	float SeatHopSeconds = 0.42f;
+
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	float SeatHopHeight = 45.f;
+
+	/** Mash and timing-ring presses don't make the squirrel a user of the part, so for the animation each press
+	 *  marks the part as worked on (replicated WorkedPart) for this long (s). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	float WorkPoseSeconds = 0.8f;
+
+	/** Getting into a seat from further away than this (a respawn) snaps instead of hopping (cm). */
+	UPROPERTY(EditAnywhere, Category = "Squirrel|Animation")
+	float SeatHopMaxDistance = 400.f;
 
 	/** Cream patch on the front of the body. */
 	UPROPERTY(VisibleAnywhere, Category = "Squirrel")
@@ -459,6 +518,26 @@ private:
 	/** Cosmetic, every machine: tail wobble and googly pupils, driven by the squirrel's acceleration. */
 	void UpdateCharm(float DeltaSeconds);
 
+	/** Cosmetic, every machine: picks the model's animation from what the squirrel is doing. */
+	void UpdateModelAnimation();
+
+	/** The interactable this squirrel is working on, as every machine sees it (its replicated users). */
+	const UNBInteractableComponent* FindWorkTarget() const;
+
+	/** Cosmetic: the model leaves FromWorld (carried along with Base, e.g. the old seat) and arcs over to the squirrel. */
+	void StartSeatHop(const FVector& FromWorld, const USceneComponent* Base);
+
+	/** Moves the model along the hop arc; puts it back on the capsule when the hop ends. */
+	void UpdateSeatHop();
+
+	TWeakObjectPtr<const USceneComponent> HopBase;
+	FVector HopFromLocal = FVector::ZeroVector;
+	double HopStartTime = -1.0;
+
+	/** Where the squirrel last stood on foot, so a client can hop the model from there into a seat. */
+	FVector LastFootLocation = FVector::ZeroVector;
+	bool bHasFootLocation = false;
+
 	/** Body-relative acceleration from the smoothed movement of the actor (cm/s^2), clamped so teleports don't kick. */
 	FVector SampleCharmAcceleration(float DeltaSeconds);
 
@@ -567,7 +646,7 @@ private:
 	void Server_ActionReleased();
 
 	UFUNCTION()
-	void OnRep_CurrentSeat();
+	void OnRep_CurrentSeat(UNBSeatComponent* OldSeat);
 
 	UFUNCTION()
 	void OnRep_ColorIndex();
@@ -600,14 +679,21 @@ private:
 	/** Parts that ride on the body ball while tumbling (tail, belly, head), with their standing poses. */
 	TArray<TPair<TObjectPtr<USceneComponent>, FTransform>> RideAlongParts;
 
-	/** Tints a basic-shape part (BasicShapeMaterial's Color parameter). */
-	static void SetPartColor(UStaticMeshComponent* Part, const FLinearColor& Color);
+	/** Tints a part through its material's Color parameter (BasicShapeMaterial, M_SquirrelFur). */
+	static void SetPartColor(UMeshComponent* Part, const FLinearColor& Color);
 	FTimerHandle RecoverTimer;
 	FTimerHandle RespawnTimer;
 
 	/** What the squirrel is clinging to, if anything. Replicated so clients stop simulating movement. */
 	UPROPERTY(ReplicatedUsing = OnRep_ClingTarget)
 	TObjectPtr<UNBInteractableComponent> ClingTarget;
+
+	/** The part this squirrel last mashed or rang, for its animation; cleared WorkPoseSeconds after the last press. */
+	UPROPERTY(Replicated)
+	TObjectPtr<UNBInteractableComponent> WorkedPart;
+
+	/** Server world time when WorkedPart clears. */
+	double WorkedPartUntil = 0.0;
 
 	/** INDEX_NONE until the server assigns one on possession. */
 	UPROPERTY(ReplicatedUsing = OnRep_ColorIndex)

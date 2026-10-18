@@ -2,14 +2,18 @@
 
 #include "Player/NBSquirrel.h"
 
+#include "AnimationRuntime.h"
+#include "Animation/AnimSequence.h"
 #include "Camera/CameraComponent.h"
 #include "Car/NBCar.h"
 #include "Car/NBSeatComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -23,6 +27,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
+#include "Interaction/NBInteractionSubsystem.h"
+#include "Parts/NBCarParts.h"
+#include "Player/NBSquirrelAnimInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputAction.h"
@@ -92,11 +99,33 @@ ANBSquirrel::ANBSquirrel()
 		PupilVisuals[Side]->SetCastShadow(false);
 	}
 
-	// The low-poly model, when it's in the project, stands in for the primitive body and head.
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SquirrelMesh(TEXT("/Game/ThirdParty/PolyPizza/squirrel_n/StaticMeshes/SM_Squirrel.SM_Squirrel"));
+	// The rigged model, when it's in the project, stands in for the primitive body and head.
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SquirrelMesh(TEXT("/Game/ThirdParty/PolyPizza/squirrel_n/Rigged/SK_Squirrel.SK_Squirrel"));
+	// BasicShapeMaterial can't skin; this one has the same Color parameter.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FurMaterial(TEXT("/Game/Blueprints/M_SquirrelFur.M_SquirrelFur"));
 	if (SquirrelMesh.Succeeded())
 	{
-		ModelVisual = MakePart(TEXT("ModelVisual"), GetCapsuleComponent(), SquirrelMesh.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
+		ModelMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ModelMesh"));
+		ModelMesh->SetupAttachment(GetCapsuleComponent());
+		ModelMesh->SetSkeletalMeshAsset(SquirrelMesh.Object);
+		ModelMesh->SetMaterial(0, FurMaterial.Object);
+		ModelMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ModelMesh->SetGenerateOverlapEvents(false);
+		ModelMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		ModelMesh->AnimClass = UNBSquirrelAnimInstance::StaticClass();
+		auto FindAnim = [](const TCHAR* Name) -> UAnimSequence*
+		{
+			ConstructorHelpers::FObjectFinder<UAnimSequence> Anim(*FString::Printf(TEXT("/Game/ThirdParty/PolyPizza/squirrel_n/Rigged/A_Squirrel_%s.A_Squirrel_%s"), Name, Name));
+			return Anim.Object;
+		};
+		IdleAnim = FindAnim(TEXT("Idle"));
+		RunAnim = FindAnim(TEXT("Run"));
+		FlailAnim = FindAnim(TEXT("Flail"));
+		GripAnim = FindAnim(TEXT("Grip"));
+		MashAnim = FindAnim(TEXT("Mash"));
+		TugAnim = FindAnim(TEXT("Tug"));
+		TailFanAnim = FindAnim(TEXT("TailFan"));
+		HopAnim = FindAnim(TEXT("Hop"));
 		// BodyVisual stays as the ragdoll's physics ball, unseen; visibility isn't inherited, so its riders still show.
 		for (UStaticMeshComponent* Part : {BodyVisual.Get(), BellyVisual.Get(), HeadVisual.Get(), NoseVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get()})
 		{
@@ -132,6 +161,7 @@ void ANBSquirrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ANBSquirrel, CurrentSeat);
 	DOREPLIFETIME(ANBSquirrel, ColorIndex);
 	DOREPLIFETIME(ANBSquirrel, ClingTarget);
+	DOREPLIFETIME(ANBSquirrel, WorkedPart);
 	DOREPLIFETIME(ANBSquirrel, Ragdoll);
 	DOREPLIFETIME(ANBSquirrel, RespawnServerTime);
 }
@@ -173,7 +203,8 @@ void ANBSquirrel::ApplyFurColor()
 	{
 		return;
 	}
-	for (UStaticMeshComponent* Part : {BodyVisual.Get(), TailVisual.Get(), HeadVisual.Get(), EarVisuals[0].Get(), EarVisuals[1].Get(), ModelVisual.Get()})
+	for (UMeshComponent* Part : {static_cast<UMeshComponent*>(BodyVisual.Get()), static_cast<UMeshComponent*>(TailVisual.Get()), static_cast<UMeshComponent*>(HeadVisual.Get()),
+			 static_cast<UMeshComponent*>(EarVisuals[0].Get()), static_cast<UMeshComponent*>(EarVisuals[1].Get()), static_cast<UMeshComponent*>(ModelMesh.Get())})
 	{
 		if (Part)
 		{
@@ -182,7 +213,7 @@ void ANBSquirrel::ApplyFurColor()
 	}
 }
 
-void ANBSquirrel::SetPartColor(UStaticMeshComponent* Part, const FLinearColor& Color)
+void ANBSquirrel::SetPartColor(UMeshComponent* Part, const FLinearColor& Color)
 {
 	if (UMaterialInstanceDynamic* Material = Part->CreateAndSetMaterialInstanceDynamic(0))
 	{
@@ -448,6 +479,11 @@ void ANBSquirrel::Server_ActionPressed_Implementation(double PressServerTime)
 			StartClinging(Target);
 		}
 		const double Now = GetWorld()->GetTimeSeconds();
+		if (Target->Mode == ENBInteractMode::Mash || Target->Mode == ENBInteractMode::TimingRing)
+		{
+			WorkedPart = Target;
+			WorkedPartUntil = Now + WorkPoseSeconds;
+		}
 		if (Now >= NextGrabFeedbackTime)
 		{
 			NextGrabFeedbackTime = Now + 1.5;
@@ -774,6 +810,8 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 
 	// Made it back in: no respawn penalty.
 	ClearRespawn();
+	UNBSeatComponent* OldSeat = CurrentSeat;
+	const FVector FromLocation = GetActorLocation();
 	if (CurrentSeat && CurrentSeat != Seat)
 	{
 		// Never in two seats at once (a respawn or a dev command seating someone already seated).
@@ -783,6 +821,15 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 	CurrentSeat = Seat;
 	RefreshAttachedState();
 	AttachToComponent(Seat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	// The host's view of the hop; clients start theirs in OnRep_CurrentSeat.
+	if (OldSeat && OldSeat != Seat)
+	{
+		StartSeatHop(OldSeat->GetComponentLocation(), OldSeat);
+	}
+	else if (!OldSeat && FVector::Dist(FromLocation, Seat->GetComponentLocation()) <= SeatHopMaxDistance)
+	{
+		StartSeatHop(FromLocation, Seat);
+	}
 }
 
 void ANBSquirrel::EjectFromCar(ENBEjectReason Reason)
@@ -812,10 +859,12 @@ void ANBSquirrel::HopToNextSeat()
 
 	Car->SetSeatInput(CurrentSeat->Role, 0.f);
 	Car->NoteSeatHop();
+	UNBSeatComponent* OldSeat = CurrentSeat;
 	CurrentSeat->SetOccupant(nullptr);
 	NewSeat->SetOccupant(this);
 	CurrentSeat = NewSeat;
 	AttachToComponent(NewSeat, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	StartSeatHop(OldSeat->GetComponentLocation(), OldSeat);
 }
 
 void ANBSquirrel::LeaveSeat()
@@ -847,10 +896,19 @@ void ANBSquirrel::LeaveSeat()
 	RefreshAttachedState();
 }
 
-void ANBSquirrel::OnRep_CurrentSeat()
+void ANBSquirrel::OnRep_CurrentSeat(UNBSeatComponent* OldSeat)
 {
 	RefreshAttachedState();
 	LastSentSeatInput = 0.f;
+	// Seat to seat, or from where it last stood (a late joiner has neither, so nothing hops).
+	if (CurrentSeat && OldSeat && OldSeat != CurrentSeat)
+	{
+		StartSeatHop(OldSeat->GetComponentLocation(), OldSeat);
+	}
+	else if (CurrentSeat && !OldSeat && bHasFootLocation && FVector::Dist(LastFootLocation, CurrentSeat->GetComponentLocation()) <= SeatHopMaxDistance)
+	{
+		StartSeatHop(LastFootLocation, CurrentSeat);
+	}
 }
 
 void ANBSquirrel::RefreshAttachedState()
@@ -888,7 +946,7 @@ void ANBSquirrel::RefreshTailPose()
 	TailBaseTransform = bOnPedals ? PedalTailTransform : DefaultTailTransform;
 	TailVisual->SetRelativeTransform(TailBaseTransform);
 	// The model has its own tail; the cylinder only comes out as the pedal-seat flag.
-	TailVisual->SetVisibility(!ModelVisual || bOnPedals);
+	TailVisual->SetVisibility(!ModelMesh || bOnPedals);
 }
 
 FVector ANBSquirrel::SampleCharmAcceleration(float DeltaSeconds)
@@ -1021,14 +1079,31 @@ void ANBSquirrel::BeginPlay()
 	DefaultBodyTransform = BodyVisual->GetRelativeTransform();
 	DefaultTailTransform = TailVisual->GetRelativeTransform();
 	TailBaseTransform = DefaultTailTransform;
-	if (ModelVisual)
+	bool bHeadOnModel = false;
+	if (ModelMesh)
 	{
 		// Applied here rather than in the constructor so BP_Squirrel's values win.
-		ModelVisual->SetRelativeTransform(ModelTransform);
-		HeadRoot->SetRelativeLocation(ModelHeadOffset);
+		ModelMesh->SetRelativeTransform(ModelMeshTransform);
+		const USkeletalMesh* ModelAsset = ModelMesh->GetSkeletalMeshAsset();
+		const int32 HeadBone = ModelAsset ? ModelAsset->GetRefSkeleton().FindBoneIndex(ModelHeadBone) : INDEX_NONE;
+		if (HeadBone != INDEX_NONE)
+		{
+			// The eyes ride on the head bone, placed so that in the rest pose they sit at ModelHeadOffset, upright.
+			// Absolute scale: the bone carries the model's scale, which would shrink them.
+			const FTransform BoneOnCapsule = FAnimationRuntime::GetComponentSpaceTransformRefPose(ModelAsset->GetRefSkeleton(), HeadBone) * ModelMeshTransform;
+			HeadRoot->SetUsingAbsoluteScale(true);
+			HeadRoot->AttachToComponent(ModelMesh, FAttachmentTransformRules::KeepRelativeTransform, ModelHeadBone);
+			HeadRoot->SetRelativeLocationAndRotation(BoneOnCapsule.InverseTransformPosition(ModelHeadOffset), BoneOnCapsule.GetRotation().Inverse());
+			bHeadOnModel = true;
+		}
+		else
+		{
+			HeadRoot->SetRelativeLocation(ModelHeadOffset);
+		}
 	}
 	RideAlongParts.Reset();
-	for (USceneComponent* Part : {static_cast<USceneComponent*>(TailVisual.Get()), static_cast<USceneComponent*>(BellyVisual.Get()), HeadRoot.Get(), static_cast<USceneComponent*>(ModelVisual.Get())})
+	// With the model, the head rides on its head bone instead, so the model carries it.
+	for (USceneComponent* Part : {static_cast<USceneComponent*>(TailVisual.Get()), static_cast<USceneComponent*>(BellyVisual.Get()), bHeadOnModel ? nullptr : HeadRoot.Get(), static_cast<USceneComponent*>(ModelMesh.Get())})
 	{
 		if (Part)
 		{
@@ -1135,6 +1210,7 @@ void ANBSquirrel::StartLocalRagdoll()
 		return;
 	}
 	bLocalRagdoll = true;
+	HopStartTime = -1.0;
 	LastEjectReason = Ragdoll.Reason;
 	LastEjectTime = GetWorld()->GetTimeSeconds();
 
@@ -1250,10 +1326,137 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 	{
 		UpdateRiver();
 	}
+	if (HasAuthority() && WorkedPart && (GetWorld()->GetTimeSeconds() >= WorkedPartUntil || Ragdoll.bActive))
+	{
+		WorkedPart = nullptr;
+	}
+	if (!IsSeated() && !bLocalRagdoll)
+	{
+		LastFootLocation = GetActorLocation();
+		bHasFootLocation = true;
+	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		UpdateCharm(DeltaSeconds);
+		UpdateSeatHop();
+		UpdateModelAnimation();
 	}
+}
+
+const UNBInteractableComponent* ANBSquirrel::FindWorkTarget() const
+{
+	if (WorkedPart)
+	{
+		return WorkedPart;
+	}
+	// Hold and Push2 users are on the interactable's replicated list.
+	if (const UNBInteractionSubsystem* Interaction = GetWorld()->GetSubsystem<UNBInteractionSubsystem>())
+	{
+		for (const UNBInteractableComponent* Interactable : Interaction->GetInteractables())
+		{
+			if (Interactable && Interactable->IsUsedBy(this))
+			{
+				return Interactable;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void ANBSquirrel::UpdateModelAnimation()
+{
+	UNBSquirrelAnimInstance* Anim = ModelMesh ? Cast<UNBSquirrelAnimInstance>(ModelMesh->GetAnimInstance()) : nullptr;
+	if (!Anim || HopStartTime >= 0.0)
+	{
+		// A seat hop plays out; StartSeatHop started it.
+		return;
+	}
+	UAnimSequence* Sequence = IdleAnim;
+	bool bLoop = true;
+	float Rate = 1.f;
+	if (bLocalRagdoll)
+	{
+		Sequence = FlailAnim;
+	}
+	else if (const UNBInteractableComponent* Work = FindWorkTarget())
+	{
+		if (Work->IsA<UNBEnginePart>())
+		{
+			Sequence = TailFanAnim;
+		}
+		else if (Work->Mode == ENBInteractMode::Mash || Work->Mode == ENBInteractMode::TimingRing)
+		{
+			Sequence = MashAnim;
+		}
+		else
+		{
+			Sequence = TugAnim;
+		}
+	}
+	else if (ClingTarget)
+	{
+		Sequence = TugAnim;
+	}
+	else if (CurrentSeat)
+	{
+		Sequence = CurrentSeat->Role == ENBSeatRole::Rider ? IdleAnim : GripAnim;
+	}
+	else if (GetCharacterMovement()->IsFalling())
+	{
+		Sequence = HopAnim;
+		bLoop = false;
+	}
+	else
+	{
+		const float Speed = GetVelocity().Size2D();
+		if (Speed > 30.f)
+		{
+			Sequence = RunAnim;
+			Rate = FMath::Clamp(Speed / RunAnimSpeed, 0.5f, 2.f);
+		}
+	}
+	if (Sequence)
+	{
+		Anim->Play(Sequence, bLoop, Rate, bLocalRagdoll ? 0.08f : 0.2f);
+	}
+}
+
+void ANBSquirrel::StartSeatHop(const FVector& FromWorld, const USceneComponent* Base)
+{
+	if (!ModelMesh || !Base || bLocalRagdoll || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	HopBase = Base;
+	HopFromLocal = Base->GetComponentTransform().InverseTransformPosition(FromWorld);
+	HopStartTime = GetWorld()->GetTimeSeconds();
+	if (UNBSquirrelAnimInstance* Anim = Cast<UNBSquirrelAnimInstance>(ModelMesh->GetAnimInstance()))
+	{
+		// Stretched or squashed to fit the hop.
+		Anim->Play(HopAnim, false, HopAnim ? HopAnim->GetPlayLength() / FMath::Max(SeatHopSeconds, 0.05f) : 1.f, 0.05f, true);
+	}
+}
+
+void ANBSquirrel::UpdateSeatHop()
+{
+	if (HopStartTime < 0.0 || !ModelMesh || bLocalRagdoll)
+	{
+		return;
+	}
+	const float Alpha = static_cast<float>((GetWorld()->GetTimeSeconds() - HopStartTime) / FMath::Max(SeatHopSeconds, 0.05f));
+	const USceneComponent* Base = HopBase.Get();
+	if (Alpha >= 1.f || !Base || !IsSeated())
+	{
+		HopStartTime = -1.0;
+		ModelMesh->SetRelativeLocation(ModelMeshTransform.GetLocation());
+		return;
+	}
+	// The squirrel is already in its new seat; the model is held back along the arc from where it left.
+	// From moves with its base (the old seat, on the car), so the arc rides along with a moving car.
+	const FVector From = Base->GetComponentTransform().TransformPosition(HopFromLocal);
+	const FVector To = GetActorLocation();
+	const FVector Point = FMath::Lerp(From, To, FMath::InterpEaseInOut(0.f, 1.f, Alpha, 2.f)) + GetActorUpVector() * SeatHopHeight * FMath::Sin(PI * Alpha);
+	ModelMesh->SetRelativeLocation(ModelMeshTransform.GetLocation() + GetActorTransform().InverseTransformVectorNoScale(Point - To));
 }
 
 void ANBSquirrel::UpdateRiver()
