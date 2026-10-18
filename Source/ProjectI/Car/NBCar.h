@@ -419,9 +419,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Wear", meta = (ClampMin = "0", ClampMax = "1"))
 	float OverRevStart = 0.65f;
 
-	/** ...up to this much per second at the redline (past 0.6 wear a part can break early, see the failure director). */
+	/** ...up to this much per second at the redline (past 0.6 wear a part can break early, see the failure director)... */
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
 	float OverRevWearRate = 0.25f;
+
+	/** ...times this in top gear, where there's no shifting up: only easing off saves it (the HUD says so). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear", meta = (ClampMin = "0"))
+	float TopGearOverRevScale = 2.f;
+
+	// --- Steering at speed (18 Oct, the user: "at top speed you can take the turns easily"). ---
+
+	/** Full steering up to this speed (cm/s)... */
+	UPROPERTY(EditAnywhere, Category = "Car|Handling", meta = (ClampMin = "0"))
+	float SteerFadeStart = 500.f;
+
+	/** ...fading to SteerAtSpeed of it by this speed and above. */
+	UPROPERTY(EditAnywhere, Category = "Car|Handling", meta = (ClampMin = "0"))
+	float SteerFadeFull = 1500.f;
+
+	UPROPERTY(EditAnywhere, Category = "Car|Handling", meta = (ClampMin = "0", ClampMax = "1"))
+	float SteerAtSpeed = 0.4f;
 
 	/** Every part heals this much per second, so careful stretches cool things down. */
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")

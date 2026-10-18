@@ -14,7 +14,9 @@ UTP_VehicleAdvOffroadWheelRear::UTP_VehicleAdvOffroadWheelRear()
 	WheelLoadRatio = 1.0f;
 	SpringRate = 100.0f;
 	SpringPreload = 100.0f;
-	SweepShape = ESweepShape::Shapecast;
+	// Spherecast, not Shapecast: in UE 5.7 Chaos, Shapecast falls through to the raycast path, and a ray slips
+	// between trail rocks and ford pebbles, so the suspension never felt them (18 Oct).
+	SweepShape = ESweepShape::Spherecast;
 
 	MaxBrakeTorque = 3000.0f;
 	MaxHandBrakeTorque = 6000.0f;

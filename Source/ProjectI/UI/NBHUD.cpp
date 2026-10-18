@@ -1147,7 +1147,10 @@ void ANBHUD::DrawGearGauge(const ANBCar& Car)
 	DrawShoutText(bManual ? TEXT("MANUAL") : TEXT("AUTO"), Center.X, Center.Y + 58.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 0.55f);
 	if (bManual && bRed)
 	{
-		DrawShoutText(TEXT("SHIFT UP!"), Center.X, Center.Y - Radius - 22.f, FLinearColor(BadColor.R, BadColor.G, BadColor.B, Flash), 0.8f);
+		// In top gear there's nothing to shift to: easing off is the only way out of the red (and it overheats faster).
+		const bool bTopGear = Gear >= Car.GetNumForwardGears();
+		DrawShoutText(bTopGear ? TEXT("EASE OFF! OVERHEATING") : TEXT("SHIFT UP!"), Center.X + (bTopGear ? 40.f : 0.f), Center.Y - Radius - 22.f,
+			FLinearColor(BadColor.R, BadColor.G, BadColor.B, Flash), 0.8f);
 	}
 }
 

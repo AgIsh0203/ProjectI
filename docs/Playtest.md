@@ -176,6 +176,8 @@ Checked only by script in 2-client PIE (seat inputs set from Python, no keys pre
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (no breakdowns, 16 m/s): 7:52 with the template car, 6:40 at 435 Nm. With the 80 Nm car it gets stuck on the climbs' rubble, so no full timing yet (estimate ~8:20 with no breakdowns).
 - [ ] Drive the whole route by hand (solo drive) and note the time: is 9:00 still enough, with breakdowns on top? If not, raise `DeadlineSeconds` on the route.
+- [ ] THE WASH (18 Oct, autopilot): after the water the car crawled at ~515 cm/s in 1st for ~25 s. Stuck on a pebble, or the autopilot? Check by hand.
+- [ ] Steering fade (40 % at 1500 cm/s) and the sphere wheels: do bends need braking now? Do rocks jolt without feeling random?
 - [ ] The slow-pickup car (80 Nm, 18 Oct): is most of the trail in 3rd–4th, 2nd on the slow parts, and 5th only on long straights? Fun, or sluggish? Can you get round the rocks on PINE PASS and ROCKY ROAD without stalling?
 - [ ] The look (no-Lumen build): do the mountains, cliffs and river read? Does the dirt trail stand out from the grass?
 - [ ] 18 % climbs: fun or a slog? With a broken engine (35 % power, then a stall), is a climb a funny crisis or a dead stop? (`MaxGrade` on the route, then a rebake.)

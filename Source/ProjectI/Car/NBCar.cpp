@@ -239,11 +239,8 @@ void ANBCar::Tick(float DeltaSeconds)
 	{
 		UpdateWear(DeltaSeconds);
 		HoldManualGear();
-		// The flat-tire wobble and speed cap change every frame, not only on input.
-		if (FlatWheels != 0)
-		{
-			ApplyInputsToVehicle();
-		}
+		// Steering fades with speed, and the flat-tire wobble and speed cap change every frame, not only on input.
+		ApplyInputsToVehicle();
 	}
 }
 
@@ -270,7 +267,8 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 	if (bManualGears && OverRevStart < 1.f)
 	{
 		const float OverRev = FMath::Clamp((GetEngineRPMAlpha() - OverRevStart) / (1.f - OverRevStart), 0.f, 1.f);
-		EnginePart->AddWear(OverRevWearRate * OverRev * DeltaSeconds);
+		const float TopGear = ManualGear >= GetNumForwardGears() ? TopGearOverRevScale : 1.f;
+		EnginePart->AddWear(OverRevWearRate * TopGear * OverRev * DeltaSeconds);
 	}
 	TireBL->AddWear(RearTireWearRate * Fast * DeltaSeconds);
 	TireBR->AddWear(RearTireWearRate * Fast * DeltaSeconds);
@@ -583,7 +581,10 @@ void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
 void ANBCar::ApplyInputsToVehicle()
 {
 	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
-	float Steer = SteerInput;
+	// Less steering the faster the car goes, so a bend taken flat out runs wide: brake first.
+	const float SteerFade = FMath::GetMappedRangeValueClamped(FVector2f(SteerFadeStart, FMath::Max(SteerFadeFull, SteerFadeStart + 1.f)),
+		FVector2f(1.f, SteerAtSpeed), FMath::Abs(GetForwardSpeed()));
+	float Steer = SteerInput * SteerFade;
 	float Throttle = FMath::Max(ThrottleInput, 0.f);
 	if (FlatWheels != 0)
 	{
