@@ -200,7 +200,7 @@ FString ANBHUD::KeyLabel(ENBBinding Binding) const
 	return Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding));
 }
 
-void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color)
+void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color, float CenterX)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float IconSize = 30.f * Scale;
@@ -228,7 +228,7 @@ void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float
 	}
 	Total += ItemGap * FMath::Max(Items.Num() - 1, 0);
 
-	float X = (Canvas->ClipX - Total) * 0.5f;
+	float X = (CenterX < 0.f ? Canvas->ClipX * 0.5f : CenterX) - Total * 0.5f;
 	for (int32 i = 0; i < Items.Num(); ++i)
 	{
 		if (UTexture2D* Icon = PromptIcon(Items[i].Key))
@@ -735,6 +735,8 @@ void ANBHUD::DrawNameTags()
 {
 	const ANBSquirrel* Me = Cast<ANBSquirrel>(GetOwningPawn());
 	const float Time = GetWorld()->GetTimeSeconds();
+	// Working a part, the tags of everyone on the car would sit over your squirrel's animation.
+	const bool bMeWorking = Me && Me->GetWorkTarget();
 	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
 	{
 		const ANBSquirrel* Squirrel = *It;
@@ -744,7 +746,12 @@ void ANBHUD::DrawNameTags()
 		{
 			continue;
 		}
-		const FLinearColor Fur = Squirrel->GetFurColor();
+		FLinearColor Fur = Squirrel->GetFurColor();
+		// Faint over a squirrel working a part, so its animation shows through (18 Oct: TailFan buried under UI).
+		if (bMeWorking || Squirrel->GetWorkTarget())
+		{
+			Fur.A = 0.3f;
+		}
 		if (Squirrel == Me)
 		{
 			// A bobbing arrow: findable at a glance, even in a pile of squirrels.
@@ -1219,7 +1226,10 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 {
 	const float PanelW = 420.f;
 	const float PanelH = Interactable.Mode == ENBInteractMode::TimingRing ? 250.f : 110.f;
-	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
+	// Bottom right, off the car: the chase camera puts the car, and the squirrel doing the repair, bottom centre
+	// (18 Oct: the panel and its cues hid the TailFan animation).
+	const float PanelX = FMath::Max(Canvas->ClipX - PanelW - 30.f, 0.f);
+	const float PanelCX = PanelX + PanelW * 0.5f;
 	const float PanelY = Canvas->ClipY - 70.f - PanelH;
 	DrawRect(PanelColor, PanelX, PanelY, PanelW, PanelH);
 
@@ -1237,25 +1247,25 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 	const APlayerState* OtherPlayer = Other ? Other->GetPlayerState() : nullptr;
 	if (!bUsing && OtherPlayer && Interactable.Mode != ENBInteractMode::Push2)
 	{
-		DrawCenteredText(FString::Printf(TEXT("%s IS ON IT"), *OtherPlayer->GetPlayerName().ToUpper()), PanelY + 12.f, Other->GetFurColor(), 1.4f);
+		DrawCenteredText(FString::Printf(TEXT("%s IS ON IT"), *OtherPlayer->GetPlayerName().ToUpper()), PanelY + 12.f, Other->GetFurColor(), 1.4f, PanelCX);
 		DrawBar(PanelX + 20.f, PanelY + 50.f, PanelW - 40.f, 18.f, Interactable.GetProgress(), FLinearColor(1.f, 1.f, 1.f, 0.35f));
 		return;
 	}
 
 	const FString Title = FString::Printf(TEXT("%s  %s"), VerbFor(Interactable.Mode), *Interactable.Prompt.ToString());
-	DrawPromptRow({{ENBPrompt::Work, Title}}, PanelY + 22.f, 1.4f, bUsing ? ProgressColor : FLinearColor::White);
+	DrawPromptRow({{ENBPrompt::Work, Title}}, PanelY + 22.f, 1.4f, bUsing ? ProgressColor : FLinearColor::White, PanelCX);
 
 	float Y = PanelY + 50.f;
 	if (Interactable.Mode == ENBInteractMode::Push2)
 	{
 		const FString Count = FString::Printf(TEXT("Pushing: %d / %d"), Interactable.GetNumUsers(), Interactable.RequiredUsers);
 		const bool bEnough = Interactable.GetNumUsers() >= Interactable.RequiredUsers;
-		DrawCenteredText(Count, Y - 4.f, bEnough ? GoodColor : BadColor, 1.1f);
+		DrawCenteredText(Count, Y - 4.f, bEnough ? GoodColor : BadColor, 1.1f, PanelCX);
 		Y += 24.f;
 	}
 	else if (Interactable.Mode == ENBInteractMode::TimingRing)
 	{
-		DrawRing(Interactable, FVector2D(Canvas->ClipX * 0.5f, Y + 70.f), 60.f);
+		DrawRing(Interactable, FVector2D(PanelCX, Y + 70.f), 60.f);
 		Y += 150.f;
 	}
 	else if (Interactable.Mode == ENBInteractMode::Mash)
@@ -1265,9 +1275,11 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 		const int32 Left = FMath::Max(1, FMath::CeilToInt((1.f - Interactable.GetProgress()) * Interactable.MashPresses));
 		const float Time = GetWorld()->GetTimeSeconds();
 		const float Bounce = FMath::Abs(FMath::Sin(Time * 10.f));
-		DrawShoutText(FString::Printf(TEXT("%d MORE!"), Left), Canvas->ClipX * 0.5f, PanelY - 26.f - 6.f * Bounce, ProgressColor, 1.2f + 0.1f * Bounce);
+		// Inside the panel, not over the car, where it hid the squirrel doing the work.
+		DrawShoutText(FString::Printf(TEXT("%d MORE!"), Left), PanelCX, PanelY + 84.f - 3.f * Bounce, ProgressColor, 1.f + 0.08f * Bounce);
+		// On the part only until the first press: it says how, and then the squirrel's animation is the show.
 		FVector2D Screen;
-		if (PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(Interactable.GetComponentLocation() + FVector(0.f, 0.f, 40.f), Screen))
+		if (Interactable.GetProgress() <= 0.f && PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(Interactable.GetComponentLocation() + FVector(0.f, 0.f, 40.f), Screen))
 		{
 			DrawShoutText(FString::Printf(TEXT("MASH %s!"), *PromptName(ENBPrompt::Work)), Screen.X, Screen.Y - 30.f - 10.f * Bounce, ProgressColor, 1.f);
 		}
@@ -1313,10 +1325,10 @@ void ANBHUD::DrawBar(float X, float Y, float Width, float Height, float Fill, co
 	DrawRect(Color, X, Y, Width * FMath::Clamp(Fill, 0.f, 1.f), Height);
 }
 
-void ANBHUD::DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale)
+void ANBHUD::DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale, float CenterX)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	float W = 0.f, H = 0.f;
 	GetTextSize(Text, W, H, Font, Scale);
-	DrawText(Text, Color, (Canvas->ClipX - W) * 0.5f, Y, Font, Scale);
+	DrawText(Text, Color, (CenterX < 0.f ? Canvas->ClipX * 0.5f : CenterX) - W * 0.5f, Y, Font, Scale);
 }

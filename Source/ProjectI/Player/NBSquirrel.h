@@ -109,6 +109,9 @@ public:
 	/** Local feedback for the HUD: did this player's last timing-ring press land, and when. */
 	bool GetLastRingPress(bool& bOutHit, double& OutWorldTime) const;
 
+	/** The part this squirrel is working on, as every machine sees it; nullptr when it isn't. */
+	const UNBInteractableComponent* GetWorkTarget() const { return FindWorkTarget(); }
+
 	/** Holding on to an interactable that carries the squirrel (e.g. a tire). */
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	bool IsClinging() const { return ClingTarget != nullptr; }

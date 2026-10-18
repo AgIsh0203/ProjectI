@@ -138,6 +138,9 @@ struct PROJECTI_API FNBFeedbackLoop
 	/** Sets a float parameter on the sound and the effect, and scales the puffs' rate and size by it. */
 	void SetFloat(FName Name, float Value) const;
 
+	/** Damps the puffs (rate and size, 1 = none) without touching the parameter. */
+	void SetDamp(float Value) const;
+
 	void Stop();
 };
 

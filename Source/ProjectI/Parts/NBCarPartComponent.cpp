@@ -3,6 +3,7 @@
 #include "Parts/NBCarPartComponent.h"
 
 #include "Car/NBCar.h"
+#include "EngineUtils.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
@@ -135,6 +136,7 @@ void UNBCarPartComponent::RefreshFailedLoop()
 	if (!FailedLoop.IsPlaying())
 	{
 		FailedLoop = NBFeedback::StartLoop(FailedLoopFeedback, this);
+		LoopDamp = 1.f;
 		FailedLoop.SetFloat(SeverityParam, 0.f);
 	}
 	// The interactable only ticks on the server; clients need the tick to ramp the severity.
@@ -154,6 +156,13 @@ void UNBCarPartComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	}
 	if (bFailed && FailedLoop.IsPlaying())
 	{
+		bool bWorked = false;
+		for (TActorIterator<ANBSquirrel> It(GetWorld()); It && !bWorked; ++It)
+		{
+			bWorked = It->GetWorkTarget() == this;
+		}
 		FailedLoop.SetFloat(SeverityParam, FMath::Clamp((GetWorld()->GetTimeSeconds() - LocalFailTime) / SeverityRampSeconds, 0.f, 1.f));
+		LoopDamp = FMath::FInterpConstantTo(LoopDamp, bWorked ? WorkedLoopDamp : 1.f, DeltaTime, (1.f - WorkedLoopDamp) / FMath::Max(WorkedDampSeconds, 0.01f));
+		FailedLoop.SetDamp(LoopDamp);
 	}
 }

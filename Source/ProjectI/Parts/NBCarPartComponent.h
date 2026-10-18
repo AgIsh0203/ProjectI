@@ -56,6 +56,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part|Feedback", meta = (ClampMin = "0.1"))
 	float SeverityRampSeconds = 10.f;
 
+	/** While a squirrel works on the part (fanning the engine fire), the failed loop's puffs shrink to this share of
+	 *  their rate and size, easing over WorkedDampSeconds: the fire visibly dies down under the fanning and stops
+	 *  hiding the squirrel (18 Oct: "can't see the tail fan"). */
+	UPROPERTY(EditAnywhere, Category = "Part|Feedback")
+	float WorkedLoopDamp = 0.25f;
+
+	UPROPERTY(EditAnywhere, Category = "Part|Feedback")
+	float WorkedDampSeconds = 0.4f;
+
 	/** Parameter on FailedLoopFeedback's sound and effect that gets the severity. */
 	static const FName SeverityParam;
 
@@ -126,5 +135,8 @@ private:
 
 	/** Local world time this machine saw the break, for the loop's severity. */
 	float LocalFailTime = 0.f;
+
+	/** The failed loop's current damping (1 = full fire), eased toward WorkedLoopDamp while worked. */
+	float LoopDamp = 1.f;
 	FNBFeedbackLoop FailedLoop;
 };

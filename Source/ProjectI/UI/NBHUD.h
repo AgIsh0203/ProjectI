@@ -65,7 +65,8 @@ private:
 	void DrawInteractable(const UNBInteractableComponent& Interactable, bool bUsing);
 	void DrawRing(const UNBInteractableComponent& Interactable, const FVector2D& Center, float Radius);
 	void DrawBar(float X, float Y, float Width, float Height, float Fill, const FLinearColor& Color);
-	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
+	/** Centred on CenterX, or on the screen when it is negative. */
+	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale, float CenterX = -1.f);
 
 	// --- Input prompts (Kenney Input Prompts, CC0, /Game/ThirdParty/Kenney/InputPrompts). ---
 
@@ -77,7 +78,7 @@ private:
 	/** The key bound to a rebindable action, e.g. "W" or "LMB". */
 	FString KeyLabel(ENBBinding Binding) const;
 	/** A centred row of [icon] label pairs. */
-	void DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color);
+	void DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color, float CenterX = -1.f);
 
 	UPROPERTY()
 	TObjectPtr<UTexture2D> KeyIcons[5];

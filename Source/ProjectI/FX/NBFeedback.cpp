@@ -86,6 +86,14 @@ void FNBFeedbackLoop::SetFloat(FName Name, float Value) const
 	}
 }
 
+void FNBFeedbackLoop::SetDamp(float Value) const
+{
+	if (ANBPuffFX* PuffFX = Puffs.Get())
+	{
+		PuffFX->SetDamp(Value);
+	}
+}
+
 void FNBFeedbackLoop::Stop()
 {
 	if (UAudioComponent* AudioComponent = Audio.Get())

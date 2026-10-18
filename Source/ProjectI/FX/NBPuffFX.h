@@ -33,6 +33,9 @@ public:
 	/** Loop strength (e.g. engine fire severity, 0..1): scales the stream's rate and particle size. */
 	void SetStrength(float Value) { Strength = FMath::Clamp(Value, 0.f, 1.f); }
 
+	/** Damping on top of strength (1 = none): multiplies the stream's rate and particle size, e.g. a fire being fanned out. */
+	void SetDamp(float Value) { Damp = FMath::Clamp(Value, 0.f, 1.f); }
+
 	/** Stops streaming; live particles finish, then the actor goes. */
 	void StopLoop() { bLooping = false; }
 
@@ -75,6 +78,7 @@ private:
 	FVector FixedOrigin = FVector::ZeroVector;
 	float Intensity = 1.f;
 	float Strength = 1.f;
+	float Damp = 1.f;
 	bool bLooping = false;
 
 	UPROPERTY(Transient)

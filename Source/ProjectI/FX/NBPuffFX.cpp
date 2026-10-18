@@ -163,10 +163,10 @@ void ANBPuffFX::Tick(float DeltaSeconds)
 		if (bLooping)
 		{
 			// A worse fire burns faster and bigger.
-			Emitter.SpawnDebt += Puff.Count * FMath::Lerp(0.6f, 1.f, Strength) * DeltaSeconds;
+			Emitter.SpawnDebt += Puff.Count * FMath::Lerp(0.6f, 1.f, Strength) * Damp * DeltaSeconds;
 			const int32 Count = FMath::FloorToInt(Emitter.SpawnDebt);
 			Emitter.SpawnDebt -= Count;
-			Emit(Emitter, Count, 1.f, FMath::Lerp(0.75f, 1.f, Strength));
+			Emit(Emitter, Count, 1.f, FMath::Lerp(0.75f, 1.f, Strength) * Damp);
 		}
 
 		const float DragFactor = FMath::Exp(-Puff.Drag * DeltaSeconds);
