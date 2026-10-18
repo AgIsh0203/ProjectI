@@ -9,6 +9,7 @@
 class UNBInteractableComponent;
 class UNBLobbyMenu;
 class UTexture2D;
+enum class ENBBinding : uint8;
 
 /** The game's buttons, as the HUD names them: a key or a gamepad button depending on what was used last. */
 enum class ENBPrompt : uint8
@@ -71,8 +72,10 @@ private:
 	/** Switches the prompts to gamepad buttons on any pad input, back to keys on any key or mouse input. */
 	void UpdateInputDevice();
 	UTexture2D* PromptIcon(ENBPrompt Prompt) const;
-	/** For text-only places: "LMB" or "B". */
-	const TCHAR* PromptName(ENBPrompt Prompt) const;
+	/** For text-only places: "LMB" or "B"; follows the player's key bindings. */
+	FString PromptName(ENBPrompt Prompt) const;
+	/** The key bound to a rebindable action, e.g. "W" or "LMB". */
+	FString KeyLabel(ENBBinding Binding) const;
 	/** A centred row of [icon] label pairs. */
 	void DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color);
 

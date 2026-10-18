@@ -127,6 +127,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 ## Options panel (18 Oct): check in a packaged build
 - [ ] Esc → Options: the Sound, Controls and Display tabs switch, and a gamepad can reach every control.
 - [ ] Controls: look sensitivity and invert apply at once (mouse and right stick); crash shake at 0 removes the camera punch.
+- [ ] Keys: click Horn, press J: J honks and H doesn't; bind Horn to E and Get in takes H (swap); Reset keys brings back the defaults; the bottom hints and the WHEEL / PEDALS lines show the new keys; the bindings survive a relaunch.
 - [ ] Display: window mode, resolution, quality, frame cap and VSync apply at once and survive a relaunch. The editor only shows placeholder values here.
 
 ## Mountain trail (18 Oct): check by hand

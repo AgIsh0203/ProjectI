@@ -207,18 +207,33 @@ void ANBSquirrel::BuildInputAssets()
 	MenuAction = NewObject<UInputAction>(this, TEXT("IA_Menu"));
 	HornAction = NewObject<UInputAction>(this, TEXT("IA_Horn"));
 
-	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
-
-	static const FKey PingKeys[ANBPlayerState::NumPings] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
 	PingActions.Reset();
 	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
 	{
-		UInputAction* Ping = NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_Ping%d"), i + 1));
-		PingActions.Add(Ping);
-		InputContext->MapKey(Ping, PingKeys[i]);
+		PingActions.Add(NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_Ping%d"), i + 1)));
 	}
 
-	// WASD -> 2D: W/S go to Y via swizzle, A/S are negated.
+	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
+	MapKeys();
+}
+
+void ANBSquirrel::MapKeys()
+{
+	InputContext->UnmapAll();
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	MappedBindingsRevision = Controls ? Controls->GetBindingsRevision() : 0;
+	auto KeyFor = [Controls](ENBBinding Binding)
+	{
+		return Controls ? Controls->GetKey(Binding) : UNBControlSettings::GetDefaultKey(Binding);
+	};
+
+	static const FKey PingKeys[ANBPlayerState::NumPings] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
+	for (int32 i = 0; i < PingActions.Num(); ++i)
+	{
+		InputContext->MapKey(PingActions[i], PingKeys[i]);
+	}
+
+	// WASD (or the player's keys) -> 2D: forward/back go to Y via swizzle, back/left are negated.
 	auto MapMoveKey = [this](const FKey& Key, bool bSwizzle, bool bNegate)
 	{
 		FEnhancedActionKeyMapping& Mapping = InputContext->MapKey(MoveAction, Key);
@@ -231,10 +246,10 @@ void ANBSquirrel::BuildInputAssets()
 			Mapping.Modifiers.Add(NewObject<UInputModifierNegate>(InputContext));
 		}
 	};
-	MapMoveKey(EKeys::W, true, false);
-	MapMoveKey(EKeys::S, true, true);
-	MapMoveKey(EKeys::D, false, false);
-	MapMoveKey(EKeys::A, false, true);
+	MapMoveKey(KeyFor(ENBBinding::Forward), true, false);
+	MapMoveKey(KeyFor(ENBBinding::Back), true, true);
+	MapMoveKey(KeyFor(ENBBinding::Right), false, false);
+	MapMoveKey(KeyFor(ENBBinding::Left), false, true);
 	InputContext->MapKey(MoveAction, EKeys::Gamepad_Left2D);
 
 	FEnhancedActionKeyMapping& MouseLook = InputContext->MapKey(LookAction, EKeys::Mouse2D);
@@ -244,20 +259,35 @@ void ANBSquirrel::BuildInputAssets()
 	MouseLook.Modifiers.Add(InvertY);
 	InputContext->MapKey(LookAction, EKeys::Gamepad_Right2D);
 
-	InputContext->MapKey(JumpAction, EKeys::SpaceBar);
+	InputContext->MapKey(JumpAction, KeyFor(ENBBinding::Jump));
 	InputContext->MapKey(JumpAction, EKeys::Gamepad_FaceButton_Bottom);
-	InputContext->MapKey(InteractAction, EKeys::E);
+	InputContext->MapKey(InteractAction, KeyFor(ENBBinding::Interact));
 	InputContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Left);
 	// The repair/work button: hold, mash or time it depending on the interactable.
-	InputContext->MapKey(ActionAction, EKeys::LeftMouseButton);
+	InputContext->MapKey(ActionAction, KeyFor(ENBBinding::Work));
 	InputContext->MapKey(ActionAction, EKeys::Gamepad_FaceButton_Right);
 	// Opens the lobby menu; while it is open the menu itself handles Esc / Start to close.
 	InputContext->MapKey(MenuAction, EKeys::Escape);
 	// Tab too: in the editor, Esc stops Play In Editor before the game sees it.
 	InputContext->MapKey(MenuAction, EKeys::Tab);
 	InputContext->MapKey(MenuAction, EKeys::Gamepad_Special_Right);
-	InputContext->MapKey(HornAction, EKeys::H);
+	InputContext->MapKey(HornAction, KeyFor(ENBBinding::Horn));
 	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
+}
+
+void ANBSquirrel::UpdateKeyBindings()
+{
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	if (!InputContext || !Controls || Controls->GetBindingsRevision() == MappedBindingsRevision)
+	{
+		return;
+	}
+	MapKeys();
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr)
+	{
+		Subsystem->RequestRebuildControlMappings();
+	}
 }
 
 void ANBSquirrel::PawnClientRestart()
@@ -1165,6 +1195,7 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 			}
 		}
 		UpdateVoiceMute();
+		UpdateKeyBindings();
 		UpdateSeatedCamera(DeltaSeconds);
 		UpdateCameraPunch(DeltaSeconds);
 	}

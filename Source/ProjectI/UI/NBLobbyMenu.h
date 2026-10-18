@@ -13,6 +13,23 @@ class USlider;
 class UTextBlock;
 class UVerticalBox;
 struct FAudioOutputDeviceInfo;
+class UNBLobbyMenu;
+
+/** One key-binding button on the Options page: dynamic OnClicked has no payload, so this carries the index. */
+UCLASS()
+class PROJECTI_API UNBBindingButtonProxy : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	TObjectPtr<UNBLobbyMenu> Menu;
+
+	int32 Index = 0;
+
+	UFUNCTION()
+	void HandleClicked();
+};
 
 /**
  * The lobby menu, built in code so it needs no widget asset. Offline it offers host, join,
@@ -29,10 +46,16 @@ public:
 	/** Give keyboard/gamepad focus to the first button that is showing. */
 	void FocusFirstButton();
 
+	/** Options > Controls: wait for the next key or mouse button for this ENBBinding. */
+	void BeginRebind(int32 BindingIndex);
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	/** Previews, so a key being bound (Space, Enter) isn't eaten by the focused button first. */
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
 	void BuildTree();
@@ -128,6 +151,27 @@ private:
 
 	UFUNCTION()
 	void HandleVSync(bool bChecked);
+
+	/** The key list on the Controls tab: one row per ENBBinding, plus Reset. */
+	void BuildKeyList(UVerticalBox* Page);
+	void RefreshKeyTexts();
+	/** Bind the waiting action to Key if it can be bound; true if the event was used. */
+	bool TryFinishRebind(const FKey& Key);
+
+	UFUNCTION()
+	void HandleResetKeys();
+
+	/** ENBBinding being rebound, or INDEX_NONE. */
+	int32 WaitingBinding = INDEX_NONE;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> BindingKeyTexts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNBBindingButtonProxy>> BindingProxies;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BindingNote;
 
 	UFUNCTION()
 	void HandleGameVolume(float Value);

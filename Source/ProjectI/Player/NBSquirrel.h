@@ -406,6 +406,10 @@ protected:
 
 private:
 	void BuildInputAssets();
+	/** (Re)maps every key from UNBControlSettings into InputContext. */
+	void MapKeys();
+	/** Local: remap when the player rebinds a key in the Options page. */
+	void UpdateKeyBindings();
 	void Move(const FInputActionValue& Value);
 	void MoveCompleted(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -590,6 +594,9 @@ private:
 	// Input assets are built in code so the prototype needs no input .uassets.
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> InputContext;
+
+	/** UNBControlSettings::GetBindingsRevision when the keys were last mapped. */
+	int32 MappedBindingsRevision = -1;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> MoveAction;

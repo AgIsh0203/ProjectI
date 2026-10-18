@@ -188,13 +188,153 @@ void UNBLobbyMenu::BuildControlsPage(UVerticalBox* Page)
 	AddSliderRow(Page, TEXT("Crash camera shake"), 0.f, 1.f, 0.05f, Controls ? Controls->GetCameraShake() : 1.f, CameraShakeText)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleCameraShake);
 
-	UTextBlock* Keys = AddText(Page, 13, DimColor);
-	Keys->SetAutoWrapText(true);
-	Keys->SetText(FText::FromString(TEXT("WASD  move, or drive from the Wheel / Pedals seat\n"
-		"Mouse  look      Space  jump / jump out\n"
-		"E  get in / hop seat      LMB  work on a part\n"
-		"H  horn      1-8  pings      Esc or Tab  menu")));
+	BuildKeyList(Page);
 	TabFirstControls.Add(Sensitivity);
+}
+
+void UNBBindingButtonProxy::HandleClicked()
+{
+	if (Menu)
+	{
+		Menu->BeginRebind(Index);
+	}
+}
+
+void UNBLobbyMenu::BuildKeyList(UVerticalBox* Page)
+{
+	for (int32 i = 0; i < static_cast<int32>(ENBBinding::Count); ++i)
+	{
+		// One row: the action on the left, its key on a button on the right.
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UVerticalBoxSlot* RowSlot = Page->AddChildToVerticalBox(Row);
+		RowSlot->SetPadding(FMargin(0.f, 1.f));
+		RowSlot->SetHorizontalAlignment(HAlign_Fill);
+
+		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Label->GetFont();
+		Font.Size = 15;
+		Label->SetFont(Font);
+		Label->SetText(FText::FromString(UNBControlSettings::GetBindingLabel(static_cast<ENBBinding>(i))));
+		if (UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(Label))
+		{
+			LabelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			LabelSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		USizeBox* KeySize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		KeySize->SetWidthOverride(150.f);
+		Row->AddChildToHorizontalBox(KeySize);
+		UButton* KeyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		KeyButton->SetBackgroundColor(FLinearColor(0.35f, 0.3f, 0.25f));
+		KeySize->SetContent(KeyButton);
+		UTextBlock* KeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		KeyText->SetFont(Font);
+		KeyText->SetJustification(ETextJustify::Center);
+		if (UButtonSlot* TextSlot = Cast<UButtonSlot>(KeyButton->AddChild(KeyText)))
+		{
+			TextSlot->SetPadding(FMargin(4.f, 1.f));
+		}
+		BindingKeyTexts.Add(KeyText);
+
+		UNBBindingButtonProxy* Proxy = NewObject<UNBBindingButtonProxy>(this);
+		Proxy->Menu = this;
+		Proxy->Index = i;
+		KeyButton->OnClicked.AddDynamic(Proxy, &UNBBindingButtonProxy::HandleClicked);
+		BindingProxies.Add(Proxy);
+	}
+
+	BindingNote = AddText(Page, 13, DimColor);
+	BindingNote->SetAutoWrapText(true);
+	UButton* Reset = AddButton(Page, TEXT("Reset keys"));
+	Reset->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleResetKeys);
+	// Not one of the main menu's buttons, which Refresh hides while Options is open.
+	Buttons.Remove(Reset);
+	RefreshKeyTexts();
+}
+
+void UNBLobbyMenu::RefreshKeyTexts()
+{
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	for (int32 i = 0; i < BindingKeyTexts.Num(); ++i)
+	{
+		const ENBBinding Binding = static_cast<ENBBinding>(i);
+		const FString Key = i == WaitingBinding ? FString(TEXT("press a key..."))
+			: Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding));
+		BindingKeyTexts[i]->SetText(FText::FromString(Key));
+		BindingKeyTexts[i]->SetColorAndOpacity(FSlateColor(i == WaitingBinding ? TitleColor : FLinearColor::White));
+	}
+}
+
+void UNBLobbyMenu::BeginRebind(int32 BindingIndex)
+{
+	WaitingBinding = BindingIndex;
+	if (BindingNote)
+	{
+		BindingNote->SetText(FText::FromString(TEXT("Press a key or click a mouse button. Esc cancels.")));
+	}
+	RefreshKeyTexts();
+}
+
+bool UNBLobbyMenu::TryFinishRebind(const FKey& Key)
+{
+	if (WaitingBinding == INDEX_NONE)
+	{
+		return false;
+	}
+	const ENBBinding Binding = static_cast<ENBBinding>(WaitingBinding);
+	FString Note;
+	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right)
+	{
+		Note = TEXT("Cancelled.");
+	}
+	else if (!UNBControlSettings::IsBindable(Key))
+	{
+		// Wait for another key: Tab, 1-8 and gamepad buttons are fixed.
+		BindingNote->SetText(FText::FromString(FString::Printf(TEXT("%s can't be used (Esc, Tab, 1-8 and gamepad buttons are fixed). Try another key."),
+			*UNBControlSettings::GetKeyLabel(Key))));
+		return true;
+	}
+	else if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	{
+		const ENBBinding Swapped = Controls->SetKey(Binding, Key);
+		Note = Swapped == ENBBinding::Count
+			? FString::Printf(TEXT("%s is now %s."), UNBControlSettings::GetBindingLabel(Binding), *UNBControlSettings::GetKeyLabel(Key))
+			: FString::Printf(TEXT("%s is now %s; %s took %s."), UNBControlSettings::GetBindingLabel(Binding), *UNBControlSettings::GetKeyLabel(Key),
+				UNBControlSettings::GetBindingLabel(Swapped), *Controls->GetKeyLabel(Swapped));
+	}
+	WaitingBinding = INDEX_NONE;
+	BindingNote->SetText(FText::FromString(Note));
+	RefreshKeyTexts();
+	return true;
+}
+
+void UNBLobbyMenu::HandleResetKeys()
+{
+	if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	{
+		Controls->ResetKeys();
+	}
+	WaitingBinding = INDEX_NONE;
+	BindingNote->SetText(FText::FromString(TEXT("Keys reset to the defaults.")));
+	RefreshKeyTexts();
+}
+
+FReply UNBLobbyMenu::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (TryFinishRebind(InKeyEvent.GetKey()))
+	{
+		return FReply::Handled();
+	}
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UNBLobbyMenu::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (TryFinishRebind(InMouseEvent.GetEffectingButton()))
+	{
+		return FReply::Handled();
+	}
+	return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void UNBLobbyMenu::BuildDisplayPage(UVerticalBox* Page)
@@ -304,6 +444,8 @@ void UNBLobbyMenu::RefreshSliderTexts()
 void UNBLobbyMenu::ShowTab(EOptionsTab Tab)
 {
 	CurrentTab = Tab;
+	WaitingBinding = INDEX_NONE;
+	RefreshKeyTexts();
 	const int32 Index = static_cast<int32>(Tab);
 	for (int32 i = 0; i < TabPages.Num(); ++i)
 	{

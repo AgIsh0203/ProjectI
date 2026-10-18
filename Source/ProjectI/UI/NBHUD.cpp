@@ -24,6 +24,7 @@
 #include "Interaction/NBInteractableComponent.h"
 #include "Game/NBRoute.h"
 #include "Game/NBRunGameState.h"
+#include "Player/NBControlSettings.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
 #include "UI/NBLobbyMenu.h"
@@ -136,23 +137,67 @@ void ANBHUD::UpdateInputDevice()
 	}
 }
 
+namespace
+{
+	/** The rebindable action behind a prompt (Menu has none: Esc / Tab are fixed). */
+	ENBBinding PromptBinding(ENBPrompt Prompt)
+	{
+		switch (Prompt)
+		{
+		case ENBPrompt::Interact: return ENBBinding::Interact;
+		case ENBPrompt::Jump: return ENBBinding::Jump;
+		case ENBPrompt::Work: return ENBBinding::Work;
+		case ENBPrompt::Horn: return ENBBinding::Horn;
+		default: return ENBBinding::Count;
+		}
+	}
+}
+
 UTexture2D* ANBHUD::PromptIcon(ENBPrompt Prompt) const
 {
 	const int32 Index = static_cast<int32>(Prompt);
-	return Index < 5 ? (bUsingGamepad ? PadIcons[Index] : KeyIcons[Index]).Get() : nullptr;
+	if (Index >= 5)
+	{
+		return nullptr;
+	}
+	if (bUsingGamepad)
+	{
+		return PadIcons[Index].Get();
+	}
+	// The key icons show the default keys; a rebound key falls back to its name.
+	const ENBBinding Binding = PromptBinding(Prompt);
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	if (Binding != ENBBinding::Count && Controls && Controls->GetKey(Binding) != UNBControlSettings::GetDefaultKey(Binding))
+	{
+		return nullptr;
+	}
+	return KeyIcons[Index].Get();
 }
 
-const TCHAR* ANBHUD::PromptName(ENBPrompt Prompt) const
+FString ANBHUD::PromptName(ENBPrompt Prompt) const
 {
-	static const TCHAR* const KeyNames[] = {TEXT("E"), TEXT("Space"), TEXT("LMB"), TEXT("H"), TEXT("Esc")};
 	static const TCHAR* const PadNames[] = {TEXT("X"), TEXT("A"), TEXT("B"), TEXT("Y"), TEXT("Menu")};
 	const int32 Index = static_cast<int32>(Prompt);
-	// In the editor Esc stops Play In Editor, so point at Tab there.
-	if (Prompt == ENBPrompt::Menu && !bUsingGamepad && GetWorld() && GetWorld()->IsPlayInEditor())
+	if (Index >= 5)
 	{
-		return TEXT("Tab");
+		return TEXT("?");
 	}
-	return Index < 5 ? (bUsingGamepad ? PadNames[Index] : KeyNames[Index]) : TEXT("?");
+	if (bUsingGamepad)
+	{
+		return PadNames[Index];
+	}
+	if (Prompt == ENBPrompt::Menu)
+	{
+		// In the editor Esc stops Play In Editor, so point at Tab there.
+		return GetWorld() && GetWorld()->IsPlayInEditor() ? TEXT("Tab") : TEXT("Esc");
+	}
+	return KeyLabel(PromptBinding(Prompt));
+}
+
+FString ANBHUD::KeyLabel(ENBBinding Binding) const
+{
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	return Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding));
 }
 
 void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color)
@@ -164,13 +209,22 @@ void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float
 
 	// Measure first so the row centres.
 	TArray<float> TextWidths;
+	TArray<float> KeyWidths;
 	float Total = 0.f;
 	for (const TPair<ENBPrompt, FString>& Item : Items)
 	{
 		float W = 0.f, H = 0.f;
 		GetTextSize(Item.Value, W, H, Font, Scale);
 		TextWidths.Add(W);
-		Total += IconSize + IconGap + W;
+		// A rebound key has no icon: its "[name]" may be wider than an icon.
+		float KeyW = IconSize;
+		if (!PromptIcon(Item.Key))
+		{
+			GetTextSize(FString::Printf(TEXT("[%s]"), *PromptName(Item.Key)), KeyW, H, Font, Scale);
+			KeyW = FMath::Max(KeyW, IconSize);
+		}
+		KeyWidths.Add(KeyW);
+		Total += KeyW + IconGap + W;
 	}
 	Total += ItemGap * FMath::Max(Items.Num() - 1, 0);
 
@@ -184,9 +238,9 @@ void ANBHUD::DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float
 		else
 		{
 			// No icon asset: fall back to the key's name in brackets.
-			DrawText(FString::Printf(TEXT("[%s]"), PromptName(Items[i].Key)), Color, X, Y - 9.f * Scale, Font, Scale);
+			DrawText(FString::Printf(TEXT("[%s]"), *PromptName(Items[i].Key)), Color, X, Y - 9.f * Scale, Font, Scale);
 		}
-		X += IconSize + IconGap;
+		X += KeyWidths[i] + IconGap;
 		DrawText(Items[i].Value, Color, X, Y - 9.f * Scale, Font, Scale);
 		X += TextWidths[i] + ItemGap;
 	}
@@ -445,7 +499,7 @@ void ANBHUD::DrawCarStatus()
 	{
 		if (It->IsFlipped())
 		{
-			DrawCenteredText(FString::Printf(TEXT("CAR FLIPPED!  Two squirrels: hold %s next to it"), PromptName(ENBPrompt::Work)), ListY, Alarm, 1.7f);
+			DrawCenteredText(FString::Printf(TEXT("CAR FLIPPED!  Two squirrels: hold %s next to it"), *PromptName(ENBPrompt::Work)), ListY, Alarm, 1.7f);
 			ListY += 36.f;
 		}
 		for (const UNBCarPartComponent* Part : It->GetParts())
@@ -673,8 +727,9 @@ void ANBHUD::DrawRoles()
 		{
 			// Your own job carries its controls, so nobody has to ask what the keys do.
 			const bool bWheel = SeatRole == ENBSeatRole::Wheel;
-			Line += bUsingGamepad ? (bWheel ? TEXT("YOU  (left stick)") : TEXT("YOU  (left stick up / down)"))
-				: (bWheel ? TEXT("YOU  (A / D)") : TEXT("YOU  (W gas / S brake)"));
+			Line += bUsingGamepad ? FString(bWheel ? TEXT("YOU  (left stick)") : TEXT("YOU  (left stick up / down)"))
+				: bWheel ? FString::Printf(TEXT("YOU  (%s / %s)"), *KeyLabel(ENBBinding::Left), *KeyLabel(ENBBinding::Right))
+				: FString::Printf(TEXT("YOU  (%s gas / %s brake)"), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
 			Color = Driver->GetFurColor();
 		}
 		else if (Player)
@@ -724,18 +779,18 @@ void ANBHUD::DrawEjectReason(const ANBSquirrel& Squirrel)
 	{
 		return;
 	}
-	const TCHAR* Work = PromptName(ENBPrompt::Work);
+	const FString Work = PromptName(ENBPrompt::Work);
 	FString Title = TEXT("WHEEEEE!");
 	FString Help;
 	switch (Squirrel.GetLastEjectReason())
 	{
 	case ENBEjectReason::Door:
 		Title = TEXT("THE DOOR FLUNG YOU OUT!");
-		Help = FString::Printf(TEXT("The door is broken: slam it shut (mash %s at the door)"), Work);
+		Help = FString::Printf(TEXT("The door is broken: slam it shut (mash %s at the door)"), *Work);
 		break;
 	case ENBEjectReason::Flipped:
 		Title = TEXT("THE CAR FLIPPED!");
-		Help = FString::Printf(TEXT("Push it back up together (%s by the car)"), Work);
+		Help = FString::Printf(TEXT("Push it back up together (%s by the car)"), *Work);
 		break;
 	case ENBEjectReason::Bailed:
 		Title = TEXT("YOU BAILED!");
@@ -769,14 +824,14 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 	{
 	case ENBSeatHint::PedalsCantSteer:
 		Text = bUsingGamepad ? TEXT("You're on the PEDALS: stick up / down. The WHEEL squirrel steers!")
-			: TEXT("You're on the PEDALS: W / S. The WHEEL squirrel steers!");
+			: FString::Printf(TEXT("You're on the PEDALS: %s / %s. The WHEEL squirrel steers!"), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
 		break;
 	case ENBSeatHint::WheelCantDrive:
 		Text = bUsingGamepad ? TEXT("You're on the WHEEL: stick left / right. The PEDALS squirrel drives!")
-			: TEXT("You're on the WHEEL: A / D. The PEDALS squirrel drives!");
+			: FString::Printf(TEXT("You're on the WHEEL: %s / %s. The PEDALS squirrel drives!"), *KeyLabel(ENBBinding::Left), *KeyLabel(ENBBinding::Right));
 		break;
 	case ENBSeatHint::RiderCantDrive:
-		Text = FString::Printf(TEXT("You're riding. %s hops seats: WHEEL steers, PEDALS drive"), PromptName(ENBPrompt::Interact));
+		Text = FString::Printf(TEXT("You're riding. %s hops seats: WHEEL steers, PEDALS drive"), *PromptName(ENBPrompt::Interact));
 		break;
 	default:
 		return;
@@ -788,7 +843,7 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 void ANBHUD::DrawSoundHint()
 {
 	// Above the route bar, clear of the centre where falls and countdowns stack up.
-	DrawShoutText(FString::Printf(TEXT("Can't hear your crew?  %s: Options"), PromptName(ENBPrompt::Menu)),
+	DrawShoutText(FString::Printf(TEXT("Can't hear your crew?  %s: Options"), *PromptName(ENBPrompt::Menu)),
 		Canvas->ClipX * 0.5f, Canvas->ClipY - 140.f, FLinearColor(0.85f, 0.95f, 1.f), 0.6f);
 }
 
@@ -823,7 +878,7 @@ void ANBHUD::DrawRunStatus()
 		const int32 Players = State->PlayerArray.Num();
 		const FString Waiting = Players < 2 ? TEXT("Waiting for another squirrel...")
 			: GetNetMode() == NM_Client ? TEXT("Waiting for the host to start...")
-			: FString::Printf(TEXT("Everyone here? %s: start the run"), PromptName(ENBPrompt::Menu));
+			: FString::Printf(TEXT("Everyone here? %s: start the run"), *PromptName(ENBPrompt::Menu));
 		DrawCenteredText(Waiting, Canvas->ClipY * 0.25f, FLinearColor::White, 2.f);
 		DrawSoundHint();
 		break;
@@ -1073,13 +1128,13 @@ void ANBHUD::DrawNetStatus()
 	switch (GetNetMode())
 	{
 	case NM_Standalone:
-		Line = FString::Printf(TEXT("OFFLINE    %s: menu"), PromptName(ENBPrompt::Menu));
+		Line = FString::Printf(TEXT("OFFLINE    %s: menu"), *PromptName(ENBPrompt::Menu));
 		break;
 	case NM_ListenServer:
-		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    %s: menu"), Players, PromptName(ENBPrompt::Menu));
+		Line = FString::Printf(TEXT("HOST    %d / 4 squirrels    %s: menu"), Players, *PromptName(ENBPrompt::Menu));
 		break;
 	default:
-		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels    %s: menu"), Players, PromptName(ENBPrompt::Menu));
+		Line = FString::Printf(TEXT("CONNECTED    %d / 4 squirrels    %s: menu"), Players, *PromptName(ENBPrompt::Menu));
 		break;
 	}
 	if (Sessions)
@@ -1148,7 +1203,7 @@ void ANBHUD::DrawInteractable(const UNBInteractableComponent& Interactable, bool
 		FVector2D Screen;
 		if (PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(Interactable.GetComponentLocation() + FVector(0.f, 0.f, 40.f), Screen))
 		{
-			DrawShoutText(FString::Printf(TEXT("MASH %s!"), PromptName(ENBPrompt::Work)), Screen.X, Screen.Y - 30.f - 10.f * Bounce, ProgressColor, 1.f);
+			DrawShoutText(FString::Printf(TEXT("MASH %s!"), *PromptName(ENBPrompt::Work)), Screen.X, Screen.Y - 30.f - 10.f * Bounce, ProgressColor, 1.f);
 		}
 	}
 
