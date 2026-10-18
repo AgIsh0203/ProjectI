@@ -59,9 +59,10 @@ ANBCar::ANBCar()
 	PedalSeat->Role = ENBSeatRole::Pedals;
 	PedalSeat->SetRelativeLocation(FVector(114.f, -37.f, 84.f));
 
+	// Beside the wheel: the Gears seat (shifting and the handbrake).
 	PassengerSeat = CreateDefaultSubobject<UNBSeatComponent>(TEXT("PassengerSeat"));
 	PassengerSeat->SetupAttachment(GetMesh());
-	PassengerSeat->Role = ENBSeatRole::Rider;
+	PassengerSeat->Role = ENBSeatRole::Gears;
 	PassengerSeat->SetRelativeLocation(FVector(28.f, 35.f, 96.f));
 
 	// On the engine deck behind the seats.
@@ -77,7 +78,7 @@ ANBCar::ANBCar()
 	HoodSeat->SetRelativeLocation(FVector(160.f, 0.f, 132.f));
 
 	// Parts sit where they're repaired from. Ranges are chosen so each in-car part is
-	// reachable from one rider seat only (engine: deck, brakes: hood, door: passenger),
+	// reachable from one seat only (engine: deck, brakes: hood, door: the Gears seat),
 	// never from the wheel or pedals: fixing things means leaving the controls.
 	EnginePart = CreateDefaultSubobject<UNBEnginePart>(TEXT("EnginePart"));
 	EnginePart->SetupAttachment(GetMesh());
@@ -237,6 +238,7 @@ void ANBCar::Tick(float DeltaSeconds)
 	if (HasAuthority())
 	{
 		UpdateWear(DeltaSeconds);
+		HoldManualGear();
 		// The flat-tire wobble and speed cap change every frame, not only on input.
 		if (FlatWheels != 0)
 		{
@@ -264,6 +266,12 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 
 	// Speeding: the engine and the rear tires.
 	EnginePart->AddWear(EngineWearRate * Fast * (0.5f + 0.5f * Throttle) * DeltaSeconds);
+	// Manual gears: holding a low gear into the red zone.
+	if (bManualGears && OverRevStart < 1.f)
+	{
+		const float OverRev = FMath::Clamp((GetEngineRPMAlpha() - OverRevStart) / (1.f - OverRevStart), 0.f, 1.f);
+		EnginePart->AddWear(OverRevWearRate * OverRev * DeltaSeconds);
+	}
 	TireBL->AddWear(RearTireWearRate * Fast * DeltaSeconds);
 	TireBR->AddWear(RearTireWearRate * Fast * DeltaSeconds);
 
@@ -470,6 +478,71 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, JumpCount);
 	DOREPLIFETIME(ANBCar, RepEngineRPM);
 	DOREPLIFETIME(ANBCar, RepGear);
+	DOREPLIFETIME(ANBCar, bManualGears);
+	DOREPLIFETIME(ANBCar, bHandbrake);
+	DOREPLIFETIME(ANBCar, ManualGear);
+}
+
+UNBSeatComponent* ANBCar::GetSeat(ENBSeatRole SeatRole) const
+{
+	switch (SeatRole)
+	{
+	case ENBSeatRole::Wheel: return WheelSeat;
+	case ENBSeatRole::Pedals: return PedalSeat;
+	case ENBSeatRole::Gears: return PassengerSeat;
+	default: return nullptr;
+	}
+}
+
+int32 ANBCar::GetNumForwardGears() const
+{
+	return FMath::Max(GetChaosVehicleMovement()->TransmissionSetup.ForwardGearRatios.Num(), 1);
+}
+
+void ANBCar::SetManualGears(bool bManual)
+{
+	check(HasAuthority());
+	bManualGears = bManual;
+	ManualGear = 1;
+	GearStick = 0.f;
+	GetChaosVehicleMovement()->SetUseAutomaticGears(!bManual);
+	UE_LOG(LogTemp, Log, TEXT("NBGears: %s"), bManual ? TEXT("manual") : TEXT("automatic"));
+}
+
+void ANBCar::HoldManualGear()
+{
+	if (!bManualGears)
+	{
+		return;
+	}
+	// Braking hands the gearbox to Chaos (reverse-as-brake: reverse, then 1st on the gas). Otherwise the car
+	// stays in the Gears squirrel's gear, also with nobody in the seat.
+	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	const bool bBraking = bRunLocked || ThrottleInput < 0.f || BrakeGrab > 0.f;
+	if (!bBraking && Movement->GetTargetGear() != ManualGear)
+	{
+		Movement->SetTargetGear(ManualGear, /*bImmediate=*/Movement->GetCurrentGear() <= 0);
+	}
+}
+
+void ANBCar::SetHandbrake(bool bOn)
+{
+	check(HasAuthority());
+	if (bHandbrake != bOn)
+	{
+		bHandbrake = bOn;
+		ApplyInputsToVehicle();
+	}
+}
+
+void ANBCar::ClearSeatInput(ENBSeatRole SeatRole)
+{
+	check(HasAuthority());
+	SetSeatInput(SeatRole, 0.f);
+	if (SeatRole == ENBSeatRole::Gears)
+	{
+		SetHandbrake(false);
+	}
 }
 
 void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
@@ -484,6 +557,23 @@ void ANBCar::SetSeatInput(ENBSeatRole SeatRole, float Value)
 	case ENBSeatRole::Pedals:
 		ThrottleInput = Value;
 		break;
+	case ENBSeatRole::Gears:
+	{
+		// W/S shift once per push; with automatic gears they do nothing.
+		const int32 Shift = (Value >= 0.5f && GearStick < 0.5f) ? 1 : (Value <= -0.5f && GearStick > -0.5f) ? -1 : 0;
+		GearStick = Value;
+		if (bManualGears && Shift != 0)
+		{
+			const int32 NewGear = FMath::Clamp(ManualGear + Shift, 1, GetNumForwardGears());
+			if (NewGear != ManualGear)
+			{
+				ManualGear = static_cast<int8>(NewGear);
+				HoldManualGear();
+				UE_LOG(LogTemp, Log, TEXT("NBGears: gear %d at %.0f rpm, %.0f cm/s"), ManualGear, EngineRPM, GetForwardSpeed());
+			}
+		}
+		return;
+	}
 	case ENBSeatRole::Rider:
 		return;
 	}
@@ -517,7 +607,7 @@ void ANBCar::ApplyInputsToVehicle()
 	Movement->SetSteeringInput(FMath::Clamp(Steer, -1.f, 1.f));
 	Movement->SetThrottleInput(Throttle);
 	Movement->SetBrakeInput(bRunLocked ? 1.f : FMath::Max(FMath::Max(-ThrottleInput, 0.f), BrakeGrab));
-	Movement->SetHandbrakeInput(bRunLocked);
+	Movement->SetHandbrakeInput(bRunLocked || bHandbrake);
 }
 
 void ANBCar::SetWheelFlat(const UNBTirePart* Tire, bool bFlat)
@@ -1003,6 +1093,7 @@ void ANBCar::SetFlipped(bool bNewFlipped)
 	}
 	SteerInput = 0.f;
 	ThrottleInput = 0.f;
+	bHandbrake = false;
 	ApplyInputsToVehicle();
 }
 

@@ -55,6 +55,9 @@ private:
 	void DrawRunStatus();
 	/** Right, under the acorns: the car's health and a wear bar per part (green to red, BROKEN flashing). */
 	void DrawDamageMeter(const class ANBCar& Car, float Y);
+
+	/** Bottom left, for everyone: the gear and an RPM needle (red zone = over-revving, with Manual gears on). */
+	void DrawGearGauge(const class ANBCar& Car);
 	/** Bottom: how far along the route the car is, and a banner when it enters a new section. */
 	void DrawRouteProgress(const class ANBCar& Car);
 	/** Acorn in Mouth banners, the chat wheel legend and recent pings. */
@@ -96,6 +99,9 @@ private:
 	void DrawSeatLabels();
 	/** "HONK!" over the car for a moment after each honk. */
 	void DrawHornBubble();
+
+	/** "HANDBRAKE!" over the car while the Gears squirrel holds it. */
+	void DrawHandbrakeBubble();
 
 	/** "AIR TIME! +N" over the car for a moment after each clean jump landing. */
 	void DrawJumpBubble();

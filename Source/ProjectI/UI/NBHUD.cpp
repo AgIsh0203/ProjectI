@@ -449,6 +449,7 @@ void ANBHUD::DrawHUD()
 	UpdateCallouts();
 	DrawCallouts();
 	DrawHornBubble();
+	DrawHandbrakeBubble();
 	DrawJumpBubble();
 	DrawOffroadWarning();
 	DrawCarReset(*Squirrel);
@@ -590,6 +591,19 @@ void ANBHUD::DrawHornBubble()
 	}
 }
 
+void ANBHUD::DrawHandbrakeBubble()
+{
+	const float Pulse = 0.7f + 0.3f * FMath::Sin(GetWorld()->GetTimeSeconds() * 12.f);
+	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+	{
+		FVector2D Screen;
+		if (It->IsHandbrakeOn() && PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(It->GetActorLocation() + FVector(0.f, 0.f, 260.f), Screen))
+		{
+			DrawShoutText(TEXT("HANDBRAKE!"), Screen.X, Screen.Y, FLinearColor(BadColor.R, BadColor.G, BadColor.B, Pulse), 1.4f);
+		}
+	}
+}
+
 void ANBHUD::DrawCarReset(const ANBSquirrel& Squirrel)
 {
 	const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
@@ -677,7 +691,8 @@ void ANBHUD::DrawSeatLabels()
 	// They're for squirrels still choosing a seat; once seated they'd only cover the repair panel.
 	const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(GetOwningPawn());
 	const bool bShow = !Squirrel || !Squirrel->IsSeated();
-	TArray<TPair<bool, FVector2D>, TInlineAllocator<2>> Labels; // (is the wheel, screen position)
+	TArray<TPair<ENBSeatRole, FVector2D>, TInlineAllocator<3>> Labels;
+	bool bManualGears = false;
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
 		for (const UNBSeatComponent* Seat : It->GetSeats())
@@ -696,25 +711,42 @@ void ANBHUD::DrawSeatLabels()
 			{
 				continue;
 			}
-			Labels.Add({Seat->Role == ENBSeatRole::Wheel, Screen});
+			Labels.Add({Seat->Role, Screen});
 		}
+		bManualGears = It->IsManualGears();
 	}
 
-	// The two seats are close together, so from most angles their labels landed on top of each
-	// other (friend test 1). Spread an overlapping pair sideways, the wheel to the left.
-	if (Labels.Num() == 2 && FMath::Abs(Labels[0].Value.X - Labels[1].Value.X) < 220.f && FMath::Abs(Labels[0].Value.Y - Labels[1].Value.Y) < 90.f)
+	// The seats are close together, so from most angles their labels landed on top of each other
+	// (friend test 1). If any two overlap, spread them all sideways in seat order: wheel, pedals, gears.
+	bool bOverlap = false;
+	for (int32 i = 0; i < Labels.Num(); ++i)
 	{
-		const float MidX = (Labels[0].Value.X + Labels[1].Value.X) * 0.5f;
-		for (TPair<bool, FVector2D>& Label : Labels)
+		for (int32 j = i + 1; j < Labels.Num(); ++j)
 		{
-			Label.Value.X = MidX + (Label.Key ? -115.f : 115.f);
+			bOverlap |= FMath::Abs(Labels[i].Value.X - Labels[j].Value.X) < 220.f && FMath::Abs(Labels[i].Value.Y - Labels[j].Value.Y) < 90.f;
 		}
 	}
-	for (const TPair<bool, FVector2D>& Label : Labels)
+	if (bOverlap)
 	{
-		const bool bWheel = Label.Key;
-		DrawShoutText(bWheel ? TEXT("WHEEL") : TEXT("PEDALS"), Label.Value.X, Label.Value.Y - 40.f + Bob, GoodColor, 1.5f);
-		DrawShoutText(bWheel ? TEXT("steers") : TEXT("gas + brake"), Label.Value.X, Label.Value.Y - 12.f + Bob, FLinearColor::White, 0.8f);
+		auto Order = [](ENBSeatRole SeatRole) { return SeatRole == ENBSeatRole::Wheel ? 0 : SeatRole == ENBSeatRole::Pedals ? 1 : 2; };
+		Labels.Sort([&Order](const TPair<ENBSeatRole, FVector2D>& A, const TPair<ENBSeatRole, FVector2D>& B) { return Order(A.Key) < Order(B.Key); });
+		float MidX = 0.f;
+		for (const TPair<ENBSeatRole, FVector2D>& Label : Labels)
+		{
+			MidX += Label.Value.X / Labels.Num();
+		}
+		for (int32 i = 0; i < Labels.Num(); ++i)
+		{
+			Labels[i].Value.X = MidX + (i - (Labels.Num() - 1) * 0.5f) * 230.f;
+		}
+	}
+	for (const TPair<ENBSeatRole, FVector2D>& Label : Labels)
+	{
+		const TCHAR* Title = Label.Key == ENBSeatRole::Wheel ? TEXT("WHEEL") : Label.Key == ENBSeatRole::Pedals ? TEXT("PEDALS") : TEXT("GEARS");
+		const TCHAR* Job = Label.Key == ENBSeatRole::Wheel ? TEXT("steers") : Label.Key == ENBSeatRole::Pedals ? TEXT("gas + brake")
+			: bManualGears ? TEXT("shifts + handbrake") : TEXT("handbrake");
+		DrawShoutText(Title, Label.Value.X, Label.Value.Y - 40.f + Bob, GoodColor, 1.5f);
+		DrawShoutText(Job, Label.Value.X, Label.Value.Y - 12.f + Bob, FLinearColor::White, 0.8f);
 	}
 }
 
@@ -726,6 +758,7 @@ namespace
 		{
 		case ENBSeatRole::Wheel: return TEXT("WHEEL");
 		case ENBSeatRole::Pedals: return TEXT("PEDALS");
+		case ENBSeatRole::Gears: return TEXT("GEARS");
 		default: return TEXT("RIDER");
 		}
 	}
@@ -789,9 +822,11 @@ void ANBHUD::DrawRoles()
 	const bool bLive = State && State->GetPhase() == ENBRunPhase::Driving;
 	const float Pulse = 0.6f + 0.4f * FMath::Sin(GetWorld()->GetTimeSeconds() * 8.f);
 	float Y = 58.f;
-	for (const ENBSeatRole SeatRole : {ENBSeatRole::Wheel, ENBSeatRole::Pedals})
+	for (const ENBSeatRole SeatRole : {ENBSeatRole::Wheel, ENBSeatRole::Pedals, ENBSeatRole::Gears})
 	{
 		const UNBSeatComponent* Seat = Car.GetSeat(SeatRole);
+		// With automatic gears the Gears seat only holds the handbrake: nobody there is no emergency.
+		const bool bNeeded = SeatRole != ENBSeatRole::Gears || Car.IsManualGears();
 		const ANBSquirrel* Driver = Seat ? Seat->GetOccupant() : nullptr;
 		const APlayerState* Player = Driver ? Driver->GetPlayerState() : nullptr;
 		FString Line = FString::Printf(TEXT("%s: "), RoleName(SeatRole));
@@ -799,10 +834,26 @@ void ANBHUD::DrawRoles()
 		if (Player && Driver == Me)
 		{
 			// Your own job carries its controls, so nobody has to ask what the keys do.
-			const bool bWheel = SeatRole == ENBSeatRole::Wheel;
-			Line += bUsingGamepad ? FString(bWheel ? TEXT("YOU  (left stick)") : TEXT("YOU  (left stick up / down)"))
-				: bWheel ? FString::Printf(TEXT("YOU  (%s / %s)"), *KeyLabel(ENBBinding::Left), *KeyLabel(ENBBinding::Right))
-				: FString::Printf(TEXT("YOU  (%s gas / %s brake)"), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
+			switch (SeatRole)
+			{
+			case ENBSeatRole::Wheel:
+				Line += bUsingGamepad ? FString(TEXT("YOU  (left stick)"))
+					: FString::Printf(TEXT("YOU  (%s / %s)"), *KeyLabel(ENBBinding::Left), *KeyLabel(ENBBinding::Right));
+				break;
+			case ENBSeatRole::Pedals:
+				Line += bUsingGamepad ? FString(TEXT("YOU  (left stick up / down)"))
+					: FString::Printf(TEXT("YOU  (%s gas / %s brake)"), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
+				break;
+			default:
+			{
+				const FString Handbrake = bUsingGamepad ? FString(TEXT("hold RB handbrake")) : FString::Printf(TEXT("hold %s handbrake"), *KeyLabel(ENBBinding::Handbrake));
+				const FString Shift = !Car.IsManualGears() ? FString()
+					: bUsingGamepad ? FString(TEXT("stick up / down shift, "))
+					: FString::Printf(TEXT("%s / %s shift, "), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
+				Line += FString::Printf(TEXT("YOU  (%s%s)"), *Shift, *Handbrake);
+				break;
+			}
+			}
 			Color = Driver->GetFurColor();
 		}
 		else if (Player)
@@ -813,7 +864,7 @@ void ANBHUD::DrawRoles()
 		else
 		{
 			Line += TEXT("nobody!");
-			Color = bLive ? FLinearColor(BadColor.R, BadColor.G, BadColor.B, Pulse) : FLinearColor(1.f, 1.f, 1.f, 0.6f);
+			Color = bLive && bNeeded ? FLinearColor(BadColor.R, BadColor.G, BadColor.B, Pulse) : FLinearColor(1.f, 1.f, 1.f, 0.6f);
 		}
 		DrawLeftShout(Line, Y, Color);
 		Y += 28.f;
@@ -904,7 +955,17 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 			: FString::Printf(TEXT("You're on the WHEEL: %s / %s. The PEDALS squirrel drives!"), *KeyLabel(ENBBinding::Left), *KeyLabel(ENBBinding::Right));
 		break;
 	case ENBSeatHint::RiderCantDrive:
-		Text = FString::Printf(TEXT("You're riding. %s hops seats: WHEEL steers, PEDALS drive"), *PromptName(ENBPrompt::Interact));
+		Text = FString::Printf(TEXT("You're riding. %s hops seats: WHEEL steers, PEDALS drive, GEARS shift"), *PromptName(ENBPrompt::Interact));
+		break;
+	case ENBSeatHint::GearsCantSteer:
+		Text = TEXT("You're on the GEARS. The WHEEL squirrel steers!");
+		break;
+	case ENBSeatHint::GearsAutomatic:
+		Text = bUsingGamepad ? FString(TEXT("Gears are automatic this run: hold RB for the handbrake"))
+			: FString::Printf(TEXT("Gears are automatic this run: hold %s for the handbrake"), *KeyLabel(ENBBinding::Handbrake));
+		break;
+	case ENBSeatHint::HandbrakeNotHere:
+		Text = TEXT("The handbrake is the GEARS squirrel's job (beside the wheel)");
 		break;
 	default:
 		return;
@@ -989,6 +1050,7 @@ void ANBHUD::DrawRunStatus()
 		DrawRight(FString::Printf(TEXT("ACORNS  %d / %d"), Car->GetAcorns(), Car->GetMaxAcorns()), 70.f, ProgressColor, 1.5f);
 		DrawDamageMeter(*Car, 112.f);
 		DrawRouteProgress(*Car);
+		DrawGearGauge(*Car);
 	}
 }
 
@@ -1039,6 +1101,46 @@ void ANBHUD::DrawDamageMeter(const ANBCar& Car, float Y)
 		DrawText(Label, bBroken ? Color : FLinearColor(1.f, 1.f, 1.f, 0.85f), Right - BarW - 10.f - W, Y, Font, 1.f);
 		DrawBar(Right - BarW, Y + 3.f, BarW, 10.f, FMath::Max(Wear, 0.04f), Color);
 		Y += H + 3.f;
+	}
+}
+
+void ANBHUD::DrawGearGauge(const ANBCar& Car)
+{
+	// A half dial, bottom left: the needle sweeps from idle (left) to the redline (right).
+	const FVector2D Center(110.f, Canvas->ClipY - 100.f);
+	const float Radius = 70.f;
+	const bool bManual = Car.IsManualGears();
+	const float RedStart = bManual ? Car.GetOverRevAlpha() : 1.f;
+	auto Point = [&](float Alpha, float R)
+	{
+		const float Angle = PI * (1.f - Alpha);
+		return Center + FVector2D(FMath::Cos(Angle), -FMath::Sin(Angle)) * R;
+	};
+	constexpr int32 Ticks = 14;
+	for (int32 i = 0; i <= Ticks; ++i)
+	{
+		const float Alpha = static_cast<float>(i) / Ticks;
+		const bool bRedTick = Alpha >= RedStart;
+		FCanvasLineItem Tick(Point(Alpha, Radius * (i % 2 ? 0.88f : 0.8f)), Point(Alpha, Radius));
+		Tick.SetColor(bRedTick ? BadColor : FLinearColor(1.f, 1.f, 1.f, 0.7f));
+		Tick.LineThickness = bRedTick ? 4.f : 2.f;
+		Canvas->DrawItem(Tick);
+	}
+	const float Rpm = Car.GetEngineRPMAlpha();
+	const bool bRed = Rpm >= RedStart;
+	const float Flash = 0.6f + 0.4f * FMath::Sin(GetWorld()->GetTimeSeconds() * 14.f);
+	FCanvasLineItem Needle(Center, Point(Rpm, Radius * 0.92f));
+	Needle.SetColor(bRed ? FLinearColor(BadColor.R, BadColor.G, BadColor.B, Flash) : ProgressColor);
+	Needle.LineThickness = 4.f;
+	Canvas->DrawItem(Needle);
+
+	const int32 Gear = Car.GetEngineGear();
+	const FString GearText = Gear < 0 ? FString(TEXT("R")) : Gear == 0 ? FString(TEXT("N")) : FString::FromInt(Gear);
+	DrawShoutText(GearText, Center.X, Center.Y + 24.f, bRed ? BadColor : FLinearColor::White, 1.4f);
+	DrawShoutText(bManual ? TEXT("MANUAL") : TEXT("AUTO"), Center.X, Center.Y + 58.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 0.55f);
+	if (bManual && bRed)
+	{
+		DrawShoutText(TEXT("SHIFT UP!"), Center.X, Center.Y - Radius - 22.f, FLinearColor(BadColor.R, BadColor.G, BadColor.B, Flash), 0.8f);
 	}
 }
 
@@ -1134,7 +1236,7 @@ void ANBHUD::DrawVoiceStatus()
 void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 {
 	const float PanelW = 720.f;
-	const float PanelH = 520.f;
+	const float PanelH = State.IsManualGears() ? 550.f : 520.f;
 	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
 	const float PanelY = (Canvas->ClipY - PanelH) * 0.5f;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), PanelX, PanelY, PanelW, PanelH);
@@ -1158,6 +1260,11 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 		DrawCenteredText(FString::Printf(TEXT("Time bonus: +%d"), State.GetTimeBonus()), Y + 30.f, FLinearColor::White, 1.3f);
 		DrawCenteredText(FString::Printf(TEXT("Air bonus: +%d"), State.GetAirBonus()), Y + 60.f, FLinearColor::White, 1.3f);
 		DrawCenteredText(FString::Printf(TEXT("Respawn penalty: -%d"), State.GetRespawnPenalty()), Y + 90.f, FLinearColor::White, 1.3f);
+		if (State.IsManualGears())
+		{
+			DrawCenteredText(FString::Printf(TEXT("Manual gears x%.2f"), State.GetManualGearsScale()), Y + 120.f, GoodColor, 1.3f);
+			Y += 30.f;
+		}
 		DrawCenteredText(FString::Printf(TEXT("SCORE  %d"), State.GetFinalScore()), Y + 130.f, ProgressColor, 2.2f);
 	}
 	else

@@ -15,6 +15,8 @@ enum class ENBSeatRole : uint8
 	Wheel  UMETA(DisplayName = "Wheel (steer)"),
 	Pedals UMETA(DisplayName = "Pedals (gas/brake)"),
 	Rider  UMETA(DisplayName = "Rider (no control)"),
+	/** Shifts gears (W/S) when the host turned Manual gears on, and always holds the handbrake. */
+	Gears  UMETA(DisplayName = "Gears (shift/handbrake)"),
 };
 
 /**

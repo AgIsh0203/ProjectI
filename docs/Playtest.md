@@ -159,6 +159,15 @@ Written after the form above, so it's about the flat route before F1–F9 and th
 - [ ] The red corner posts and sign boards are solid now: fair obstacles, or do they catch the car on tight corners?
 - [ ] Off the trail: a short cut across the grass is fine, a long one gets slippery ("OFF THE TRAIL!  grip -N%"), wears the tyres and slows the car. Too harsh or too soft? (`OffroadMinGrip`, `OffroadRampSeconds`, `OffroadDrag` on BP_OffroadCar_Pawn.)
 
+## Gears seat and closer camera (18 Oct): check by hand
+Checked only by script in 2-client PIE (seat inputs set from Python, no keys pressed).
+- [ ] Host lobby page (and Practice alone): "Manual gears: OFF / ON" toggles, the client's menu says when it's on, and the button is gone once the countdown starts. The choice survives a restart.
+- [ ] GEARS seat (beside the wheel): W / S shift once per press; the gauge bottom left shows the gear, MANUAL and the needle; "SHIFT UP!" flashes in the red zone. Does anyone actually shift, or is it a chore?
+- [ ] With nobody in the GEARS seat and manual on, "GEARS: nobody!" flashes and the car stays in its gear. On the 18 % climbs, does a high gear stall the car in a funny way or a frustrating one?
+- [ ] Handbrake: hold Left Shift (pad RB) in the GEARS seat: "HANDBRAKE!" over the car, the back end slides. Useful at THE HAIRPIN, or only a way to spin? In another seat Shift says it's the GEARS squirrel's job.
+- [ ] Automatic mode stays in 1st on the flat (PIE): does the car feel slow? Shifting up in manual is faster.
+- [ ] The closer seated camera (420 cm, was 650): better on stream, or too close to see the road ahead?
+
 ## Car reset (18 Oct): check by hand
 - [ ] Drive off a cliff or into a gully: after ~3 s stuck, "STUCK?  Hold R" shows; holding R fills the bar and puts the car back on the trail 8 m before where it went off (not on a lower leg of the hairpin below), upright and facing the right way, with riders aboard and anyone on foot back at the car (no respawn penalty). "CAR RESET!  -3 acorns" shows.
 - [ ] A second reset within 15 s says "Reset ready in N s". Is 3 acorns + 15 s the right price, or do players use it as a shortcut?

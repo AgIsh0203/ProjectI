@@ -88,8 +88,9 @@ Viewers can't hear game state, so every failure must read on screen in under 2 s
 - Four boards on the left of THE PARK, in the order they are needed: "E: GET IN / HOP SEAT" (in view from the start), "LMB: FIX BROKEN PARTS", "SPACE: JUMP OUT", "H: HONK!". Keyboard only.
 - The controls hint stays on the HUD (Built), as key or Xbox button icons that follow whichever device was used last (14 Oct).
 
-## Gears seat — Friend test 3 (G5)
-The PassengerSeat beside the wheel. It always holds the **handbrake** (hold Shift / RB: the rear wheels lock, for THE HAIRPIN and the cliff bends, or a spin at the wrong moment). With the host's **Manual gears** option on it also shifts (W/S), and an empty Gears seat leaves the car stuck in its gear; manual runs score ×1.25. The pedals stay one seat (gas + brake). Spec: [Roadmap.md](Roadmap.md#friend-test-3-scope-locked-18-oct).
+## Gears seat — Built (18 Oct, scripted 2-client PIE only) (G5)
+The PassengerSeat beside the wheel. It always holds the **handbrake** (hold Shift / RB: the rear wheels lock, for THE HAIRPIN and the cliff bends, or a spin at the wrong moment). With the host's **Manual gears** option on it also shifts (W/S), and an empty Gears seat leaves the car stuck in its gear; manual runs score ×1.25. The pedals stay one seat (gas + brake). The squirrel there can still slam the door. Spec: [Roadmap.md](Roadmap.md#friend-test-3-scope-locked-18-oct).
+- **What PIE showed (18 Oct):** on the flat, 1st gear tops out at ~2200 cm/s and ~5100 rpm, and **the automatic box never leaves 1st** (it shifts up at 6000 rpm, which the car doesn't reach). So a crew that shifts up goes faster than automatic (3rd: 3200 cm/s), on top of the ×1.25. 4th from a standstill barely crawls (bogs). The red zone starts at 65 % of the rev range (~4900 rpm), so staying in 1st at top speed over-revs: the engine wore 0.55 in 9 s.
 
 ## Co-op levers — Demo, if the playtest agrees
 - **The pedal squirrel can't see the road (#9).** Its camera sits low in the footwell, so the WHEEL squirrel has to shout GAS / BRAKE. Asymmetric information forces talking, and talking is what makes streams funny. **Not decided:** it bends the locked chase-camera rule for one seat.
@@ -130,7 +131,7 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Area | Values | Where |
 |---|---|---|
 | Run | deadline 540 s on the 5.4 km route (480 s on the old 3.5 km one; 150 s on the test track); countdown 5 s; end screen 12 s | `ANBRoute::DeadlineSeconds`, `ANBRunGameMode` |
-| Score | 10 per acorn, 2 per second left, −25 per respawn; 0 on a bad ending | `ANBRunGameMode` |
+| Score | 10 per acorn, 2 per second left, −25 per respawn, ×1.25 with Manual gears; 0 on a bad ending | `ANBRunGameMode` |
 | Audio | engine loop asset volume 0.35 (✓ 14 Oct: the user found 1.0 too loud); music 0.35 | `SW_Engine_Loop` volume, `ANBHUD::MusicVolume` |
 | Total wreck | 3 parts failed for 10 s | `ANBRunGameMode` |
 | Failure director | storms and calms: a 25 s storm (timed failures at 0.7× the interval), then a calm with no timed failures (40 s early in the run, 20 s by the end; only parts worn past 85 % can break), alternating; first failure after 8 s; then every 14 s, easing to 6 s by the deadline; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s; a repair that frees a slot restarts the interval; a failure unfixed for 25 s stops counting against the limit; at least 3 s between failures. Friend test 17 Oct: "too many breakdowns", and fixing one let the next in within 1.5 s (fixed) | `UNBFailureDirector` |
@@ -144,7 +145,8 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 | Off the trail | grip of an off-trail wheel down to 0.45 after 5 s fully off (back in 2 s), tyres 0.05/s, engine 0.015/s, 20 %/s speed lost at full level | `ANBCar` "Car\|Offroad" |
 | Crash feedback | from a 500 cm/s change per 0.1 s; full intensity at 1600 | `ANBCar` |
 | Squirrel | ragdoll 2.5 s; respawn 8 s; jumping out above 600 cm/s throws you; eject kick 350 out + 450 up (cm/s) | `ANBSquirrel` |
-| Camera | arm 320 cm on foot; seated 650 cm, pivot 150 cm above the seat, follow pitch -12° (was 1100 cm / 420 cm / level until friend test 1: the car was a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
+| Camera | arm 320 cm on foot; seated 420 cm, pivot 110 cm above the seat, follow pitch -12° (650 / 150 until Luigi's review, 18 Oct: "unnecessarily distant" (G7); 1100 cm / 420 cm / level until friend test 1: the car was a speck at the bottom of the screen); swings behind the car after 1 s without look input, above 150 cm/s | `ANBSquirrel` |
+| Gears | Manual gears: starts in 1st, W/S shift 1–5 (gear ratios from the BP: 4.25 / 2.52 / 1.66 / 1.22 / 1.0, final 2.81; redline 7000, idle 900); braking still drops to reverse and back; over-rev wear from 65 % of the rev range up to 0.25/s at the redline; score ×1.25. Handbrake: the Chaos rear-wheel handbrake, any mode (PIE: 2100 cm/s with a little steer swung the car 24° in 1 s) | `ANBCar` "Car\|Wear", BP_OffroadCar_Pawn transmission, `ANBRunGameMode::ManualGearsScoreScale` |
 | Acorn in Mouth | every 75–105 s, 20 s mute; pings: 1 s cooldown, shown 4 s | `ANBRunGameMode`, `ANBPlayerState` |
 | Voice | full volume within 800 cm, silent 2500 cm further, measured from the listening squirrel (it was the camera, 11 m back); voices 150 %, mic boost 150 % by default, both in the Sound and voice menu | `ANBSquirrel` |
 | Terrain | mountains 0–160 m, cliff benches 25 m (strength 0.45); trail grade ≤ 18 % (6 % THE PARK, 10 % hairpin and slalom, 3 % near jumps, 2 % start and end, level on the bridge); trail lumps ± 15 cm, lean ≤ 5 % | `ANBRoute` "Route\|Terrain" (rebake L_Route after changing) |

@@ -75,7 +75,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	APlayerState* GetMostUseless() const { return MostUseless; }
 
+	/** The host's Manual gears option (G5): the Gears seat shifts, and a delivered run scores x GetManualGearsScale. */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	bool IsManualGears() const { return bManualGears; }
+
+	float GetManualGearsScale() const { return ManualGearsScale; }
+
 	// --- Server only: written by the game mode. ---
+	void SetManualGears(bool bManual, float ScoreScale) { bManualGears = bManual; ManualGearsScale = ScoreScale; }
 	void SetPhase(ENBRunPhase NewPhase, double NewEndTime);
 	void SetWreckSeconds(float Seconds) { WreckSeconds = Seconds; }
 	void SetAwards(APlayerState* NewMvp, APlayerState* NewMostUseless) { Mvp = NewMvp; MostUseless = NewMostUseless; }
@@ -115,4 +122,10 @@ private:
 
 	UPROPERTY(Replicated)
 	TObjectPtr<APlayerState> MostUseless;
+
+	UPROPERTY(Replicated)
+	bool bManualGears = false;
+
+	UPROPERTY(Replicated)
+	float ManualGearsScale = 1.f;
 };

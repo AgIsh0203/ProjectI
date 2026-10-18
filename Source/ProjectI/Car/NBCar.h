@@ -52,8 +52,37 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car")
 	void SetSeatInput(ENBSeatRole SeatRole, float Value);
 
+	/** Server only. A squirrel left the seat: its control goes back to neutral (and the Gears seat lets go of the handbrake). */
+	void ClearSeatInput(ENBSeatRole SeatRole);
+
+	/** The seat that owns a control (Wheel, Pedals, Gears); null for Rider. */
 	UFUNCTION(BlueprintPure, Category = "Car")
-	UNBSeatComponent* GetSeat(ENBSeatRole SeatRole) const { return SeatRole == ENBSeatRole::Wheel ? WheelSeat : PedalSeat; }
+	UNBSeatComponent* GetSeat(ENBSeatRole SeatRole) const;
+
+	// --- Gears seat (G5). ---
+
+	/** Server only. The host's Manual gears option: W/S on the Gears seat shift, and nobody there leaves the car in its gear. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Gears")
+	void SetManualGears(bool bManual);
+
+	UFUNCTION(BlueprintPure, Category = "Car|Gears")
+	bool IsManualGears() const { return bManualGears; }
+
+	/** Server only. The Gears squirrel holds (or lets go of) the handbrake: the rear wheels lock. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Gears")
+	void SetHandbrake(bool bOn);
+
+	UFUNCTION(BlueprintPure, Category = "Car|Gears")
+	bool IsHandbrakeOn() const { return bHandbrake; }
+
+	/** The gear the Gears squirrel picked (1..number of forward gears), manual gears only. */
+	UFUNCTION(BlueprintPure, Category = "Car|Gears")
+	int32 GetManualGear() const { return ManualGear; }
+
+	int32 GetNumForwardGears() const;
+
+	/** 0..1 on the RPM gauge where over-revving starts wearing the engine (the gauge's red zone). */
+	float GetOverRevAlpha() const { return OverRevStart; }
 
 	/** Closest unoccupied seat within MaxDistance of Location, or nullptr. */
 	UNBSeatComponent* FindNearestFreeSeat(const FVector& Location, float MaxDistance) const;
@@ -189,9 +218,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> PedalSeat;
 
-	/** Rider spots for squirrels who aren't driving. */
+	/** Beside the wheel: the Gears seat (shifting with Manual gears on, and the handbrake). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> PassengerSeat;
+
+	/** Rider spots for squirrels who aren't driving. */
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> DeckSeat;
@@ -382,6 +413,15 @@ protected:
 	/** ...and each further flat lowers it by this much. */
 	UPROPERTY(EditAnywhere, Category = "Car|Damage")
 	float FlatTopSpeedPerExtra = 300.f;
+
+	/** Manual gears: above this share of the rev range (0 idle .. 1 redline) the engine over-revs and wears. 0.65 is ~4900 rpm:
+	 *  on the flat 1st gear tops out at ~5100 rpm and 2200 cm/s (18 Oct, PIE), so staying in 1st wears the engine... */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear", meta = (ClampMin = "0", ClampMax = "1"))
+	float OverRevStart = 0.65f;
+
+	/** ...up to this much per second at the redline (past 0.6 wear a part can break early, see the failure director). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear")
+	float OverRevWearRate = 0.25f;
 
 	/** Every part heals this much per second, so careful stretches cool things down. */
 	UPROPERTY(EditAnywhere, Category = "Car|Wear")
@@ -677,6 +717,21 @@ private:
 	/** >0 gas, <0 brake (Chaos reverses when braking from a stop). */
 	UPROPERTY(Replicated)
 	float ThrottleInput = 0.f;
+
+	/** Server: in manual, keeps Chaos in ManualGear (its reverse-as-brake logic drops to reverse and back to 1st). */
+	void HoldManualGear();
+
+	UPROPERTY(Replicated)
+	bool bManualGears = false;
+
+	UPROPERTY(Replicated)
+	bool bHandbrake = false;
+
+	UPROPERTY(Replicated)
+	int8 ManualGear = 1;
+
+	/** Server: the Gears seat's last W/S axis; a push past half shifts once. */
+	float GearStick = 0.f;
 
 	float BaseMaxEngineTorque = 0.f;
 	TArray<float> BaseBrakeTorque;

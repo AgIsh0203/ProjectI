@@ -128,6 +128,12 @@ void ANBRunGameMode::StartPlay()
 
 	EnsureRoute();
 	FindOrSpawnCar();
+	// The host's last choice (kept by the game instance across restarts), or ?ManualGears=0/1 in the URL.
+	bool bManual = Sessions && Sessions->IsManualGears();
+	if (UGameplayStatics::HasOption(OptionsString, TEXT("ManualGears")))
+	{
+		bManual = UGameplayStatics::GetIntOption(OptionsString, TEXT("ManualGears"), 1) != 0;
+	}
 	if (Car)
 	{
 		Car->SetRunLocked(true);
@@ -136,6 +142,30 @@ void ANBRunGameMode::StartPlay()
 	if (ANBRunGameState* State = GetRunState())
 	{
 		State->SetPhase(ENBRunPhase::Waiting, 0.0);
+	}
+	SetManualGears(bManual);
+}
+
+bool ANBRunGameMode::CanChangeManualGears() const
+{
+	const ANBRunGameState* State = GetRunState();
+	return State && State->GetPhase() == ENBRunPhase::Waiting;
+}
+
+void ANBRunGameMode::SetManualGears(bool bManual)
+{
+	if (!CanChangeManualGears())
+	{
+		return;
+	}
+	GetRunState()->SetManualGears(bManual, ManualGearsScoreScale);
+	if (UNBSessionSubsystem* Sessions = GetGameInstance()->GetSubsystem<UNBSessionSubsystem>())
+	{
+		Sessions->SetManualGears(bManual);
+	}
+	if (Car)
+	{
+		Car->SetManualGears(bManual);
 	}
 }
 
@@ -539,7 +569,7 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 	}
 
 	// Seconds at the controls count toward the MVP pick.
-	for (const ENBSeatRole SeatRole : { ENBSeatRole::Wheel, ENBSeatRole::Pedals })
+	for (const ENBSeatRole SeatRole : { ENBSeatRole::Wheel, ENBSeatRole::Pedals, ENBSeatRole::Gears })
 	{
 		const UNBSeatComponent* Seat = Car->GetSeat(SeatRole);
 		if (ANBPlayerState* Stats = (Seat && Seat->GetOccupant()) ? Seat->GetOccupant()->GetPlayerState<ANBPlayerState>() : nullptr)
@@ -609,6 +639,10 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 			}
 		}
 		Score = FMath::Max(0, Delivered * PointsPerAcorn + TimeBonus + AirBonus - Penalty);
+		if (State->IsManualGears())
+		{
+			Score = FMath::RoundToInt(Score * State->GetManualGearsScale());
+		}
 	}
 
 	Director->End();

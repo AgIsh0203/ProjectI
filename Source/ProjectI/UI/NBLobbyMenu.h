@@ -77,6 +77,10 @@ private:
 	UFUNCTION()
 	void HandleStart();
 
+	/** The host's Manual gears ON / OFF (G5), before the run starts. */
+	UFUNCTION()
+	void HandleManualGears();
+
 	UFUNCTION()
 	void HandleInvite();
 
@@ -267,6 +271,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> StartButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> GearsButton;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> InviteButton;

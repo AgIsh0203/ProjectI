@@ -238,6 +238,7 @@ void ANBSquirrel::BuildInputAssets()
 	MenuAction = NewObject<UInputAction>(this, TEXT("IA_Menu"));
 	HornAction = NewObject<UInputAction>(this, TEXT("IA_Horn"));
 	ResetAction = NewObject<UInputAction>(this, TEXT("IA_ResetCar"));
+	HandbrakeAction = NewObject<UInputAction>(this, TEXT("IA_Handbrake"));
 
 	PingActions.Reset();
 	for (int32 i = 0; i < ANBPlayerState::NumPings; ++i)
@@ -307,6 +308,8 @@ void ANBSquirrel::MapKeys()
 	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
 	InputContext->MapKey(ResetAction, KeyFor(ENBBinding::ResetCar));
 	InputContext->MapKey(ResetAction, EKeys::Gamepad_Special_Left);
+	InputContext->MapKey(HandbrakeAction, KeyFor(ENBBinding::Handbrake));
+	InputContext->MapKey(HandbrakeAction, EKeys::Gamepad_RightShoulder);
 }
 
 void ANBSquirrel::UpdateKeyBindings()
@@ -355,6 +358,8 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Input->BindAction(HornAction, ETriggerEvent::Started, this, &ANBSquirrel::HornPressed);
 	Input->BindAction(ResetAction, ETriggerEvent::Started, this, &ANBSquirrel::ResetPressed);
 	Input->BindAction(ResetAction, ETriggerEvent::Completed, this, &ANBSquirrel::ResetReleased);
+	Input->BindAction(HandbrakeAction, ETriggerEvent::Started, this, &ANBSquirrel::HandbrakePressed);
+	Input->BindAction(HandbrakeAction, ETriggerEvent::Completed, this, &ANBSquirrel::HandbrakeReleased);
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
@@ -369,11 +374,19 @@ void ANBSquirrel::Move(const FInputActionValue& Value)
 		const ENBSeatRole SeatRole = CurrentSeat->Role;
 		SendSeatInput(SeatRole == ENBSeatRole::Wheel ? Axis.X : Axis.Y);
 		// A key this seat ignores: say whose job it is, rather than nothing happening.
-		const float Ignored = SeatRole == ENBSeatRole::Wheel ? Axis.Y : SeatRole == ENBSeatRole::Pedals ? Axis.X : Axis.GetAbsMax();
-		if (FMath::Abs(Ignored) > 0.5f)
+		const ANBCar* Car = GetSeatCar();
+		const bool bAutoGears = SeatRole == ENBSeatRole::Gears && Car && !Car->IsManualGears();
+		const float Ignored = SeatRole == ENBSeatRole::Wheel ? Axis.Y
+			: (SeatRole == ENBSeatRole::Pedals || SeatRole == ENBSeatRole::Gears) ? Axis.X : Axis.GetAbsMax();
+		if (FMath::Abs(Ignored) > 0.5f || (bAutoGears && FMath::Abs(Axis.Y) > 0.5f))
 		{
-			SeatHint = SeatRole == ENBSeatRole::Wheel ? ENBSeatHint::WheelCantDrive
-				: SeatRole == ENBSeatRole::Pedals ? ENBSeatHint::PedalsCantSteer : ENBSeatHint::RiderCantDrive;
+			switch (SeatRole)
+			{
+			case ENBSeatRole::Wheel: SeatHint = ENBSeatHint::WheelCantDrive; break;
+			case ENBSeatRole::Pedals: SeatHint = ENBSeatHint::PedalsCantSteer; break;
+			case ENBSeatRole::Gears: SeatHint = FMath::Abs(Ignored) > 0.5f ? ENBSeatHint::GearsCantSteer : ENBSeatHint::GearsAutomatic; break;
+			default: SeatHint = ENBSeatHint::RiderCantDrive; break;
+			}
 			SeatHintTime = GetWorld()->GetTimeSeconds();
 		}
 		return;
@@ -503,6 +516,39 @@ void ANBSquirrel::HornPressed()
 	if (CurrentSeat)
 	{
 		Server_Honk();
+	}
+}
+
+void ANBSquirrel::HandbrakePressed()
+{
+	if (CurrentSeat && CurrentSeat->Role == ENBSeatRole::Gears)
+	{
+		bHandbrakeHeld = true;
+		Server_SetHandbrake(true);
+	}
+	else if (CurrentSeat)
+	{
+		SeatHint = ENBSeatHint::HandbrakeNotHere;
+		SeatHintTime = GetWorld()->GetTimeSeconds();
+	}
+}
+
+void ANBSquirrel::HandbrakeReleased()
+{
+	if (bHandbrakeHeld)
+	{
+		bHandbrakeHeld = false;
+		Server_SetHandbrake(false);
+	}
+}
+
+void ANBSquirrel::Server_SetHandbrake_Implementation(bool bOn)
+{
+	// Only from the Gears seat; leaving it lets go (ANBCar::ClearSeatInput).
+	ANBCar* Car = GetSeatCar();
+	if (Car && CurrentSeat->Role == ENBSeatRole::Gears)
+	{
+		Car->SetHandbrake(bOn);
 	}
 }
 
@@ -815,6 +861,10 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 	if (CurrentSeat && CurrentSeat != Seat)
 	{
 		// Never in two seats at once (a respawn or a dev command seating someone already seated).
+		if (ANBCar* Car = GetSeatCar())
+		{
+			Car->ClearSeatInput(CurrentSeat->Role);
+		}
 		CurrentSeat->SetOccupant(nullptr);
 	}
 	Seat->SetOccupant(this);
@@ -857,7 +907,7 @@ void ANBSquirrel::HopToNextSeat()
 		return;
 	}
 
-	Car->SetSeatInput(CurrentSeat->Role, 0.f);
+	Car->ClearSeatInput(CurrentSeat->Role);
 	Car->NoteSeatHop();
 	UNBSeatComponent* OldSeat = CurrentSeat;
 	CurrentSeat->SetOccupant(nullptr);
@@ -878,7 +928,7 @@ void ANBSquirrel::LeaveSeat()
 	UNBSeatComponent* OldSeat = CurrentSeat;
 	if (ANBCar* Car = GetSeatCar())
 	{
-		Car->SetSeatInput(OldSeat->Role, 0.f);
+		Car->ClearSeatInput(OldSeat->Role);
 		// Hop out on the side of the car the seat is on.
 		const FVector Right = Car->GetActorRightVector();
 		const float Side = FVector::DotProduct(OldSeat->GetComponentLocation() - Car->GetActorLocation(), Right) >= 0.f ? 1.f : -1.f;
@@ -1598,7 +1648,7 @@ void ANBSquirrel::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (ANBCar* Car = GetSeatCar())
 		{
-			Car->SetSeatInput(CurrentSeat->Role, 0.f);
+			Car->ClearSeatInput(CurrentSeat->Role);
 		}
 		CurrentSeat->SetOccupant(nullptr);
 		CurrentSeat = nullptr;

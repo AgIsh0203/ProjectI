@@ -38,6 +38,11 @@ enum class ENBSeatHint : uint8
 	PedalsCantSteer,
 	WheelCantDrive,
 	RiderCantDrive,
+	GearsCantSteer,
+	/** W/S on the Gears seat with Manual gears off. */
+	GearsAutomatic,
+	/** The handbrake key in another seat. */
+	HandbrakeNotHere,
 };
 
 USTRUCT()
@@ -340,13 +345,14 @@ protected:
 	float OnFootArmLength = 320.f;
 
 	/** Pulled back while seated so the whole car is framed. Was 1100 with a 420 height until friend test 1
-	 *  (17 Oct): the car was a speck at the bottom of the screen. */
+	 *  (17 Oct): the car was a speck at the bottom of the screen; 650 / 150 until Luigi's review (18 Oct):
+	 *  "unnecessarily distant" (G7). */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	float SeatedArmLength = 650.f;
+	float SeatedArmLength = 420.f;
 
 	/** How far above the seat the seated camera's pivot sits (cm). */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	float SeatedCameraHeight = 150.f;
+	float SeatedCameraHeight = 110.f;
 
 	/** The pitch the seated camera eases to while following the car (degrees, negative looks down). */
 	UPROPERTY(EditAnywhere, Category = "Camera")
@@ -498,6 +504,16 @@ private:
 	/** R / gamepad View, held: put the car back on the trail. Anyone can, seated or not. */
 	void ResetPressed();
 	void ResetReleased();
+
+	/** Shift / gamepad RB, held: the handbrake, from the Gears seat only. */
+	void HandbrakePressed();
+	void HandbrakeReleased();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetHandbrake(bool bOn);
+
+	/** This client is holding the handbrake on, so the release is sent even after a seat change. */
+	bool bHandbrakeHeld = false;
 
 	UFUNCTION(Server, Reliable)
 	void Server_RequestCarReset();
@@ -732,6 +748,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> ResetAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> HandbrakeAction;
 
 	/** Server only. The interactable this squirrel is holding the action button on. */
 	UPROPERTY(Transient)

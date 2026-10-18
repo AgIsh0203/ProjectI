@@ -87,6 +87,8 @@ void UNBLobbyMenu::BuildTree()
 	PracticeButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandlePractice);
 	StartButton = AddButton(Box, TEXT("Start the run"));
 	StartButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleStart);
+	GearsButton = AddButton(Box, TEXT("Manual gears: OFF"));
+	GearsButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleManualGears);
 	InviteButton = AddButton(Box, TEXT("Invite friends"));
 	InviteButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleInvite);
 	RestartButton = AddButton(Box, TEXT("Restart the run"));
@@ -798,6 +800,10 @@ void UNBLobbyMenu::Refresh()
 		if (!bAuthority)
 		{
 			Hint = TEXT("Waiting for the host to start the run");
+			if (State && State->IsManualGears())
+			{
+				Hint += FString::Printf(TEXT("\nManual gears ON: the GEARS seat shifts, score x%.2f"), State->GetManualGearsScale());
+			}
 		}
 		else if (Mode && !Mode->CanStartRun())
 		{
@@ -819,6 +825,14 @@ void UNBLobbyMenu::Refresh()
 	Show(PracticeButton, !bOnline && Phase == ENBRunPhase::Waiting);
 	Show(StartButton, bOnline && bAuthority && Phase == ENBRunPhase::Waiting);
 	StartButton->SetIsEnabled(Mode && Mode->CanStartRun());
+	Show(GearsButton, bAuthority && Phase == ENBRunPhase::Waiting);
+	if (UTextBlock* GearsLabel = Cast<UTextBlock>(GearsButton->GetChildAt(0)))
+	{
+		const bool bManual = State && State->IsManualGears();
+		GearsLabel->SetText(FText::FromString(bManual
+			? FString::Printf(TEXT("Manual gears: ON  (score x%.2f)"), State->GetManualGearsScale())
+			: FString(TEXT("Manual gears: OFF"))));
+	}
 	Show(InviteButton, bOnline);
 	Show(RestartButton, bAuthority && Phase != ENBRunPhase::Waiting);
 	Show(LeaveButton, bOnline);
@@ -909,6 +923,16 @@ void UNBLobbyMenu::HandleStart()
 		Mode->StartRunFromLobby();
 	}
 	CloseMenu();
+}
+
+void UNBLobbyMenu::HandleManualGears()
+{
+	if (ANBRunGameMode* Mode = GetWorld()->GetAuthGameMode<ANBRunGameMode>())
+	{
+		const ANBRunGameState* State = GetWorld()->GetGameState<ANBRunGameState>();
+		Mode->SetManualGears(!(State && State->IsManualGears()));
+	}
+	Refresh();
 }
 
 void UNBLobbyMenu::HandleInvite()

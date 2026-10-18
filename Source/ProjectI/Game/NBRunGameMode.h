@@ -71,6 +71,11 @@ public:
 
 	int32 GetMinPlayers() const { return MinPlayers; }
 
+	/** The host's Manual gears option (lobby menu, ?ManualGears=1). Only while waiting: it locks at the countdown. */
+	UFUNCTION(BlueprintCallable, Category = "Run")
+	void SetManualGears(bool bManual);
+	bool CanChangeManualGears() const;
+
 	/** Dev: move the car to the start of a route section, by number (1-based) or name (NBWarp). */
 	void DevWarp(const FString& Section);
 
@@ -138,6 +143,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
 	int32 PointsPerSecondLeft = 2;
+
+	/** A delivered run with Manual gears on scores this many times as much (bad endings still score 0). */
+	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
+	float ManualGearsScoreScale = 1.25f;
 
 	/** Taken off for every squirrel that had to be respawned instead of climbing back in. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")

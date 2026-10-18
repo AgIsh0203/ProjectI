@@ -44,6 +44,10 @@ public:
 	void NoteRunRestart() { bRunRestarting = true; }
 	bool ConsumeRunRestart();
 
+	/** The host's Manual gears choice, kept here so it lasts through restarts (ANBRunGameMode::SetManualGears). */
+	bool IsManualGears() const { return bManualGears; }
+	void SetManualGears(bool bManual) { bManualGears = bManual; }
+
 	/** One line for the HUD, e.g. "Hosting (Steam)" or "Searching...". */
 	FString GetStatusText() const;
 
@@ -72,6 +76,7 @@ private:
 	FOnlineSessionSearchResult PendingInvite;
 	FString Status;
 	bool bRunRestarting = false;
+	bool bManualGears = false;
 
 	FDelegateHandle CreateHandle;
 	FDelegateHandle DestroyHandle;
