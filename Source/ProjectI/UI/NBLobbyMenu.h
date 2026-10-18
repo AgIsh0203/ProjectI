@@ -7,6 +7,7 @@
 #include "NBLobbyMenu.generated.h"
 
 class UButton;
+class UCheckBox;
 class UComboBoxString;
 class USlider;
 class UTextBlock;
@@ -16,7 +17,8 @@ struct FAudioOutputDeviceInfo;
 /**
  * The lobby menu, built in code so it needs no widget asset. Offline it offers host, join,
  * practice and quit; in a game it lists the crew, and the host can start, invite, restart
- * or leave. Opened and closed by ANBHUD (Esc / gamepad Start toggles it).
+ * or leave; Options holds sound, controls and display settings. Opened and closed by ANBHUD
+ * (Esc, Tab or gamepad Start toggles it; Tab because Esc stops Play In Editor).
  */
 UCLASS()
 class PROJECTI_API UNBLobbyMenu : public UUserWidget
@@ -67,18 +69,65 @@ private:
 	UFUNCTION()
 	void HandleQuit();
 
-	// --- Sound and voice page: replaces the buttons while open. ---
+	// --- Options page: replaces the buttons while open, with Sound / Controls / Display tabs. ---
+
+	enum class EOptionsTab : uint8 { Sound, Controls, Display };
 
 	void BuildSettings(UVerticalBox* Column);
-	/** A labelled slider showing Value as a percentage of 1; returns the slider. */
-	USlider* AddSliderRow(UVerticalBox* Box, const FString& Label, float Max, float Value, TObjectPtr<UTextBlock>& OutValueText);
+	void BuildSoundPage(UVerticalBox* Page);
+	void BuildControlsPage(UVerticalBox* Page);
+	void BuildDisplayPage(UVerticalBox* Page);
+	/** A labelled slider; the label text is refreshed by RefreshSliderTexts. */
+	USlider* AddSliderRow(UVerticalBox* Box, const FString& Label, float Min, float Max, float Step, float Value, TObjectPtr<UTextBlock>& OutValueText);
+	/** A label over a full-width combo box. */
+	UComboBoxString* AddComboRow(UVerticalBox* Box, const FString& Label, const TCHAR* Name);
+	/** A check box with a label beside it. */
+	UCheckBox* AddCheckRow(UVerticalBox* Box, const FString& Label, bool bChecked);
 	void RefreshSliderTexts();
+	void ShowTab(EOptionsTab Tab);
+	/** Fill the display combos from the current UGameUserSettings. */
+	void RefreshDisplayOptions();
+	/** Apply and save UGameUserSettings after a display change. */
+	void ApplyDisplay();
 
 	UFUNCTION()
 	void HandleSettings();
 
 	UFUNCTION()
 	void HandleSettingsBack();
+
+	UFUNCTION()
+	void HandleSoundTab();
+
+	UFUNCTION()
+	void HandleControlsTab();
+
+	UFUNCTION()
+	void HandleDisplayTab();
+
+	UFUNCTION()
+	void HandleLookSensitivity(float Value);
+
+	UFUNCTION()
+	void HandleInvertLook(bool bChecked);
+
+	UFUNCTION()
+	void HandleCameraShake(float Value);
+
+	UFUNCTION()
+	void HandleWindowMode(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleResolution(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleQuality(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleFrameLimit(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void HandleVSync(bool bChecked);
 
 	UFUNCTION()
 	void HandleGameVolume(float Value);
@@ -96,6 +145,39 @@ private:
 	void HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& Devices);
 
 	bool bShowSettings = false;
+	EOptionsTab CurrentTab = EOptionsTab::Sound;
+
+	/** One per tab, in EOptionsTab order. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UButton>> TabButtons;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UVerticalBox>> TabPages;
+
+	/** The control each tab focuses first, for keyboard and gamepad. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> TabFirstControls;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LookSensitivityText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CameraShakeText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> WindowModeCombo;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> ResolutionCombo;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> QualityCombo;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> FrameLimitCombo;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCheckBox> VSyncCheck;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> SettingsButton;

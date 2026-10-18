@@ -5,7 +5,12 @@
 #include "Audio/NBAudioSettings.h"
 #include "AudioMixerBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CheckBox.h"
 #include "Components/ComboBoxString.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
 #include "Components/Slider.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -23,6 +28,7 @@
 #include "GameFramework/PlayerState.h"
 #include "InputCoreTypes.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Player/NBControlSettings.h"
 #include "UI/NBHUD.h"
 
 namespace
@@ -31,6 +37,10 @@ namespace
 	const FLinearColor DimColor(1.f, 1.f, 1.f, 0.75f);
 	const FLinearColor ButtonColor(0.95f, 0.5f, 0.08f);
 	constexpr int32 MaxSquirrels = 4;
+	const TCHAR* const WindowModeNames[] = {TEXT("Fullscreen"), TEXT("Borderless window"), TEXT("Window")};
+	const TCHAR* const QualityNames[] = {TEXT("Low"), TEXT("Medium"), TEXT("High"), TEXT("Epic")};
+	const TCHAR* const FrameLimitNames[] = {TEXT("30"), TEXT("60"), TEXT("120"), TEXT("144"), TEXT("Unlimited")};
+	const float FrameLimitValues[] = {30.f, 60.f, 120.f, 144.f, 0.f};
 }
 
 void UNBLobbyMenu::NativeOnInitialized()
@@ -50,7 +60,8 @@ void UNBLobbyMenu::BuildTree()
 	WidgetTree->RootWidget = Backdrop;
 
 	USizeBox* Size = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("PanelSize"));
-	Size->SetMinDesiredWidth(460.f);
+	// Fixed, so the panel doesn't jump in width between the Options tabs.
+	Size->SetWidthOverride(560.f);
 	Backdrop->SetContent(Size);
 
 	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Panel"));
@@ -84,7 +95,7 @@ void UNBLobbyMenu::BuildTree()
 	ResumeButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleResume);
 	LeaveButton = AddButton(Box, TEXT("Leave the game"));
 	LeaveButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleLeave);
-	SettingsButton = AddButton(Box, TEXT("Sound and voice"));
+	SettingsButton = AddButton(Box, TEXT("Options"));
 	SettingsButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSettings);
 	QuitButton = AddButton(Box, TEXT("Quit to desktop"));
 	QuitButton->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleQuit);
@@ -98,43 +109,134 @@ void UNBLobbyMenu::BuildSettings(UVerticalBox* Column)
 	Column->AddChildToVerticalBox(SettingsBox);
 	SettingsBox->SetVisibility(ESlateVisibility::Collapsed);
 
+	// The tab row: one button per page, the open one highlighted.
+	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Tabs"));
+	UVerticalBoxSlot* TabsSlot = SettingsBox->AddChildToVerticalBox(Tabs);
+	TabsSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
+	TabsSlot->SetHorizontalAlignment(HAlign_Fill);
+	for (const TCHAR* Label : {TEXT("Sound"), TEXT("Controls"), TEXT("Display")})
+	{
+		UButton* Tab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Text->GetFont();
+		Font.Size = 17;
+		Text->SetFont(Font);
+		Text->SetText(FText::FromString(Label));
+		Text->SetJustification(ETextJustify::Center);
+		if (UButtonSlot* TextSlot = Cast<UButtonSlot>(Tab->AddChild(Text)))
+		{
+			TextSlot->SetPadding(FMargin(8.f, 4.f));
+		}
+		if (UHorizontalBoxSlot* TabSlot = Tabs->AddChildToHorizontalBox(Tab))
+		{
+			TabSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			TabSlot->SetPadding(FMargin(3.f, 0.f));
+		}
+		TabButtons.Add(Tab);
+	}
+	TabButtons[0]->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSoundTab);
+	TabButtons[1]->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleControlsTab);
+	TabButtons[2]->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleDisplayTab);
+
+	for (int32 i = 0; i < 3; ++i)
+	{
+		UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		SettingsBox->AddChildToVerticalBox(Page)->SetHorizontalAlignment(HAlign_Fill);
+		TabPages.Add(Page);
+	}
+	BuildSoundPage(TabPages[0]);
+	BuildControlsPage(TabPages[1]);
+	BuildDisplayPage(TabPages[2]);
+
+	UButton* Back = AddButton(SettingsBox, TEXT("Back"));
+	Back->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSettingsBack);
+	RefreshSliderTexts();
+	ShowTab(EOptionsTab::Sound);
+}
+
+void UNBLobbyMenu::BuildSoundPage(UVerticalBox* Page)
+{
 	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
-	GameVolumeSlider = AddSliderRow(SettingsBox, TEXT("Game volume"), UNBAudioSettings::MaxGameVolume, Audio ? Audio->GetGameVolume() : 1.f, GameVolumeText);
+	GameVolumeSlider = AddSliderRow(Page, TEXT("Game volume"), 0.f, UNBAudioSettings::MaxGameVolume, 0.05f, Audio ? Audio->GetGameVolume() : 1.f, GameVolumeText);
 	GameVolumeSlider->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleGameVolume);
-	AddSliderRow(SettingsBox, TEXT("Voices"), UNBAudioSettings::MaxVoiceVolume, Audio ? Audio->GetVoiceVolume() : 1.f, VoiceVolumeText)
+	AddSliderRow(Page, TEXT("Voices"), 0.f, UNBAudioSettings::MaxVoiceVolume, 0.05f, Audio ? Audio->GetVoiceVolume() : 1.f, VoiceVolumeText)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleVoiceVolume);
-	AddSliderRow(SettingsBox, TEXT("Mic boost"), UNBAudioSettings::MaxMicBoost, Audio ? Audio->GetMicBoost() : 1.f, MicBoostText)
+	AddSliderRow(Page, TEXT("Mic boost"), 0.f, UNBAudioSettings::MaxMicBoost, 0.05f, Audio ? Audio->GetMicBoost() : 1.f, MicBoostText)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleMicBoost);
 
-	UTextBlock* DeviceLabel = AddText(SettingsBox, 16, FLinearColor::White);
-	DeviceLabel->SetText(FText::FromString(TEXT("Speakers / headphones")));
-	OutputDeviceCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("OutputDevice"));
-	UVerticalBoxSlot* ComboSlot = SettingsBox->AddChildToVerticalBox(OutputDeviceCombo);
-	ComboSlot->SetPadding(FMargin(0.f, 2.f, 0.f, 8.f));
-	ComboSlot->SetHorizontalAlignment(HAlign_Fill);
+	OutputDeviceCombo = AddComboRow(Page, TEXT("Speakers / headphones"), TEXT("OutputDevice"));
 	OutputDeviceCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleOutputDevice);
 	FOnAudioOutputDevicesObtained OnDevices;
 	OnDevices.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UNBLobbyMenu, HandleDevicesObtained));
 	UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(this, OnDevices);
 
-	UTextBlock* MicNote = AddText(SettingsBox, 13, DimColor);
+	UTextBlock* MicNote = AddText(Page, 13, DimColor);
 	MicNote->SetAutoWrapText(true);
 	MicNote->SetText(FText::FromString(TEXT("The mic is Windows' default input device: pick it in Windows Sound settings (Input). "
 		"Others too quiet? Raise Voices. They can't hear you? Raise Mic boost.")));
-
-	UButton* Back = AddButton(SettingsBox, TEXT("Back"));
-	Back->OnClicked.AddDynamic(this, &UNBLobbyMenu::HandleSettingsBack);
-	RefreshSliderTexts();
+	TabFirstControls.Add(GameVolumeSlider);
 }
 
-USlider* UNBLobbyMenu::AddSliderRow(UVerticalBox* Box, const FString& Label, float Max, float Value, TObjectPtr<UTextBlock>& OutValueText)
+void UNBLobbyMenu::BuildControlsPage(UVerticalBox* Page)
+{
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	USlider* Sensitivity = AddSliderRow(Page, TEXT("Look sensitivity"), UNBControlSettings::MinLookSensitivity, UNBControlSettings::MaxLookSensitivity, 0.05f,
+		Controls ? Controls->GetLookSensitivity() : 1.f, LookSensitivityText);
+	Sensitivity->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleLookSensitivity);
+	AddCheckRow(Page, TEXT("Invert look up / down"), Controls && Controls->IsLookInverted())
+		->OnCheckStateChanged.AddDynamic(this, &UNBLobbyMenu::HandleInvertLook);
+	AddSliderRow(Page, TEXT("Crash camera shake"), 0.f, 1.f, 0.05f, Controls ? Controls->GetCameraShake() : 1.f, CameraShakeText)
+		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleCameraShake);
+
+	UTextBlock* Keys = AddText(Page, 13, DimColor);
+	Keys->SetAutoWrapText(true);
+	Keys->SetText(FText::FromString(TEXT("WASD  move, or drive from the Wheel / Pedals seat\n"
+		"Mouse  look      Space  jump / jump out\n"
+		"E  get in / hop seat      LMB  work on a part\n"
+		"H  horn      1-8  pings      Esc or Tab  menu")));
+	TabFirstControls.Add(Sensitivity);
+}
+
+void UNBLobbyMenu::BuildDisplayPage(UVerticalBox* Page)
+{
+	WindowModeCombo = AddComboRow(Page, TEXT("Window"), TEXT("WindowMode"));
+	for (const TCHAR* Mode : WindowModeNames)
+	{
+		WindowModeCombo->AddOption(Mode);
+	}
+	WindowModeCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleWindowMode);
+
+	ResolutionCombo = AddComboRow(Page, TEXT("Resolution"), TEXT("Resolution"));
+	ResolutionCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleResolution);
+
+	QualityCombo = AddComboRow(Page, TEXT("Graphics quality"), TEXT("Quality"));
+	for (const TCHAR* Level : QualityNames)
+	{
+		QualityCombo->AddOption(Level);
+	}
+	QualityCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleQuality);
+
+	FrameLimitCombo = AddComboRow(Page, TEXT("Frame rate cap"), TEXT("FrameLimit"));
+	for (const TCHAR* Limit : FrameLimitNames)
+	{
+		FrameLimitCombo->AddOption(Limit);
+	}
+	FrameLimitCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleFrameLimit);
+
+	VSyncCheck = AddCheckRow(Page, TEXT("VSync"), false);
+	VSyncCheck->OnCheckStateChanged.AddDynamic(this, &UNBLobbyMenu::HandleVSync);
+	TabFirstControls.Add(WindowModeCombo);
+	RefreshDisplayOptions();
+}
+
+USlider* UNBLobbyMenu::AddSliderRow(UVerticalBox* Box, const FString& Label, float Min, float Max, float Step, float Value, TObjectPtr<UTextBlock>& OutValueText)
 {
 	OutValueText = AddText(Box, 16, FLinearColor::White);
 	OutValueText->SetToolTipText(FText::FromString(Label));
 	USlider* Slider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass());
-	Slider->SetMinValue(0.f);
+	Slider->SetMinValue(Min);
 	Slider->SetMaxValue(Max);
-	Slider->SetStepSize(0.05f);
+	Slider->SetStepSize(Step);
 	Slider->SetValue(Value);
 	Slider->SetSliderBarColor(FLinearColor(1.f, 1.f, 1.f, 0.4f));
 	Slider->SetSliderHandleColor(ButtonColor);
@@ -144,36 +246,250 @@ USlider* UNBLobbyMenu::AddSliderRow(UVerticalBox* Box, const FString& Label, flo
 	return Slider;
 }
 
+UComboBoxString* UNBLobbyMenu::AddComboRow(UVerticalBox* Box, const FString& Label, const TCHAR* Name)
+{
+	AddText(Box, 16, FLinearColor::White)->SetText(FText::FromString(Label));
+	UComboBoxString* Combo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), Name);
+	UVerticalBoxSlot* ComboSlot = Box->AddChildToVerticalBox(Combo);
+	ComboSlot->SetPadding(FMargin(0.f, 2.f, 0.f, 8.f));
+	ComboSlot->SetHorizontalAlignment(HAlign_Fill);
+	return Combo;
+}
+
+UCheckBox* UNBLobbyMenu::AddCheckRow(UVerticalBox* Box, const FString& Label, bool bChecked)
+{
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UVerticalBoxSlot* RowSlot = Box->AddChildToVerticalBox(Row);
+	RowSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 8.f));
+	RowSlot->SetHorizontalAlignment(HAlign_Center);
+
+	UCheckBox* Check = WidgetTree->ConstructWidget<UCheckBox>(UCheckBox::StaticClass());
+	Check->SetIsChecked(bChecked);
+	Row->AddChildToHorizontalBox(Check)->SetVerticalAlignment(VAlign_Center);
+
+	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	FSlateFontInfo Font = Text->GetFont();
+	Font.Size = 16;
+	Text->SetFont(Font);
+	Text->SetText(FText::FromString(Label));
+	if (UHorizontalBoxSlot* TextSlot = Row->AddChildToHorizontalBox(Text))
+	{
+		TextSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+		TextSlot->SetVerticalAlignment(VAlign_Center);
+	}
+	return Check;
+}
+
 void UNBLobbyMenu::RefreshSliderTexts()
 {
-	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
-	if (!Audio || !GameVolumeText)
-	{
-		return;
-	}
 	auto Percent = [](const TCHAR* Label, float Value)
 	{
 		return FText::FromString(FString::Printf(TEXT("%s  %d%%"), Label, FMath::RoundToInt(Value * 100.f)));
 	};
-	GameVolumeText->SetText(Percent(TEXT("Game volume"), Audio->GetGameVolume()));
-	VoiceVolumeText->SetText(Percent(TEXT("Voices"), Audio->GetVoiceVolume()));
-	MicBoostText->SetText(Percent(TEXT("Mic boost"), Audio->GetMicBoost()));
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	if (Audio && GameVolumeText)
+	{
+		GameVolumeText->SetText(Percent(TEXT("Game volume"), Audio->GetGameVolume()));
+		VoiceVolumeText->SetText(Percent(TEXT("Voices"), Audio->GetVoiceVolume()));
+		MicBoostText->SetText(Percent(TEXT("Mic boost"), Audio->GetMicBoost()));
+	}
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	if (Controls && LookSensitivityText)
+	{
+		LookSensitivityText->SetText(FText::FromString(FString::Printf(TEXT("Look sensitivity  %.2fx"), Controls->GetLookSensitivity())));
+		CameraShakeText->SetText(Percent(TEXT("Crash camera shake"), Controls->GetCameraShake()));
+	}
+}
+
+void UNBLobbyMenu::ShowTab(EOptionsTab Tab)
+{
+	CurrentTab = Tab;
+	const int32 Index = static_cast<int32>(Tab);
+	for (int32 i = 0; i < TabPages.Num(); ++i)
+	{
+		TabPages[i]->SetVisibility(i == Index ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		TabButtons[i]->SetBackgroundColor(i == Index ? ButtonColor : FLinearColor(0.35f, 0.3f, 0.25f));
+	}
+	if (Tab == EOptionsTab::Display)
+	{
+		RefreshDisplayOptions();
+	}
+	if (bShowSettings && TabFirstControls.IsValidIndex(Index))
+	{
+		TabFirstControls[Index]->SetKeyboardFocus();
+	}
 }
 
 void UNBLobbyMenu::HandleSettings()
 {
 	bShowSettings = true;
 	Refresh();
-	if (GameVolumeSlider)
-	{
-		GameVolumeSlider->SetKeyboardFocus();
-	}
+	ShowTab(CurrentTab);
 }
 
 void UNBLobbyMenu::HandleSettingsBack()
 {
 	bShowSettings = false;
 	FocusFirstButton();
+}
+
+void UNBLobbyMenu::HandleSoundTab()
+{
+	ShowTab(EOptionsTab::Sound);
+}
+
+void UNBLobbyMenu::HandleControlsTab()
+{
+	ShowTab(EOptionsTab::Controls);
+}
+
+void UNBLobbyMenu::HandleDisplayTab()
+{
+	ShowTab(EOptionsTab::Display);
+}
+
+void UNBLobbyMenu::HandleLookSensitivity(float Value)
+{
+	if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	{
+		Controls->SetLookSensitivity(Value);
+	}
+	RefreshSliderTexts();
+}
+
+void UNBLobbyMenu::HandleInvertLook(bool bChecked)
+{
+	if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	{
+		Controls->SetLookInverted(bChecked);
+	}
+}
+
+void UNBLobbyMenu::HandleCameraShake(float Value)
+{
+	if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	{
+		Controls->SetCameraShake(Value);
+	}
+	RefreshSliderTexts();
+}
+
+void UNBLobbyMenu::RefreshDisplayOptions()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings || !WindowModeCombo)
+	{
+		return;
+	}
+	// The handlers ignore ESelectInfo::Direct, so filling the combos here applies nothing.
+	const EWindowMode::Type Mode = Settings->GetFullscreenMode();
+	WindowModeCombo->SetSelectedOption(WindowModeNames[Mode == EWindowMode::Fullscreen ? 0 : Mode == EWindowMode::WindowedFullscreen ? 1 : 2]);
+
+	ResolutionCombo->ClearOptions();
+	TArray<FIntPoint> Resolutions;
+	UKismetSystemLibrary::GetSupportedFullscreenResolutions(Resolutions);
+	const FIntPoint Current = Settings->GetScreenResolution();
+	Resolutions.AddUnique(Current);
+	Resolutions.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X != B.X ? A.X > B.X : A.Y > B.Y; });
+	for (const FIntPoint& Resolution : Resolutions)
+	{
+		ResolutionCombo->AddOption(FString::Printf(TEXT("%d x %d"), Resolution.X, Resolution.Y));
+	}
+	ResolutionCombo->SetSelectedOption(FString::Printf(TEXT("%d x %d"), Current.X, Current.Y));
+	// Borderless always fills the monitor, so the resolution only matters for the other two.
+	ResolutionCombo->SetIsEnabled(Mode != EWindowMode::WindowedFullscreen);
+
+	const int32 Quality = Settings->GetOverallScalabilityLevel();
+	const bool bPreset = Quality >= 0 && Quality < UE_ARRAY_COUNT(QualityNames);
+	if (!bPreset && QualityCombo->FindOptionIndex(TEXT("Custom")) == INDEX_NONE)
+	{
+		QualityCombo->AddOption(TEXT("Custom"));
+	}
+	QualityCombo->SetSelectedOption(bPreset ? QualityNames[Quality] : TEXT("Custom"));
+
+	const float Limit = Settings->GetFrameRateLimit();
+	int32 LimitIndex = UE_ARRAY_COUNT(FrameLimitValues) - 1;
+	for (int32 i = 0; i < UE_ARRAY_COUNT(FrameLimitValues); ++i)
+	{
+		if (FMath::IsNearlyEqual(Limit, FrameLimitValues[i]))
+		{
+			LimitIndex = i;
+		}
+	}
+	FrameLimitCombo->SetSelectedOption(FrameLimitNames[LimitIndex]);
+	VSyncCheck->SetIsChecked(Settings->IsVSyncEnabled());
+}
+
+void UNBLobbyMenu::ApplyDisplay()
+{
+	if (UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		// Applies resolution, window mode, scalability and the frame limit, then saves GameUserSettings.ini.
+		Settings->ApplySettings(false);
+	}
+	RefreshDisplayOptions();
+}
+
+void UNBLobbyMenu::HandleWindowMode(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings || SelectionType == ESelectInfo::Direct)
+	{
+		return;
+	}
+	const int32 Index = WindowModeCombo->GetSelectedIndex();
+	const EWindowMode::Type Mode = Index == 0 ? EWindowMode::Fullscreen : Index == 1 ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed;
+	Settings->SetFullscreenMode(Mode);
+	if (Mode == EWindowMode::WindowedFullscreen)
+	{
+		Settings->SetScreenResolution(Settings->GetDesktopResolution());
+	}
+	ApplyDisplay();
+}
+
+void UNBLobbyMenu::HandleResolution(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	FString Width, Height;
+	if (!Settings || SelectionType == ESelectInfo::Direct || !SelectedItem.Split(TEXT(" x "), &Width, &Height))
+	{
+		return;
+	}
+	Settings->SetScreenResolution(FIntPoint(FCString::Atoi(*Width), FCString::Atoi(*Height)));
+	ApplyDisplay();
+}
+
+void UNBLobbyMenu::HandleQuality(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	const int32 Index = QualityCombo->GetSelectedIndex();
+	if (!Settings || SelectionType == ESelectInfo::Direct || Index < 0 || Index >= UE_ARRAY_COUNT(QualityNames))
+	{
+		return;
+	}
+	Settings->SetOverallScalabilityLevel(Index);
+	ApplyDisplay();
+}
+
+void UNBLobbyMenu::HandleFrameLimit(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	const int32 Index = FrameLimitCombo->GetSelectedIndex();
+	if (!Settings || SelectionType == ESelectInfo::Direct || Index < 0 || Index >= UE_ARRAY_COUNT(FrameLimitValues))
+	{
+		return;
+	}
+	Settings->SetFrameRateLimit(FrameLimitValues[Index]);
+	ApplyDisplay();
+}
+
+void UNBLobbyMenu::HandleVSync(bool bChecked)
+{
+	if (UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		Settings->SetVSyncEnabled(bChecked);
+		ApplyDisplay();
+	}
 }
 
 void UNBLobbyMenu::HandleGameVolume(float Value)
@@ -397,7 +713,7 @@ void UNBLobbyMenu::FocusFirstButton()
 FReply UNBLobbyMenu::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right || Key == EKeys::Gamepad_FaceButton_Right)
+	if (Key == EKeys::Escape || Key == EKeys::Tab || Key == EKeys::Gamepad_Special_Right || Key == EKeys::Gamepad_FaceButton_Right)
 	{
 		if (bShowSettings)
 		{

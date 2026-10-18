@@ -107,7 +107,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 
 ## Next test: check the friend-test fixes
 - [ ] The restart works on Steam: the end screen, then the next run, with every client still in and in voice.
-- [ ] Voice is loud enough without Discord. Esc → Sound and voice: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
+- [ ] Voice is loud enough without Discord. Esc → Options → Sound: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.
 - [ ] Everyone can tell which squirrel is theirs (YOU arrow) and who is on the Wheel and Pedals (top left, name tags).
 - [ ] The seated camera (6.5 m, tilting down while following): the car readable, the road ahead visible? Tune `SeatedArmLength` / `SeatedCameraHeight` / `SeatedFollowPitch` on BP_Squirrel.
 - [ ] Flat tires pull and cap speed, the door throws people or loses acorns, failed brakes lurch, the engine shows MASH LMB! / N MORE!. Do they matter now, without being unfair?
@@ -123,6 +123,11 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 - [ ] Falling out says why (THE DOOR FLUNG YOU OUT! etc.) and the countdown explains the −25 respawn.
 - [ ] A/D on the Pedals (or W/S on the Wheel) shows who does that job.
 - [ ] "Can't hear your crew? Esc: Sound and voice" shows before the run; voices stay audible with the Game slider low. Python couldn't look at the HUD, so none of these lines has been seen yet.
+
+## Options panel (18 Oct): check in a packaged build
+- [ ] Esc → Options: the Sound, Controls and Display tabs switch, and a gamepad can reach every control.
+- [ ] Controls: look sensitivity and invert apply at once (mouse and right stick); crash shake at 0 removes the camera punch.
+- [ ] Display: window mode, resolution, quality, frame cap and VSync apply at once and survive a relaunch. The editor only shows placeholder values here.
 
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (single-player PIE, no breakdowns, 16 m/s: 7:52 against the 9:00 deadline, no stuck points, 17 acorns lost).

@@ -147,6 +147,11 @@ const TCHAR* ANBHUD::PromptName(ENBPrompt Prompt) const
 	static const TCHAR* const KeyNames[] = {TEXT("E"), TEXT("Space"), TEXT("LMB"), TEXT("H"), TEXT("Esc")};
 	static const TCHAR* const PadNames[] = {TEXT("X"), TEXT("A"), TEXT("B"), TEXT("Y"), TEXT("Menu")};
 	const int32 Index = static_cast<int32>(Prompt);
+	// In the editor Esc stops Play In Editor, so point at Tab there.
+	if (Prompt == ENBPrompt::Menu && !bUsingGamepad && GetWorld() && GetWorld()->IsPlayInEditor())
+	{
+		return TEXT("Tab");
+	}
 	return Index < 5 ? (bUsingGamepad ? PadNames[Index] : KeyNames[Index]) : TEXT("?");
 }
 
@@ -400,9 +405,9 @@ void ANBHUD::DrawHUD()
 		const ANBRunGameState* RunState = GetWorld()->GetGameState<ANBRunGameState>();
 		const int32 Penalty = RunState ? RunState->GetRespawnPenalty() : 0;
 		const FString Countdown = FString::Printf(TEXT("Get back in a seat!  %d"), FMath::CeilToInt(RespawnLeft));
-		DrawCenteredText(Countdown, Canvas->ClipY * 0.3f + 90.f, BadColor, 1.8f);
-		DrawCenteredText(Penalty > 0 ? FString::Printf(TEXT("or you respawn at the car: -%d points"), Penalty) : FString(TEXT("or you respawn at the car")),
-			Canvas->ClipY * 0.3f + 130.f, FLinearColor(1.f, 1.f, 1.f, 0.8f), 1.1f);
+		DrawShoutText(Countdown, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.3f + 100.f, BadColor, 0.9f);
+		DrawShoutText(Penalty > 0 ? FString::Printf(TEXT("or you respawn at the car: -%d points"), Penalty) : FString(TEXT("or you respawn at the car")),
+			Canvas->ClipX * 0.5f, Canvas->ClipY * 0.3f + 138.f, FLinearColor::White, 0.5f);
 	}
 	DrawSeatHint(*Squirrel);
 
@@ -748,7 +753,7 @@ void ANBHUD::DrawEjectReason(const ANBSquirrel& Squirrel)
 	DrawShoutText(Title, Canvas->ClipX * 0.5f, Y, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, Squirrel.IsRagdolled() ? 1.f : Alpha), 1.6f);
 	if (!Help.IsEmpty())
 	{
-		DrawCenteredText(Help, Y + 40.f, FLinearColor(1.f, 1.f, 1.f, Squirrel.IsRagdolled() ? 1.f : Alpha), 1.2f);
+		DrawShoutText(Help, Canvas->ClipX * 0.5f, Y + 48.f, FLinearColor(1.f, 1.f, 1.f, Squirrel.IsRagdolled() ? 1.f : Alpha), 0.55f);
 	}
 }
 
@@ -782,8 +787,9 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 
 void ANBHUD::DrawSoundHint()
 {
-	DrawCenteredText(FString::Printf(TEXT("Can't hear your crew?  %s: Sound and voice"), PromptName(ENBPrompt::Menu)),
-		Canvas->ClipY * 0.25f + 140.f, FLinearColor(1.f, 1.f, 1.f, 0.75f), 1.1f);
+	// Above the route bar, clear of the centre where falls and countdowns stack up.
+	DrawShoutText(FString::Printf(TEXT("Can't hear your crew?  %s: Options"), PromptName(ENBPrompt::Menu)),
+		Canvas->ClipX * 0.5f, Canvas->ClipY - 140.f, FLinearColor(0.85f, 0.95f, 1.f), 0.6f);
 }
 
 void ANBHUD::DrawRunStatus()

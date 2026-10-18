@@ -13,6 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Player/NBControlSettings.h"
 #include "Player/NBPlayerState.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
@@ -252,6 +253,8 @@ void ANBSquirrel::BuildInputAssets()
 	InputContext->MapKey(ActionAction, EKeys::Gamepad_FaceButton_Right);
 	// Opens the lobby menu; while it is open the menu itself handles Esc / Start to close.
 	InputContext->MapKey(MenuAction, EKeys::Escape);
+	// Tab too: in the editor, Esc stops Play In Editor before the game sees it.
+	InputContext->MapKey(MenuAction, EKeys::Tab);
 	InputContext->MapKey(MenuAction, EKeys::Gamepad_Special_Right);
 	InputContext->MapKey(HornAction, EKeys::H);
 	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
@@ -334,8 +337,10 @@ void ANBSquirrel::Look(const FInputActionValue& Value)
 	{
 		LastLookInputTime = GetWorld()->GetTimeSeconds();
 	}
-	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(Axis.Y);
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	const float Sensitivity = Controls ? Controls->GetLookSensitivity() : 1.f;
+	AddControllerYawInput(Axis.X * Sensitivity);
+	AddControllerPitchInput(Axis.Y * Sensitivity * (Controls && Controls->IsLookInverted() ? -1.f : 1.f));
 }
 
 void ANBSquirrel::JumpPressed()
@@ -703,6 +708,11 @@ void ANBSquirrel::EnterSeat(UNBSeatComponent* Seat)
 
 	// Made it back in: no respawn penalty.
 	ClearRespawn();
+	if (CurrentSeat && CurrentSeat != Seat)
+	{
+		// Never in two seats at once (a respawn or a dev command seating someone already seated).
+		CurrentSeat->SetOccupant(nullptr);
+	}
 	Seat->SetOccupant(this);
 	CurrentSeat = Seat;
 	RefreshAttachedState();
@@ -993,7 +1003,8 @@ void ANBSquirrel::OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 
 void ANBSquirrel::AddCameraPunch(float Intensity)
 {
-	CameraPunch = FMath::Clamp(FMath::Max(CameraPunch, Intensity), 0.f, 1.f);
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	CameraPunch = FMath::Clamp(FMath::Max(CameraPunch, Intensity * (Controls ? Controls->GetCameraShake() : 1.f)), 0.f, 1.f);
 }
 
 void ANBSquirrel::UpdateCameraPunch(float DeltaSeconds)
