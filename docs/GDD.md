@@ -64,7 +64,7 @@ Heights below are the trail's range in each section, and the grade is the steepe
 The autopilot (`NBAuto`, no breakdowns, 16 m/s) drove the whole trail in 7:52 with the template car and in 6:40 at 435 Nm (`-game` window). With the 80 Nm car (18 Oct, slower pickup) it gets stuck on the rubble of the 18 % climbs, so there is no full timing; the sections it drove took ~25 % longer than at 435 Nm, which suggests ~8:20 with no breakdowns. **The 9:00 deadline (`DeadlineSeconds`) probably needs raising**: decide after a hand-driven run.
 
 ## Events
-- **Acorn in Mouth — Built.** Every 75–105 s while driving (never in the last 20 s), weighted toward the WHEEL seat and squirrels next to a failed part. That squirrel is muted for 20 s, still hears everyone, and keeps 8 pings on keys 1–8: LEFT!, RIGHT!, GAS!, BRAKE!, HELP!, FIX IT!, JUMP OUT!, NICE! Anyone can ping, muted or not.
+- **Acorn in Mouth — Built.** Every 75–105 s while driving (never in the last 20 s), weighted toward the WHEEL seat and squirrels next to a failed part. That squirrel is muted for 20 s, still hears everyone, and keeps 8 pings on keys 1–8: LEFT!, RIGHT!, GAS!, BRAKE!, HELP!, FIX IT!, JUMP OUT!, NICE! On a gamepad (20 Oct, #14) the D-pad sends the first four (left, right, up, down) and LB + D-pad the other four Anyone can ping, muted or not.
 - **One hazard with a face — Demo (#13):** a dog that chases the car on WIGGLY ROAD, or a sprinkler in THE PARK.
 - **Bird steals a squirrel; pothole frenzy — Later (#22).**
 

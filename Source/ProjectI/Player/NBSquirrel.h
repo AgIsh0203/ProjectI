@@ -86,6 +86,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Squirrel")
 	int32 GetColorIndex() const { return ColorIndex; }
 
+	/** Gamepad pings (#14): D-pad button b (left, right, up, down) sends ping b, with LB held ping b + 4. */
+	static constexpr int32 NumPadPingButtons = 4;
+
+	/** "left" / "right" / "up" / "down" for D-pad button 0..3, for the HUD's legend. */
+	static FString GetPadPingButtonName(int32 Button);
+
 	/** The fur this squirrel wears, for its name tag; white until the server picks one. */
 	FLinearColor GetFurColor() const { return FurColors.IsValidIndex(ColorIndex) ? FurColors[ColorIndex] : FLinearColor::White; }
 
@@ -532,6 +538,7 @@ private:
 
 	/** Chat wheel, keys 1-8. */
 	void PingPressed(int32 Index);
+	void PadPingPressed(int32 Button);
 
 	/** H / gamepad Y. Seated only. */
 	void HornPressed();
@@ -625,6 +632,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UInputAction>> PingActions;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> PadPingActions;
 
 	bool bVoiceMuted = false;
 

@@ -248,6 +248,11 @@ void ANBSquirrel::BuildInputAssets()
 	{
 		PingActions.Add(NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_Ping%d"), i + 1)));
 	}
+	PadPingActions.Reset();
+	for (int32 i = 0; i < NumPadPingButtons; ++i)
+	{
+		PadPingActions.Add(NewObject<UInputAction>(this, *FString::Printf(TEXT("IA_PadPing%d"), i + 1)));
+	}
 
 	InputContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Squirrel"));
 	MapKeys();
@@ -267,6 +272,12 @@ void ANBSquirrel::MapKeys()
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		InputContext->MapKey(PingActions[i], PingKeys[i]);
+	}
+	// Gamepad pings (#14): the D-pad sends 1-4, with LB held 5-8 (PadPingPressed checks LB).
+	static const FKey PadPingKeys[NumPadPingButtons] = {EKeys::Gamepad_DPad_Left, EKeys::Gamepad_DPad_Right, EKeys::Gamepad_DPad_Up, EKeys::Gamepad_DPad_Down};
+	for (int32 i = 0; i < PadPingActions.Num(); ++i)
+	{
+		InputContext->MapKey(PadPingActions[i], PadPingKeys[i]);
 	}
 
 	// WASD (or the player's keys) -> 2D: forward/back go to Y via swizzle, back/left are negated.
@@ -373,6 +384,10 @@ void ANBSquirrel::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	for (int32 i = 0; i < PingActions.Num(); ++i)
 	{
 		Input->BindAction(PingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PingPressed, i);
+	}
+	for (int32 i = 0; i < PadPingActions.Num(); ++i)
+	{
+		Input->BindAction(PadPingActions[i], ETriggerEvent::Started, this, &ANBSquirrel::PadPingPressed, i);
 	}
 }
 
@@ -1439,6 +1454,21 @@ void ANBSquirrel::StopLocalRagdoll()
 void ANBSquirrel::PingPressed(int32 Index)
 {
 	Server_Ping(Index);
+}
+
+static_assert(ANBPlayerState::NumPings == 2 * ANBSquirrel::NumPadPingButtons, "The D-pad and LB + D-pad cover the pings exactly");
+
+void ANBSquirrel::PadPingPressed(int32 Button)
+{
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	const bool bShifted = PC && PC->IsInputKeyDown(EKeys::Gamepad_LeftShoulder);
+	PingPressed(Button + (bShifted ? NumPadPingButtons : 0));
+}
+
+FString ANBSquirrel::GetPadPingButtonName(int32 Button)
+{
+	static const TCHAR* Names[NumPadPingButtons] = {TEXT("left"), TEXT("right"), TEXT("up"), TEXT("down")};
+	return Names[FMath::Clamp(Button, 0, NumPadPingButtons - 1)];
 }
 
 void ANBSquirrel::Server_Ping_Implementation(int32 Index)
