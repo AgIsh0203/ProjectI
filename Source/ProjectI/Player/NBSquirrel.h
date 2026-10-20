@@ -31,6 +31,8 @@ enum class ENBEjectReason : uint8
 	River,
 	/** The WIGGLY ROAD dog grabbed it and flung it (#13). */
 	Dog,
+	/** THE BRIDGE's wrecking ball hit it (G6). */
+	Ball,
 };
 
 /** What the local player is told after pressing a key their seat ignores (friend test 2: steering from the pedals). */

@@ -987,6 +987,10 @@ void ANBHUD::DrawEjectReason(const ANBSquirrel& Squirrel)
 		Title = TEXT("THE DOG GOT YOU!");
 		Help = TEXT("Stay in the car on WIGGLY ROAD, and honk to scare it off");
 		break;
+	case ENBEjectReason::Ball:
+		Title = TEXT("WRECKING BALL!");
+		Help = TEXT("Wait for it to swing away, then go");
+		break;
 	default:
 		break;
 	}

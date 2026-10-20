@@ -173,6 +173,11 @@ Checked only by script in 2-client PIE (seat inputs set from Python, no keys pre
 - [ ] A second reset within 15 s says "Reset ready in N s". Is 3 acorns + 15 s the right price, or do players use it as a shortcut?
 - [ ] Gamepad View works; rebinding Reset in Options works.
 
+## Roadblocks and the wrecking ball (20 Oct): check by hand
+- [ ] PINE PASS (broken-down car), THE HAIRPIN (fallen tree), ROCKY ROAD (rockslide): they read as obstacles from the Wheel seat in time to slow down, and the 3.5 m gap along the drop is passable slowly. Too tight, or too easy?
+- [ ] The three pinch points (COBBLE LANE, WIGGLY ROAD, HOME STRETCH) make the drop side feel risky.
+- [ ] THE BRIDGE: the wrecking ball can be timed by waiting; a hit shoves the car (off the bridge?) and knocks squirrels out with "WRECKING BALL!". Is a knock off the bridge too harsh? A client sees it swing in step.
+
 ## The dog (20 Oct): check by hand
 - [ ] On WIGGLY ROAD the dog wakes and chases; it reads as a dog (greybox) and its trot looks alive. CHOMP! / WOOF! / YIPE! show over it, and "THE DOG'S GOT A TYRE!  HONK!" when it bites.
 - [ ] Honking scares it off; does the crew learn that without being told?

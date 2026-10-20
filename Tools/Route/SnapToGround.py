@@ -31,7 +31,9 @@ for actor in eas.get_all_level_actors():
     if not isinstance(actor, (unreal.NBProp, unreal.StaticMeshActor, unreal.TextRenderActor)):
         continue
     loc = actor.get_actor_location()
-    found, ground = route.get_landscape_height(loc.x, loc.y)
+    # Python gets a bare float back (the bool return is folded away), or (found, z) in some versions.
+    result = route.get_landscape_height(loc.x, loc.y)
+    found, ground = result if isinstance(result, tuple) else (result is not None, result)
     if not found:
         continue
     tags = [str(t) for t in actor.get_editor_property("tags")]

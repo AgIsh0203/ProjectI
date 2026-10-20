@@ -58,6 +58,7 @@ The first plan was rolling hills (≤ 20 m) with a smooth road at ≤ 8 %. Mid-w
 ## Tools
 - `Tools/Route/BakeRoute.py` (`REBAKE = True`) rebuilds everything in the Route folder, **including the landscape: a rebake erases any sculpting**. Every baked prop, board and marker carries a `Ground=<cm>` tag (its height above the ground).
 - `Tools/Route/SnapToGround.py`: after sculpting, it drops the tagged actors back onto the landscape (keeping X/Y and rotation). The trail itself follows the profile in code: change it there and rebake.
+- `Tools/Route/PlaceRoadblocks.py` (G6, 20 Oct): the roadblocks, pinch points and THE BRIDGE's wrecking ball, in the Outliner folder "Roadblocks" (a rerun replaces only that folder). It puts each where the drop 20 m out from the centreline is biggest (the ground blends over ~15 m, so 12 m out shows no cliff) and covers the trail from the wall side, leaving a gap along the drop. Edit its tables, not the placed actors.
 - `NBAuto [speed]` (console) or `?Autopilot=<cm/s>` (URL): the server drives the car down the centreline, with no random failures. It slows for bends and backs out when stuck, logging per section ("NBAuto: …"): time, speed range, slowest climb, max tilt, acorns lost, air points, stuck count. Before a scripted drive in PIE, seat the local squirrel (a rider seat) so the person at the PC can watch.
 
 ## Still to check
