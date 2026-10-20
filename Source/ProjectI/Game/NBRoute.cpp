@@ -564,20 +564,20 @@ void ANBRoute::BuildProfile()
 			for (float S = RiverStep; S <= FMath::Abs(End) + 1.f; S += RiverStep)
 			{
 				const FVector2D P = PointAt(Direction * S);
-				const float Ground = TerrainZ(P.X, P.Y) - 150.f;
+				const float Floor = TerrainZ(P.X, P.Y) - 150.f;
 				if (S > KeepClear)
 				{
 					if (Direction == DownSign)
 					{
-						Level = FMath::Min(Level, Ground);
+						Level = FMath::Min(Level, Floor);
 					}
-					else if (Ground < Level)
+					else if (Floor < Level)
 					{
 						break;
 					}
 					else
 					{
-						Level = FMath::Min(Ground, Level + RiverStep * 0.06f);
+						Level = FMath::Min(Floor, Level + RiverStep * 0.06f);
 					}
 				}
 				Out.Add({P, Level});
