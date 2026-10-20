@@ -95,7 +95,7 @@ The PassengerSeat beside the wheel. It always holds the **handbrake** (hold Shif
 ## Co-op levers — Demo, if the playtest agrees
 - **The pedal squirrel can't see the road (#9).** Its camera sits low in the footwell, so the WHEEL squirrel has to shout GAS / BRAKE. Asymmetric information forces talking, and talking is what makes streams funny. **Not decided:** it bends the locked chase-camera rule for one seat.
 - **Pick spilled acorns back up (#11)** and throw them into the bed: "run back for them!" moments.
-- **Fallen-squirrel cam (#12):** while tumbling or far behind, the camera keeps the car in frame.
+- **Fallen-squirrel cam (#12) — Built 20 Oct:** while tumbling, or on foot more than 12 m from the car during a run, the camera turns to look past the squirrel at the car (so W runs back to it) and pulls back with distance (320 → 750 cm by 40 m). Moving the mouse/stick holds it off for 1.5 s. Checked by script in 1-player PIE; not felt by hand.
 
 ## End screen
 Built for screenshots.

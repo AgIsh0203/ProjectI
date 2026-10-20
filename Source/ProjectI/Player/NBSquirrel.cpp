@@ -23,6 +23,7 @@
 #include "EngineUtils.h"
 #include "Game/NBRoute.h"
 #include "Game/NBRunGameMode.h"
+#include "Game/NBRunGameState.h"
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -1166,6 +1167,59 @@ void ANBSquirrel::UpdateSeatedCamera(float DeltaSeconds)
 	MyController->SetControlRotation(FMath::RInterpTo(Current, Target, DeltaSeconds, SeatedFollowSpeed));
 }
 
+void ANBSquirrel::UpdateFallenCamera(float DeltaSeconds)
+{
+	AController* MyController = GetController();
+	if (!MyController || CurrentSeat || ClingTarget)
+	{
+		return;
+	}
+	if (!CameraCar.IsValid())
+	{
+		for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
+		{
+			CameraCar = *It;
+			break;
+		}
+	}
+	const AActor* Car = CameraCar.Get();
+	if (!Car)
+	{
+		return;
+	}
+
+	const FVector ToCar = Car->GetActorLocation() - GetActorLocation();
+	const float Distance = ToCar.Size2D();
+	// Far away only counts during a run: in the lobby squirrels wander THE PARK reading the signs.
+	const ANBRunGameState* RunState = GetWorld()->GetGameState<ANBRunGameState>();
+	const bool bDriving = RunState && RunState->GetPhase() == ENBRunPhase::Driving;
+	const bool bFallen = bLocalRagdoll || (bDriving && Distance > FallenCamStartDistance);
+
+	// Stretch the arm with distance so the car still reads on screen; back to normal near it.
+	float Stretch = 0.f;
+	if (bFallen)
+	{
+		Stretch = FMath::GetMappedRangeValueClamped(FVector2D(FallenCamStartDistance, FallenCamFullDistance), FVector2D(0.f, 1.f), Distance);
+		if (bLocalRagdoll)
+		{
+			Stretch = FMath::Max(Stretch, FallenTumbleStretch);
+		}
+	}
+	const float TargetArm = FMath::Lerp(OnFootArmLength, FallenArmLength, Stretch);
+	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, TargetArm, DeltaSeconds, 2.f);
+
+	// Turn to look past the squirrel at the car. Looking around wins for a while; right next to
+	// the car the direction would flip about, so leave it alone there.
+	if (!bFallen || Distance < 400.f || GetWorld()->GetTimeSeconds() - LastLookInputTime < FallenFollowDelay)
+	{
+		return;
+	}
+	const float PitchToCar = FMath::RadiansToDegrees(FMath::Atan2(ToCar.Z - CameraBoom->SocketOffset.Z, Distance));
+	const FRotator Current = MyController->GetControlRotation();
+	const FRotator Target(FMath::Clamp(PitchToCar + FallenPitchOffset, -40.f, 15.f), ToCar.Rotation().Yaw, Current.Roll);
+	MyController->SetControlRotation(FMath::RInterpTo(Current, Target, DeltaSeconds, FallenFollowSpeed));
+}
+
 void ANBSquirrel::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
@@ -1435,6 +1489,7 @@ void ANBSquirrel::Tick(float DeltaSeconds)
 			Server_RequestCarReset();
 		}
 		UpdateSeatedCamera(DeltaSeconds);
+		UpdateFallenCamera(DeltaSeconds);
 		UpdateCameraPunch(DeltaSeconds);
 	}
 	if (bLocalRagdoll)

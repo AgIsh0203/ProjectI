@@ -374,6 +374,37 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float SeatedFollowMinSpeed = 150.f;
 
+	// --- Fallen-squirrel cam (#12): tumbling, or on foot far from the car, the camera looks past the
+	// squirrel at the car, so a streamer who fell out still shows the chaos (and W runs back to it). ---
+
+	/** On foot, the fallen cam takes over beyond this distance from the car (cm). Tumbling, it always does. */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenCamStartDistance = 1200.f;
+
+	/** At this distance (cm) and beyond, the arm is at FallenArmLength. */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenCamFullDistance = 4000.f;
+
+	/** The arm length when the car is far away (cm); it stretches from OnFootArmLength with distance. */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenArmLength = 750.f;
+
+	/** How much of the stretch a tumble gets even right next to the car (0..1). */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenTumbleStretch = 0.4f;
+
+	/** Added to the pitch towards the car (degrees, negative looks down), so the squirrel stays in frame too. */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenPitchOffset = -12.f;
+
+	/** Look input holds the fallen cam off for this long (s). */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenFollowDelay = 1.5f;
+
+	/** RInterpTo speed of the turn towards the car. */
+	UPROPERTY(EditAnywhere, Category = "Camera|Fallen")
+	float FallenFollowSpeed = 3.f;
+
 	/** In the pedal seat the tail sticks straight up like a flag, so the footwell squirrel shows over the dashboard. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
 	FTransform PedalTailTransform = FTransform(FRotator::ZeroRotator, FVector(-6.f, 20.f, 55.f), FVector(0.16f, 0.16f, 1.f));
@@ -609,6 +640,12 @@ private:
 
 	/** Local only: swings a seated player's camera behind the car while they aren't looking around. */
 	void UpdateSeatedCamera(float DeltaSeconds);
+
+	/** Local. Not riding: frames the car past the squirrel while tumbling or far away (#12). */
+	void UpdateFallenCamera(float DeltaSeconds);
+
+	/** The fallen cam's car, found once. */
+	TWeakObjectPtr<AActor> CameraCar;
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevFail(const FString& PartName);
