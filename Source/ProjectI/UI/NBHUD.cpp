@@ -22,6 +22,7 @@
 #include "Game/NBSessionSubsystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/NBInteractableComponent.h"
+#include "Game/NBDog.h"
 #include "Game/NBRoute.h"
 #include "Game/NBRunGameMode.h"
 #include "Game/NBRunGameState.h"
@@ -451,6 +452,7 @@ void ANBHUD::DrawHUD()
 	DrawCallouts();
 	DrawHornBubble();
 	DrawHandbrakeBubble();
+	DrawDogBubbles();
 	DrawJumpBubble();
 	DrawOffroadWarning();
 	DrawCarReset(*Squirrel);
@@ -550,6 +552,16 @@ void ANBHUD::UpdateCallouts()
 			SeenFailed.Add(Part, bFailed);
 		}
 	}
+	for (TActorIterator<ANBDog> It(GetWorld()); It; ++It)
+	{
+		const uint8 DogState = static_cast<uint8>(It->GetState());
+		const uint8* Before = SeenDogStates.Find(*It);
+		if (Before && *Before != DogState && It->GetState() == ENBDogState::Biting)
+		{
+			Callouts.Add({FString::Printf(TEXT("THE DOG'S GOT A TYRE!  HONK! (%s)"), *PromptName(ENBPrompt::Horn)), Now});
+		}
+		SeenDogStates.Add(*It, DogState);
+	}
 	Callouts.RemoveAll([Now](const FCallout& Callout) { return Now - Callout.StartTime > CalloutSeconds; });
 	// A burst of failures shows the newest few, not a wall of text.
 	if (Callouts.Num() > MaxCallouts)
@@ -601,6 +613,46 @@ void ANBHUD::DrawHandbrakeBubble()
 		if (It->IsHandbrakeOn() && PlayerOwner && PlayerOwner->ProjectWorldLocationToScreen(It->GetActorLocation() + FVector(0.f, 0.f, 260.f), Screen))
 		{
 			DrawShoutText(TEXT("HANDBRAKE!"), Screen.X, Screen.Y, FLinearColor(BadColor.R, BadColor.G, BadColor.B, Pulse), 1.4f);
+		}
+	}
+}
+
+void ANBHUD::DrawDogBubbles()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	const APawn* Viewer = PlayerOwner ? PlayerOwner->GetPawn() : nullptr;
+	for (TActorIterator<ANBDog> It(GetWorld()); It; ++It)
+	{
+		FVector2D Screen;
+		if (!PlayerOwner || !PlayerOwner->ProjectWorldLocationToScreen(It->GetBubbleLocation(), Screen))
+		{
+			continue;
+		}
+		const float BarkAge = static_cast<float>(Now - It->GetLastBarkTime());
+		switch (It->GetState())
+		{
+		case ENBDogState::Biting:
+		{
+			const float Pulse = 1.f + 0.15f * FMath::Sin(Now * 20.f);
+			DrawShoutText(TEXT("CHOMP!"), Screen.X, Screen.Y, BadColor, 1.6f * Pulse);
+			break;
+		}
+		case ENBDogState::Scared:
+			DrawShoutText(TEXT("YIPE!"), Screen.X, Screen.Y, GoodColor, 1.2f);
+			break;
+		case ENBDogState::Sleeping:
+			if (Viewer && FVector::Dist(Viewer->GetActorLocation(), It->GetActorLocation()) < 4000.f)
+			{
+				DrawShoutText(TEXT("zzz"), Screen.X + 20.f * FMath::Sin(Now * 1.5f), Screen.Y, FLinearColor(1.f, 1.f, 1.f, 0.8f), 0.8f);
+			}
+			break;
+		default:
+			if (BarkAge < 0.6f)
+			{
+				const float Pop = 1.f + 0.6f * (1.f - FMath::SmoothStep(0.f, 0.12f, BarkAge));
+				DrawShoutText(TEXT("WOOF!"), Screen.X, Screen.Y, FLinearColor(ProgressColor.R, ProgressColor.G, ProgressColor.B, FMath::Clamp((0.6f - BarkAge) / 0.2f, 0.f, 1.f)), 1.4f * Pop);
+			}
+			break;
 		}
 	}
 }
@@ -930,6 +982,10 @@ void ANBHUD::DrawEjectReason(const ANBSquirrel& Squirrel)
 	case ENBEjectReason::River:
 		Title = TEXT("SWEPT AWAY!");
 		Help = TEXT("Deep water: stay in the car at the fords");
+		break;
+	case ENBEjectReason::Dog:
+		Title = TEXT("THE DOG GOT YOU!");
+		Help = TEXT("Stay in the car on WIGGLY ROAD, and honk to scare it off");
 		break;
 	default:
 		break;

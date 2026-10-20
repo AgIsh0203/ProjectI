@@ -9,6 +9,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Game/NBDog.h"
 #include "Game/NBFinishZone.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -219,6 +220,40 @@ void ANBRoute::BeginPlay()
 		// The gate's slab sits at its own height, so ~10 cm above the road.
 		const FTransform Gate = GetTransformAt(TotalLength - 3000.f, 10.f);
 		FinishZone = GetWorld()->SpawnActor<ANBFinishZone>(ANBFinishZone::StaticClass(), Gate, Params);
+		SpawnDog();
+	}
+}
+
+void ANBRoute::SpawnDog()
+{
+	const int32 Section = SectionNames.IndexOfByKey(DogSection);
+	if (DogSection.IsEmpty() || Section == INDEX_NONE)
+	{
+		return;
+	}
+	// Its stretch runs to the next named section (or the end of the road).
+	const float Start = SectionStarts[Section];
+	float End = TotalLength;
+	for (int32 i = Section + 1; i < SectionNames.Num(); ++i)
+	{
+		if (!SectionNames[i].IsEmpty())
+		{
+			End = SectionStarts[i];
+			break;
+		}
+	}
+	const FTransform AtKennel = GetTransformAt(Start + DogKennelDistance);
+	const FVector Right = AtKennel.GetRotation().GetRightVector().GetSafeNormal2D();
+	// Facing the road, so it sees the car coming.
+	const FTransform Kennel(FRotator(0.f, (-Right).Rotation().Yaw, 0.f), AtKennel.GetLocation() + Right * DogKennelSide);
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (ANBDog* Dog = GetWorld()->SpawnActor<ANBDog>(ANBDog::StaticClass(), Kennel, Params))
+	{
+		Dog->SetHome(Kennel, Start, End);
+		UE_LOG(LogTemp, Log, TEXT("NBDog: kennel at %s, guards %.0f-%.0f m"), *Dog->GetActorLocation().ToCompactString(), Start / 100.f, End / 100.f);
 	}
 }
 

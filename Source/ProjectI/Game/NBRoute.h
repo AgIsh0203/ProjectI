@@ -107,6 +107,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route")
 	bool bBuildGeometry = true;
 
+	/** The dog (#13): the server spawns an ANBDog whose kennel sits beside this section, and which
+	 *  chases the car from there to the next named section. Empty or not found: no dog. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route|Dog")
+	FString DogSection = TEXT("WIGGLY ROAD");
+
+	/** The kennel: this far into the section (cm) ... */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route|Dog")
+	float DogKennelDistance = 3000.f;
+
+	/** ... and this far right of the centreline (cm; the road is RoadWidth wide). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Route|Dog")
+	float DogKennelSide = 1100.f;
+
 	/** Total road length in cm. */
 	UFUNCTION(BlueprintPure, Category = "Route")
 	float GetLength() const { return TotalLength; }
@@ -280,6 +293,9 @@ protected:
 private:
 	/** Walk the segments into evenly spaced centreline samples (local space). */
 	void BuildCentreline();
+
+	/** Server, BeginPlay: the dog's kennel beside DogSection. */
+	void SpawnDog();
 	void BuildGeometry();
 	/** Ramp up, flat top, ramp down along the road from StartDistance. RampLength 0 = a lone kicker. */
 	void AddRaised(UInstancedStaticMeshComponent* Mesh, float StartDistance, float Length, float RampLength, float Height, float Width, bool bKicker);

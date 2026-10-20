@@ -103,6 +103,9 @@ private:
 	/** "HANDBRAKE!" over the car while the Gears squirrel holds it. */
 	void DrawHandbrakeBubble();
 
+	/** The WIGGLY ROAD dog (#13): WOOF! on each bark, CHOMP! on a tyre, YIPE! running off, zzz asleep nearby. */
+	void DrawDogBubbles();
+
 	/** "AIR TIME! +N" over the car for a moment after each clean jump landing. */
 	void DrawJumpBubble();
 	/** "OFF THE TRAIL!" above the hints while the car's off-road grip loss builds up. */
@@ -149,6 +152,9 @@ private:
 	/** Each part's failed state last frame. A part seen for the first time only records its state,
 	 *  so joining (or restarting) mid-failure doesn't shout about old breaks. */
 	TMap<TWeakObjectPtr<const class UNBCarPartComponent>, bool> SeenFailed;
+
+	/** Each dog's state last frame, for the callout when it gets hold of a tyre (first sight only records). */
+	TMap<TWeakObjectPtr<const class ANBDog>, uint8> SeenDogStates;
 
 	/** Driving seats someone has sat in; their labels are gone for good (until the map reloads). */
 	TSet<TWeakObjectPtr<const class UNBSeatComponent>> UsedSeats;

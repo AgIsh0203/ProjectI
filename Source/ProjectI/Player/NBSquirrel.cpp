@@ -21,6 +21,7 @@
 #include "Player/NBPlayerState.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+#include "Game/NBDog.h"
 #include "Game/NBRoute.h"
 #include "Game/NBRunGameMode.h"
 #include "Game/NBRunGameState.h"
@@ -734,6 +735,11 @@ void ANBSquirrel::NBFlip()
 	Server_DevFlip();
 }
 
+void ANBSquirrel::NBDog()
+{
+	Server_DevDog();
+}
+
 void ANBSquirrel::NBStart()
 {
 	Server_DevStart();
@@ -849,6 +855,14 @@ void ANBSquirrel::Server_DevFlip_Implementation()
 	for (TActorIterator<ANBCar> It(GetWorld()); It; ++It)
 	{
 		It->DevFlip();
+	}
+}
+
+void ANBSquirrel::Server_DevDog_Implementation()
+{
+	for (TActorIterator<ANBDog> It(GetWorld()); It; ++It)
+	{
+		It->DevChase();
 	}
 }
 

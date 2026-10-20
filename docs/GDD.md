@@ -65,7 +65,7 @@ The autopilot (`NBAuto`, no breakdowns, 16 m/s) drove the whole trail in 7:52 wi
 
 ## Events
 - **Acorn in Mouth — Built.** Every 75–105 s while driving (never in the last 20 s), weighted toward the WHEEL seat and squirrels next to a failed part. That squirrel is muted for 20 s, still hears everyone, and keeps 8 pings on keys 1–8: LEFT!, RIGHT!, GAS!, BRAKE!, HELP!, FIX IT!, JUMP OUT!, NICE! On a gamepad (20 Oct, #14) the D-pad sends the first four (left, right, up, down) and LB + D-pad the other four Anyone can ping, muted or not.
-- **One hazard with a face — Demo (#13):** a dog that chases the car on WIGGLY ROAD, or a sprinkler in THE PARK.
+- **One hazard with a face — Built 20 Oct (#13), greybox:** a big brown dog sleeps by its kennel 30 m into WIGGLY ROAD. During a run, while the car is on its stretch (from 50 m before WIGGLY ROAD to COBBLE CURVE), it chases at 1450 cm/s (a car flat out escapes): it hangs off the nearest tyre for 2.5 s (wear 0.15/s, a 35 % chance of a flat when it lets go, then 5 s before the next bite), or grabs a squirrel on foot within 9 m and flings it ("THE DOG GOT YOU!"). A honk within 25 m scares it off for 10 s. WOOF! / CHOMP! / YIPE! over it, and "THE DOG'S GOT A TYRE!  HONK!" as a callout. Checked by script in PIE only.
 - **Bird steals a squirrel; pothole frenzy — Later (#22).**
 
 ## The squirrels

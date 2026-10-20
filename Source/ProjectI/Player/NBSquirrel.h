@@ -29,6 +29,8 @@ enum class ENBEjectReason : uint8
 	Flipped,
 	Bailed,
 	River,
+	/** The WIGGLY ROAD dog grabbed it and flung it (#13). */
+	Dog,
 };
 
 /** What the local player is told after pressing a key their seat ignores (friend test 2: steering from the pedals). */
@@ -188,6 +190,10 @@ public:
 	/** Dev: roll the car onto its roof. */
 	UFUNCTION(Exec)
 	void NBFlip();
+
+	/** Dev: wake the WIGGLY ROAD dog and set it on the car wherever it is (during a run). */
+	UFUNCTION(Exec)
+	void NBDog();
 
 	/** Dev: play every in-game sound once, in turn, labelled on screen (host). */
 	UFUNCTION(Exec)
@@ -665,6 +671,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevFlip();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DevDog();
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevStart();

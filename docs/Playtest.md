@@ -173,6 +173,12 @@ Checked only by script in 2-client PIE (seat inputs set from Python, no keys pre
 - [ ] A second reset within 15 s says "Reset ready in N s". Is 3 acorns + 15 s the right price, or do players use it as a shortcut?
 - [ ] Gamepad View works; rebinding Reset in Options works.
 
+## The dog (20 Oct): check by hand
+- [ ] On WIGGLY ROAD the dog wakes and chases; it reads as a dog (greybox) and its trot looks alive. CHOMP! / WOOF! / YIPE! show over it, and "THE DOG'S GOT A TYRE!  HONK!" when it bites.
+- [ ] Honking scares it off; does the crew learn that without being told?
+- [ ] Too much or too little? (Bites per run, flats, how easily a fast car escapes.) A client sees it move smoothly.
+- [ ] A squirrel on foot near it gets flung with "THE DOG GOT YOU!".
+
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (no breakdowns, 16 m/s): 7:52 with the template car, 6:40 at 435 Nm. With the 80 Nm car it gets stuck on the climbs' rubble, so no full timing yet (estimate ~8:20 with no breakdowns).
 - [ ] Drive the whole route by hand (solo drive) and note the time: is 9:00 still enough, with breakdowns on top? If not, raise `DeadlineSeconds` on the route.
