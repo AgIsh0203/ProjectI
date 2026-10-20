@@ -13,6 +13,9 @@ void ANBPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ANBPlayerState, FiresPutOut);
 	DOREPLIFETIME(ANBPlayerState, AcornsSpilled);
 	DOREPLIFETIME(ANBPlayerState, DriveSeconds);
+	DOREPLIFETIME(ANBPlayerState, PingsSent);
+	DOREPLIFETIME(ANBPlayerState, LongestFlight);
+	DOREPLIFETIME(ANBPlayerState, Award);
 	DOREPLIFETIME(ANBPlayerState, MuteEndTime);
 	DOREPLIFETIME(ANBPlayerState, PingIndex);
 	DOREPLIFETIME(ANBPlayerState, PingTime);
@@ -34,6 +37,33 @@ float ANBPlayerState::GetHelpfulness() const
 	constexpr float PerAcornSpilled = 0.5f;
 	return FiresPutOut * PerFire + DriveSeconds * PerDriveSecond
 		- Falls * PerFall - Respawns * PerRespawn - AcornsSpilled * PerAcornSpilled;
+}
+
+float ANBPlayerState::GetAwardStat(ENBAward Which) const
+{
+	switch (Which)
+	{
+	case ENBAward::FrequentFlyer:  return Falls;
+	case ENBAward::Butterfingers:  return AcornsSpilled;
+	case ENBAward::Firefighter:    return FiresPutOut;
+	case ENBAward::BackseatDriver: return PingsSent;
+	case ENBAward::LongestFlight:  return LongestFlight;
+	default:                       return 0.f;
+	}
+}
+
+FString ANBPlayerState::DescribeAward(ENBAward Which, float Stat)
+{
+	const int32 N = FMath::RoundToInt(Stat);
+	switch (Which)
+	{
+	case ENBAward::FrequentFlyer:  return FString::Printf(TEXT("FREQUENT FLYER  (%d %s)"), N, N == 1 ? TEXT("fall") : TEXT("falls"));
+	case ENBAward::Butterfingers:  return FString::Printf(TEXT("BUTTERFINGERS  (%d %s spilled)"), N, N == 1 ? TEXT("acorn") : TEXT("acorns"));
+	case ENBAward::Firefighter:    return FString::Printf(TEXT("FIREFIGHTER  (%d %s out)"), N, N == 1 ? TEXT("fire") : TEXT("fires"));
+	case ENBAward::BackseatDriver: return FString::Printf(TEXT("BACKSEAT DRIVER  (%d %s)"), N, N == 1 ? TEXT("ping") : TEXT("pings"));
+	case ENBAward::LongestFlight:  return FString::Printf(TEXT("LONGEST FLIGHT  (%d m)"), FMath::RoundToInt(Stat / 100.f));
+	default:                       return FString();
+	}
 }
 
 double ANBPlayerState::ServerNow() const
@@ -86,5 +116,6 @@ bool ANBPlayerState::SendPing(int32 Index)
 	}
 	PingIndex = Index;
 	PingTime = Now;
+	++PingsSent;
 	return true;
 }

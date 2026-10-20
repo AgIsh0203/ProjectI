@@ -1611,6 +1611,14 @@ void ANBSquirrel::Recover()
 		return;
 	}
 	const FVector GetUpLocation = BodyVisual->GetComponentLocation() + FVector(0.f, 0.f, 40.f);
+	// Longest Flight award: ground distance from launch to landing. A river sweep isn't a throw.
+	if (Ragdoll.Reason != ENBEjectReason::River)
+	{
+		if (ANBPlayerState* Stats = GetPlayerState<ANBPlayerState>())
+		{
+			Stats->NoteFlight(FVector::Dist2D(Ragdoll.Start, GetUpLocation));
+		}
+	}
 	Ragdoll.bActive = false;
 	StopLocalRagdoll();
 	SnapTo(GetUpLocation, FRotator(0.f, GetActorRotation().Yaw, 0.f));

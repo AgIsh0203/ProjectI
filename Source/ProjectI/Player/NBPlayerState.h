@@ -6,6 +6,18 @@
 #include "GameFramework/PlayerState.h"
 #include "NBPlayerState.generated.h"
 
+/** A funny end-screen award (#10); each squirrel gets at most one. */
+UENUM(BlueprintType)
+enum class ENBAward : uint8
+{
+	None,
+	FrequentFlyer,   // most falls
+	Butterfingers,   // most acorns spilled
+	Firefighter,     // most fires put out
+	BackseatDriver,  // most pings sent
+	LongestFlight,   // farthest single throw
+};
+
 /** Per-player run stats, replicated for the HUD and the end screen. */
 UCLASS()
 class PROJECTI_API ANBPlayerState : public APlayerState
@@ -40,6 +52,30 @@ public:
 	/** Whole seconds spent in the Wheel or Pedals seat during the run. */
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	int32 GetDriveSeconds() const { return DriveSeconds; }
+
+	/** Chat-wheel pings this squirrel sent. */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	int32 GetPingsSent() const { return PingsSent; }
+
+	/** Farthest single throw out of the car, in cm (ground distance from launch to landing). */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetLongestFlight() const { return LongestFlight; }
+
+	/** Server only. Keeps the longest. */
+	void NoteFlight(float Distance) { LongestFlight = FMath::Max(LongestFlight, Distance); }
+
+	/** The end-screen award the game mode gave this squirrel, or None. */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	ENBAward GetAward() const { return Award; }
+
+	/** The stat behind an award, for picking it and for the end screen. */
+	float GetAwardStat(ENBAward Which) const;
+
+	/** The award's name and the stat behind it, e.g. "FREQUENT FLYER  (5 falls)". */
+	static FString DescribeAward(ENBAward Which, float Stat);
+
+	/** Server only. */
+	void SetAward(ENBAward NewAward) { Award = NewAward; }
 
 	/** Server only. */
 	void AddFirePutOut() { ++FiresPutOut; }
@@ -113,6 +149,15 @@ private:
 
 	UPROPERTY(Replicated)
 	int32 DriveSeconds = 0;
+
+	UPROPERTY(Replicated)
+	int32 PingsSent = 0;
+
+	UPROPERTY(Replicated)
+	float LongestFlight = 0.f;
+
+	UPROPERTY(Replicated)
+	ENBAward Award = ENBAward::None;
 
 	/** Server. Exact drive time; DriveSeconds is its whole part. */
 	float DriveTime = 0.f;

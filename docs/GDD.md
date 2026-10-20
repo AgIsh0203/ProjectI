@@ -100,7 +100,7 @@ The PassengerSeat beside the wheel. It always holds the **handbrake** (hold Shif
 ## End screen
 Built for screenshots.
 - **Built:** the score breakdown; each squirrel's falls, fires put out, acorns spilled and drive time; MVP and "Most useless", picked by a helpfulness score (+3 per fire, +1 per 30 s driving, −1 per fall, −2 per respawn, −0.5 per acorn spilled). Not seen on screen yet.
-- **Demo (#10):** one funny award per squirrel: Frequent Flyer (most falls), Butterfingers (most acorns spilled), Firefighter (most fires out), Backseat Driver (most pings), Longest Flight (farthest single throw).
+- **Built 20 Oct (#10):** one funny award per squirrel, in its fur colour under MVP / Most useless: Frequent Flyer (most falls), Butterfingers (most acorns spilled), Firefighter (most fires out), Backseat Driver (most pings), Longest Flight (farthest single throw, launch to landing; a river sweep doesn't count). Each award goes to whoever holds the biggest share of its stat, so a squirrel best at two things takes the one it dominates and the other goes to someone else; nobody gets one for a stat of 0. Checked in 1-player PIE only (the log, not the screen).
 
 ## Presentation
 - **Camera — Built:** third-person chase camera, pulled wide while seated; it swings behind the car while driving.

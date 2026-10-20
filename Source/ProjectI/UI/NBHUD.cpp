@@ -1245,8 +1245,15 @@ void ANBHUD::DrawVoiceStatus()
 
 void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 {
+	int32 AwardCount = 0;
+	for (const APlayerState* Player : State.PlayerArray)
+	{
+		const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player);
+		AwardCount += Stats && Stats->GetAward() != ENBAward::None ? 1 : 0;
+	}
+	const float AwardLineH = 30.f;
 	const float PanelW = 720.f;
-	const float PanelH = State.IsManualGears() ? 550.f : 520.f;
+	const float PanelH = (State.IsManualGears() ? 550.f : 520.f) + AwardCount * AwardLineH + (AwardCount > 0 ? 10.f : 0.f);
 	const float PanelX = (Canvas->ClipX - PanelW) * 0.5f;
 	const float PanelY = (Canvas->ClipY - PanelH) * 0.5f;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), PanelX, PanelY, PanelW, PanelH);
@@ -1291,6 +1298,29 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 		DrawCenteredText(FString::Printf(TEXT("MVP: %s"), *Mvp->GetPlayerName()), Y, ProgressColor, 1.6f);
 		DrawCenteredText(FString::Printf(TEXT("MOST USELESS: %s"), *Useless->GetPlayerName()), Y + 34.f, BadColor, 1.6f);
 		Y += 80.f;
+	}
+
+	// One funny award per squirrel (#10), in its fur colour: made to be screenshotted.
+	if (AwardCount > 0)
+	{
+		for (const APlayerState* Player : State.PlayerArray)
+		{
+			const ANBPlayerState* Stats = Cast<ANBPlayerState>(Player);
+			if (!Stats || Stats->GetAward() == ENBAward::None)
+			{
+				continue;
+			}
+			FLinearColor Color = GoodColor;
+			if (const ANBSquirrel* Squirrel = Cast<ANBSquirrel>(Stats->GetPawn()))
+			{
+				Color = Squirrel->GetFurColor();
+			}
+			const FString Line = FString::Printf(TEXT("%s:  %s"), *Stats->GetPlayerName(),
+				*ANBPlayerState::DescribeAward(Stats->GetAward(), Stats->GetAwardStat(Stats->GetAward())));
+			DrawCenteredText(Line, Y, Color, 1.3f);
+			Y += AwardLineH;
+		}
+		Y += 10.f;
 	}
 
 	for (const APlayerState* Player : State.PlayerArray)

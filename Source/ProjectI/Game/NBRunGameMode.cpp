@@ -733,8 +733,54 @@ void ANBRunGameMode::PickAwards()
 		if (ANBPlayerState* Stats = Cast<ANBPlayerState>(Player))
 		{
 			Players.Add(Stats);
+			Stats->SetAward(ENBAward::None);
 		}
 	}
+
+	// Funny awards, at most one per squirrel and one squirrel per award. Repeatedly hand out
+	// the pair where a squirrel holds the biggest share of an award's stat, so a squirrel
+	// who is best at two things takes the one it dominates and leaves the other to someone else.
+	// A stat of 0 earns nothing.
+	{
+		TArray<ENBAward> Open = { ENBAward::FrequentFlyer, ENBAward::Butterfingers, ENBAward::Firefighter,
+			ENBAward::BackseatDriver, ENBAward::LongestFlight };
+		TArray<ANBPlayerState*> Unawarded = Players;
+		while (!Open.IsEmpty() && !Unawarded.IsEmpty())
+		{
+			ENBAward BestAward = ENBAward::None;
+			ANBPlayerState* BestPlayer = nullptr;
+			float BestShare = 0.f;
+			for (ENBAward Award : Open)
+			{
+				float Total = 0.f;
+				for (const ANBPlayerState* Stats : Players)
+				{
+					Total += Stats->GetAwardStat(Award);
+				}
+				for (ANBPlayerState* Stats : Unawarded)
+				{
+					const float Stat = Stats->GetAwardStat(Award);
+					const float Share = Total > 0.f ? Stat / Total : 0.f;
+					if (Stat > 0.f && Share > BestShare)
+					{
+						BestShare = Share;
+						BestAward = Award;
+						BestPlayer = Stats;
+					}
+				}
+			}
+			if (!BestPlayer)
+			{
+				break;
+			}
+			BestPlayer->SetAward(BestAward);
+			UE_LOG(LogTemp, Log, TEXT("NBAwards: %s gets %s"), *BestPlayer->GetPlayerName(),
+				*ANBPlayerState::DescribeAward(BestAward, BestPlayer->GetAwardStat(BestAward)));
+			Open.Remove(BestAward);
+			Unawarded.Remove(BestPlayer);
+		}
+	}
+
 	// One squirrel can't be both, and a solo practice run has nobody to compare with.
 	if (Players.Num() < 2)
 	{
