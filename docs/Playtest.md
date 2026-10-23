@@ -175,6 +175,12 @@ Checked only by script in 2-client PIE (seat inputs set from Python, no keys pre
 - [ ] Drive off a cliff or into a gully: after ~3 s stuck, "STUCK?  Hold R" shows; holding R fills the bar and puts the car back on the trail 8 m before where it went off (not on a lower leg of the hairpin below), upright and facing the right way, with riders aboard and anyone on foot back at the car (no respawn penalty). "CAR RESET!  -3 acorns" shows.
 - [ ] A second reset within 15 s says "Reset ready in N s". Is 3 acorns + 15 s the right price, or do players use it as a shortcut?
 - [ ] Gamepad View works; rebinding Reset in Options works.
+- [ ] On a client the reset is a cut, not a slide (fix of 23 Oct, below): the car appears at the trail at once, riders with it, then settles.
+
+## 4-client PIE check (23 Oct, by script)
+Passed, read from each client's world: seats and their occupants replicate; every machine shows the rigged squirrel with live animations; a seat hop plays its arc on all three clients (checked with the hop slowed to 3 s); THE BRIDGE's ball and all 1,601 props exist everywhere, clients drawing the ball ~1 frame ahead of the server (their server-clock estimate; the server does the hits); the dog wakes, chases, bites and draws in the same spot on all machines; the result, score, MVP / Most useless and awards match everywhere; the fallen-squirrel cam on a client turns to the car and stretches the arm while tumbling. Not covered: gamepad pings (input only).
+- **Fixed:** a server teleport of the car (reset, flip-up, `NBWarp`) glided on clients for ~3 s, through whatever lay between. Now `ANBCar::TeleportCar` cuts on every machine.
+- **Seen, not changed:** a client's ragdoll can fly a different path from the server's when it hits something (each machine simulates it; here an eject into the upside-down car: 14 m on the client, 3 m on the server), and it snaps to the server's spot when it gets up.
 
 ## Roadblocks and the wrecking ball (20 Oct): check by hand
 - [ ] PINE PASS (broken-down car), THE HAIRPIN (fallen tree), ROCKY ROAD (rockslide): they read as obstacles from the Wheel seat in time to slow down, and the 3.5 m gap along the drop is passable slowly. Too tight, or too easy?

@@ -127,6 +127,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Reset")
 	bool ResetToTrail();
 
+	/**
+	 * Server: move the car to Spot and stop it, on every machine at once. Predictive interpolation
+	 * has no distance snap, so a plain server teleport glided on clients for ~3 s (23 Oct, 4-client
+	 * PIE: a 9 m reset was still 0.9 m off after 2.4 s), through whatever lay in between.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Car|Reset")
+	void TeleportCar(const FTransform& Spot);
+
 	/** Seconds until the car can be reset again (0 = now), on any machine. */
 	float GetResetCooldownLeft() const;
 
@@ -638,6 +646,13 @@ private:
 	/** Cosmetic only, so unreliable: a dropped crash sound is fine. */
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_Feedback(ENBCarFeedback Event, float Intensity);
+
+	/** TeleportCar's client half. Reliable: a missed one is the 3 s glide again. */
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_Teleport(const FTransform& Spot);
+
+	/** Sets the transform as a physics teleport and zeroes the velocities (both halves of TeleportCar). */
+	void ApplyTeleport(const FTransform& Spot);
 
 	FTimerHandle FlipCheckTimerHandle;
 	float FlippedSeconds = 0.f;

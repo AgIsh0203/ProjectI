@@ -21,6 +21,8 @@
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Parts/NBCarParts.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
+#include "PhysicsReplicationInterface.h"
 #include "Player/NBPlayerState.h"
 #include "Player/NBSquirrel.h"
 #include "TimerManager.h"
@@ -806,9 +808,7 @@ bool ANBCar::ResetToTrail()
 	// below a cliff that could be a later leg of the hairpin.
 	const float Along = LastOnTrailDistance >= 0.f ? FMath::Max(LastOnTrailDistance - ResetBackOff, 0.f) : Route->GetDistanceAlong(From);
 	const FTransform Spot = Route->GetTransformAt(Along, 150.f);
-	SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
-	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
-	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	TeleportCar(Spot);
 	// The teleport's sudden stop isn't a crash.
 	LastSpillVelocity = FVector::ZeroVector;
 	NextCrashDamageTime = GetWorld()->GetTimeSeconds() + CrashDamageCooldown;
@@ -1102,9 +1102,7 @@ void ANBCar::HandleFlipPushed(UNBInteractableComponent* Interactable)
 {
 	// Back on its wheels, keeping its heading, dropped from a little height.
 	const FRotator Upright(0.f, GetActorRotation().Yaw, 0.f);
-	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, RightingLift), Upright, false, nullptr, ETeleportType::TeleportPhysics);
-	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
-	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	TeleportCar(FTransform(Upright, GetActorLocation() + FVector(0.f, 0.f, RightingLift), GetActorScale3D()));
 	SetFlipped(false);
 	Multicast_Feedback(ENBCarFeedback::Righted, 1.f);
 }
@@ -1113,7 +1111,39 @@ void ANBCar::DevFlip()
 {
 	check(HasAuthority());
 	const FRotator Roof(0.f, GetActorRotation().Yaw, 180.f);
-	SetActorLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, 250.f), Roof, false, nullptr, ETeleportType::TeleportPhysics);
+	TeleportCar(FTransform(Roof, GetActorLocation() + FVector(0.f, 0.f, 250.f), GetActorScale3D()));
+}
+
+void ANBCar::TeleportCar(const FTransform& Spot)
+{
+	check(HasAuthority());
+	ApplyTeleport(Spot);
+	Multicast_Teleport(Spot);
+	UE_LOG(LogTemp, Log, TEXT("NBTeleport: car to %s"), *Spot.GetLocation().ToString());
+}
+
+void ANBCar::Multicast_Teleport_Implementation(const FTransform& Spot)
+{
+	if (HasAuthority())
+	{
+		return;
+	}
+	ApplyTeleport(Spot);
+	// The last replicated state is still from before the teleport: left in place, predictive
+	// interpolation pulled the car back towards it and it glided again (2 m off 0.3 s after the snap).
+	// The next state from the server sets a fresh target.
+	if (FPhysScene* PhysScene = GetWorld()->GetPhysicsScene())
+	{
+		if (IPhysicsReplication* PhysicsReplication = PhysScene->GetPhysicsReplication())
+		{
+			PhysicsReplication->RemoveReplicatedTarget(GetMesh());
+		}
+	}
+}
+
+void ANBCar::ApplyTeleport(const FTransform& Spot)
+{
+	SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 }

@@ -458,9 +458,7 @@ void ANBRunGameMode::TickAutopilot(float DeltaSeconds)
 		// Put it back on the road a little further on, like a crew pushing it upright.
 		UE_LOG(LogTemp, Warning, TEXT("NBAuto: FLIPPED at %.0f m (%s)"), Along / 100.f, *Route->GetSectionName(Section));
 		++Auto.Stucks;
-		Car->SetActorTransform(Route->GetTransformAt(Along + 1000.f, 150.f), false, nullptr, ETeleportType::TeleportPhysics);
-		Car->GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
-		Car->GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		Car->TeleportCar(Route->GetTransformAt(Along + 1000.f, 150.f));
 		return;
 	}
 
@@ -532,10 +530,7 @@ void ANBRunGameMode::DevWarp(const FString& Section)
 	}
 
 	// Riders come along; anyone on foot is put back at the car.
-	const FTransform Spot = Route->GetTransformAt(Route->GetSectionStart(Index) + 500.f, 150.f);
-	Car->SetActorTransform(Spot, false, nullptr, ETeleportType::TeleportPhysics);
-	Car->GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
-	Car->GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	Car->TeleportCar(Route->GetTransformAt(Route->GetSectionStart(Index) + 500.f, 150.f));
 	for (TActorIterator<ANBSquirrel> It(GetWorld()); It; ++It)
 	{
 		if (!It->IsSeated())
