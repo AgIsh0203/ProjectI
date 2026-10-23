@@ -5,11 +5,13 @@
 #include "AudioDevice.h"
 #include "AudioMixerBlueprintLibrary.h"
 #include "Components/AudioComponent.h"
+#include "Components/SynthComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/UObjectIterator.h"
 
 void UNBAudioSettings::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -22,6 +24,44 @@ void UNBAudioSettings::Initialize(FSubsystemCollectionBase& Collection)
 	if (!OutputDeviceId.IsEmpty())
 	{
 		SetOutputDevice(OutputDeviceId);
+	}
+	WorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &UNBAudioSettings::OnWorldCleanup);
+}
+
+void UNBAudioSettings::Deinitialize()
+{
+	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
+	Super::Deinitialize();
+}
+
+void UNBAudioSettings::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+{
+	// The class isn't exported from OnlineSubsystemUtils, so match it by name.
+	static const FName VoipClassName(TEXT("VoipListenerSynthComponent"));
+	for (TObjectIterator<USynthComponent> It; It; ++It)
+	{
+		USynthComponent* Voice = *It;
+		if (Voice->GetClass()->GetFName() != VoipClassName || Voice->GetWorld() != World)
+		{
+			continue;
+		}
+		UE_LOG(LogTemp, Log, TEXT("NBVoice: releasing %s from %s"), *Voice->GetName(), *World->GetName());
+		// Stop first: the audio device drops the sound before the world's garbage is collected.
+		// The engine's talker sees the component idle on its next tick, resets it, and the next
+		// voice packet makes a new one in the new world.
+		Voice->Stop();
+		if (UAudioComponent* Audio = Voice->GetAudioComponent())
+		{
+			Audio->Stop();
+			if (Audio->IsRegistered())
+			{
+				Audio->UnregisterComponent();
+			}
+		}
+		if (Voice->IsRegistered())
+		{
+			Voice->UnregisterComponent();
+		}
 	}
 }
 

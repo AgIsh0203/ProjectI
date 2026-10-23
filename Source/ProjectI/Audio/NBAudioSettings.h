@@ -23,6 +23,7 @@ class PROJECTI_API UNBAudioSettings : public UGameInstanceSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	static UNBAudioSettings* Get(const UObject* WorldContext);
 
@@ -51,6 +52,18 @@ private:
 	/** What each voice component's volume is set to: VoiceVolume, independent of GameVolume. */
 	float GetVoiceMultiplier() const;
 	void Save();
+
+	/**
+	 * Stops and unregisters the engine's voice playback components (UVoipListenerSynthComponent)
+	 * on a world being cleaned up. The engine creates one per remote talker in the transient
+	 * package, registers it with the current world, and only resets them after a full map load,
+	 * so a seamless travel (the restart) left them playing in a dead world; garbage collection
+	 * then freed them under a live sound, and the audio thread crashed in
+	 * FAudioDevice::StopSoundsUsingResource (the host, twice, friend test 1).
+	 */
+	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+
+	FDelegateHandle WorldCleanupHandle;
 
 	/** Below 1 by default so voices sit on top of the engine and music (friend test 2: "could not hear her over the game sound"). */
 	UPROPERTY(config)
