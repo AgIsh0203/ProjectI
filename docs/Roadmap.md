@@ -102,10 +102,21 @@ The friend-test build stays Development, so its logs and console still help with
 
 Expected: about 200 MB zipped.
 
-### D. Optional: drop Shader Model 6 (only if B is accepted)
+### D. Drop Shader Model 6 (done 23 Oct)
 With Lumen, Nanite and virtual shadow maps off, nothing needs SM6. Targeting only SM5 (DX12 and DX11) leaves one small shader library: today's SM5 engine shaders are 16 MB against 202 MB for SM6. Check that the game launches on both DX12 and DX11.
 
+**23 Oct:** `DefaultEngine.ini` now targets PCD3D_SM5 only (DX12 and DX11) and SF_VULKAN_SM5 on Linux. Measured from the 20 Oct cook: SM6 was 143 MB of shaders (124 MB global, mostly MegaLights ~37 MB, Nanite ~16 MB, Lumen screen probes ~12 MB, virtual shadow maps 4 MB: the engine compiles them whenever the platform could run them, whatever the project settings), SM5 16 MB. Still to check in the next package: the cook passes, the game starts on DX12 (log: `RHI D3D12 ... SM5`) and with `-dx11`, the look is unchanged, and the zip size. If B is reverted, Lumen still works at SM5 (software); Nanite would not.
+
 Expected: about 160 MB zipped.
+
+### E. Textures and audio (23 Oct, measured from the 20 Oct cook)
+Non-shader cooked content is ~99 MB uncompressed. Our textures are 18.5 MB, all ≤ 1024²; 15 MB of that is the template cars (offroad body, wheels, seats, suspension; the sports car the roadblocks use), and the normal maps are 11 MB of it. Audio is 3 MB (two thirds music, quality 80); nothing to gain. Done 23 Oct (in the slim build): the calibration view-mode materials no longer cook (`DefaultEngine.ini`, ~9 MB of textures), and neither do Interchange's `New_LUT` (8.7 MB) and SpeedTree's content (1.4 MB) (`DirectoriesToNeverCook`; nothing cooked references them). Waiting on you: capping the car textures at 512 (`MaxTextureSize`) would save ~11 MB uncompressed and makes the car blurrier up close.
+
+**Result, 23 Oct (D–F plus the editor-only plugins):** the slim Development build is **164 MB zipped, 376 MB installed** (20 Oct: 270 / 511). The exe went 317 → 277 MB, the content `.ucas` 141 → 41 MB. The exe is now most of the download; Shipping (phase C) is the next big cut.
+
+### F. Meshes and the map (23 Oct, measured from the 20 Oct cook with the `PkgInfo` commandlet)
+- **Meshes, ~10 MB**, nearly all template car. 4 MB of it is cooked triangle-mesh collision nothing uses (body 2.5 MB, tire 0.97, sports car 0.58): `Tools/Car/StripMeshCollision.py` removes it (run 23 Oct). The sports car's Nanite data already goes with SM5 (the cook strips Nanite for platforms without it); the roadblock then draws its fallback mesh, so look at it in the build.
+- **L_Route, 13.3 MB:** landscape collision 6.15 MB (126 components x 49 KB), landscape height/weight textures 5.6 MB (already stored compressed), everything else (1,601 props, 476 mesh actors, signs) under 1 MB. Halving the collision resolution (`CollisionMipLevel` 1) would save ~4.5 MB but gives the wheels 4 m bumps under a 2 m trail, so no. Possible later: no collision on components nobody can reach (beyond the invisible boundary walls), or a smaller `LANDSCAPE_MARGIN` in `BakeRoute.py` (a re-bake loses hand edits).
 
 ### Keep it small
 - Write the zip and installed size into the playtest notes for every package. Anything that adds more than 20 MB needs a reason.
