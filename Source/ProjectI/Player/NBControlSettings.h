@@ -7,7 +7,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "NBControlSettings.generated.h"
 
-/** The keyboard/mouse actions a player can rebind. The menu keys (Esc, Tab), the 1-8 pings and the gamepad stay fixed. */
+/**
+ * The actions a player can rebind, each with a keyboard/mouse key and (all but the four moves, which are the left stick)
+ * a gamepad button. Fixed: Esc, Tab, 1-8; on the gamepad Start, LB (the ping shift), the D-pad (pings) and the sticks.
+ */
 enum class ENBBinding : uint8
 {
 	Forward,
@@ -62,7 +65,23 @@ public:
 
 	/** Binds Key to Binding. If another binding had Key, the two swap. Returns that other binding, or Count. */
 	ENBBinding SetKey(ENBBinding Binding, const FKey& Key);
+	/** Resets the keyboard keys and the gamepad buttons. */
 	void ResetKeys();
+
+	// --- Gamepad buttons. ---
+
+	/** Invalid for the moves (the left stick). */
+	static FKey GetDefaultPadKey(ENBBinding Binding);
+	static bool HasPadButton(ENBBinding Binding) { return GetDefaultPadKey(Binding).IsValid(); }
+	/** Face buttons, RB, the triggers, the stick clicks and View; not Start, LB, the D-pad or stick directions. */
+	static bool IsPadBindable(const FKey& Key);
+	/** Xbox names: "A", "RB", "LT", "L3", "View". */
+	static FString GetPadKeyLabel(const FKey& Key);
+
+	FKey GetPadKey(ENBBinding Binding) const;
+	FString GetPadKeyLabel(ENBBinding Binding) const { return GetPadKeyLabel(GetPadKey(Binding)); }
+	/** As SetKey, for the gamepad. */
+	ENBBinding SetPadKey(ENBBinding Binding, const FKey& Key);
 
 	/** Bumped on every binding change, so squirrels know to remap. */
 	int32 GetBindingsRevision() const { return BindingsRevision; }
@@ -86,6 +105,10 @@ private:
 	/** Key names in ENBBinding order; empty or invalid entries use the default. */
 	UPROPERTY(config)
 	TArray<FString> KeyBindings;
+
+	/** Gamepad key names in ENBBinding order; empty or invalid entries use the default. */
+	UPROPERTY(config)
+	TArray<FString> PadBindings;
 
 	int32 BindingsRevision = 0;
 };

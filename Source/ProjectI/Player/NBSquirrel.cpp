@@ -269,6 +269,10 @@ void ANBSquirrel::MapKeys()
 	{
 		return Controls ? Controls->GetKey(Binding) : UNBControlSettings::GetDefaultKey(Binding);
 	};
+	auto PadKeyFor = [Controls](ENBBinding Binding)
+	{
+		return Controls ? Controls->GetPadKey(Binding) : UNBControlSettings::GetDefaultPadKey(Binding);
+	};
 
 	static const FKey PingKeys[ANBPlayerState::NumPings] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
 	for (int32 i = 0; i < PingActions.Num(); ++i)
@@ -309,23 +313,23 @@ void ANBSquirrel::MapKeys()
 	InputContext->MapKey(LookAction, EKeys::Gamepad_Right2D);
 
 	InputContext->MapKey(JumpAction, KeyFor(ENBBinding::Jump));
-	InputContext->MapKey(JumpAction, EKeys::Gamepad_FaceButton_Bottom);
+	InputContext->MapKey(JumpAction, PadKeyFor(ENBBinding::Jump));
 	InputContext->MapKey(InteractAction, KeyFor(ENBBinding::Interact));
-	InputContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Left);
+	InputContext->MapKey(InteractAction, PadKeyFor(ENBBinding::Interact));
 	// The repair/work button: hold, mash or time it depending on the interactable.
 	InputContext->MapKey(ActionAction, KeyFor(ENBBinding::Work));
-	InputContext->MapKey(ActionAction, EKeys::Gamepad_FaceButton_Right);
+	InputContext->MapKey(ActionAction, PadKeyFor(ENBBinding::Work));
 	// Opens the lobby menu; while it is open the menu itself handles Esc / Start to close.
 	InputContext->MapKey(MenuAction, EKeys::Escape);
 	// Tab too: in the editor, Esc stops Play In Editor before the game sees it.
 	InputContext->MapKey(MenuAction, EKeys::Tab);
 	InputContext->MapKey(MenuAction, EKeys::Gamepad_Special_Right);
 	InputContext->MapKey(HornAction, KeyFor(ENBBinding::Horn));
-	InputContext->MapKey(HornAction, EKeys::Gamepad_FaceButton_Top);
+	InputContext->MapKey(HornAction, PadKeyFor(ENBBinding::Horn));
 	InputContext->MapKey(ResetAction, KeyFor(ENBBinding::ResetCar));
-	InputContext->MapKey(ResetAction, EKeys::Gamepad_Special_Left);
+	InputContext->MapKey(ResetAction, PadKeyFor(ENBBinding::ResetCar));
 	InputContext->MapKey(HandbrakeAction, KeyFor(ENBBinding::Handbrake));
-	InputContext->MapKey(HandbrakeAction, EKeys::Gamepad_RightShoulder);
+	InputContext->MapKey(HandbrakeAction, PadKeyFor(ENBBinding::Handbrake));
 	// Dev solo drive only (the handlers check it).
 	InputContext->MapKey(SoloShiftUpAction, EKeys::MouseScrollUp);
 	InputContext->MapKey(SoloShiftDownAction, EKeys::MouseScrollDown);
@@ -1509,7 +1513,7 @@ void ANBSquirrel::UpdateVoiceMute()
 		// Polled rather than bound: opening the menu flushes the keys, so a held key can't stick on.
 		const UNBControlSettings* Controls = UNBControlSettings::Get(this);
 		bSend = PC->IsInputKeyDown(Controls ? Controls->GetKey(ENBBinding::PushToTalk) : UNBControlSettings::GetDefaultKey(ENBBinding::PushToTalk))
-			|| PC->IsInputKeyDown(EKeys::Gamepad_LeftThumbstick);
+			|| PC->IsInputKeyDown(Controls ? Controls->GetPadKey(ENBBinding::PushToTalk) : UNBControlSettings::GetDefaultPadKey(ENBBinding::PushToTalk));
 	}
 	if (VoiceController != PC)
 	{

@@ -165,7 +165,7 @@ void UNBLobbyMenu::BuildSoundPage(UVerticalBox* Page)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleVoiceVolume);
 	AddSliderRow(Page, TEXT("Mic boost"), 0.f, UNBAudioSettings::MaxMicBoost, 0.05f, Audio ? Audio->GetMicBoost() : 1.f, MicBoostText)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleMicBoost);
-	AddCheckRow(Page, FString::Printf(TEXT("Push to talk (hold %s, gamepad L3)"), *GetPushToTalkKeyLabel()), Audio && Audio->IsPushToTalk())
+	AddCheckRow(Page, FString::Printf(TEXT("Push to talk (hold %s)"), *GetPushToTalkKeyLabel()), Audio && Audio->IsPushToTalk())
 		->OnCheckStateChanged.AddDynamic(this, &UNBLobbyMenu::HandlePushToTalk);
 
 	OutputDeviceCombo = AddComboRow(Page, TEXT("Speakers / headphones"), TEXT("OutputDevice"));
@@ -200,51 +200,94 @@ void UNBBindingButtonProxy::HandleClicked()
 {
 	if (Menu)
 	{
-		Menu->BeginRebind(Index);
+		Menu->BeginRebind(Index, bPad);
 	}
 }
 
 void UNBLobbyMenu::BuildKeyList(UVerticalBox* Page)
 {
+	auto MakeText = [this](const FString& Text, int32 Size, const FLinearColor& Color)
+	{
+		UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Block->GetFont();
+		Font.Size = Size;
+		Block->SetFont(Font);
+		Block->SetText(FText::FromString(Text));
+		Block->SetColorAndOpacity(FSlateColor(Color));
+		Block->SetJustification(ETextJustify::Center);
+		return Block;
+	};
+	// A key column: a fixed-width box holding a button, or plain text where there is none.
+	auto AddColumn = [this](UHorizontalBox* Row, float Width, UWidget* Content)
+	{
+		USizeBox* Size = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		Size->SetWidthOverride(Width);
+		Size->SetContent(Content);
+		if (UHorizontalBoxSlot* SizeSlot = Row->AddChildToHorizontalBox(Size))
+		{
+			SizeSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 0.f));
+			SizeSlot->SetVerticalAlignment(VAlign_Center);
+		}
+	};
+	auto AddKeyButton = [&](UHorizontalBox* Row, float Width, int32 Index, bool bPad)
+	{
+		UButton* KeyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		KeyButton->SetBackgroundColor(bPad ? FLinearColor(0.25f, 0.3f, 0.35f) : FLinearColor(0.35f, 0.3f, 0.25f));
+		UTextBlock* KeyText = MakeText(FString(), 15, FLinearColor::White);
+		if (UButtonSlot* TextSlot = Cast<UButtonSlot>(KeyButton->AddChild(KeyText)))
+		{
+			TextSlot->SetPadding(FMargin(4.f, 1.f));
+		}
+		AddColumn(Row, Width, KeyButton);
+
+		UNBBindingButtonProxy* Proxy = NewObject<UNBBindingButtonProxy>(this);
+		Proxy->Menu = this;
+		Proxy->Index = Index;
+		Proxy->bPad = bPad;
+		KeyButton->OnClicked.AddDynamic(Proxy, &UNBBindingButtonProxy::HandleClicked);
+		BindingProxies.Add(Proxy);
+		return KeyText;
+	};
+	constexpr float KeyWidth = 130.f;
+	constexpr float PadWidth = 90.f;
+
+	// Column titles.
+	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	Page->AddChildToVerticalBox(Header)->SetHorizontalAlignment(HAlign_Fill);
+	if (UHorizontalBoxSlot* SpacerSlot = Header->AddChildToHorizontalBox(MakeText(FString(), 13, DimColor)))
+	{
+		SpacerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+	AddColumn(Header, KeyWidth, MakeText(TEXT("Keyboard / mouse"), 13, DimColor));
+	AddColumn(Header, PadWidth, MakeText(TEXT("Gamepad"), 13, DimColor));
+
 	for (int32 i = 0; i < static_cast<int32>(ENBBinding::Count); ++i)
 	{
-		// One row: the action on the left, its key on a button on the right.
+		const ENBBinding Binding = static_cast<ENBBinding>(i);
+		// One row: the action on the left, its key and its gamepad button on the right.
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UVerticalBoxSlot* RowSlot = Page->AddChildToVerticalBox(Row);
 		RowSlot->SetPadding(FMargin(0.f, 1.f));
 		RowSlot->SetHorizontalAlignment(HAlign_Fill);
 
-		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo Font = Label->GetFont();
-		Font.Size = 15;
-		Label->SetFont(Font);
-		Label->SetText(FText::FromString(UNBControlSettings::GetBindingLabel(static_cast<ENBBinding>(i))));
+		UTextBlock* Label = MakeText(UNBControlSettings::GetBindingLabel(Binding), 15, FLinearColor::White);
+		Label->SetJustification(ETextJustify::Left);
 		if (UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(Label))
 		{
 			LabelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			LabelSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		USizeBox* KeySize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		KeySize->SetWidthOverride(150.f);
-		Row->AddChildToHorizontalBox(KeySize);
-		UButton* KeyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-		KeyButton->SetBackgroundColor(FLinearColor(0.35f, 0.3f, 0.25f));
-		KeySize->SetContent(KeyButton);
-		UTextBlock* KeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		KeyText->SetFont(Font);
-		KeyText->SetJustification(ETextJustify::Center);
-		if (UButtonSlot* TextSlot = Cast<UButtonSlot>(KeyButton->AddChild(KeyText)))
+		BindingKeyTexts.Add(AddKeyButton(Row, KeyWidth, i, false));
+		if (UNBControlSettings::HasPadButton(Binding))
 		{
-			TextSlot->SetPadding(FMargin(4.f, 1.f));
+			PadKeyTexts.Add(AddKeyButton(Row, PadWidth, i, true));
 		}
-		BindingKeyTexts.Add(KeyText);
-
-		UNBBindingButtonProxy* Proxy = NewObject<UNBBindingButtonProxy>(this);
-		Proxy->Menu = this;
-		Proxy->Index = i;
-		KeyButton->OnClicked.AddDynamic(Proxy, &UNBBindingButtonProxy::HandleClicked);
-		BindingProxies.Add(Proxy);
+		else
+		{
+			AddColumn(Row, PadWidth, MakeText(TEXT("left stick"), 13, DimColor));
+			PadKeyTexts.Add(nullptr);
+		}
 	}
 
 	BindingNote = AddText(Page, 13, DimColor);
@@ -259,22 +302,34 @@ void UNBLobbyMenu::BuildKeyList(UVerticalBox* Page)
 void UNBLobbyMenu::RefreshKeyTexts()
 {
 	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	auto Show = [this](UTextBlock* Text, bool bWaiting, const FString& Label, const TCHAR* Prompt)
+	{
+		if (Text)
+		{
+			Text->SetText(FText::FromString(bWaiting ? FString(Prompt) : Label));
+			Text->SetColorAndOpacity(FSlateColor(bWaiting ? TitleColor : FLinearColor::White));
+		}
+	};
 	for (int32 i = 0; i < BindingKeyTexts.Num(); ++i)
 	{
 		const ENBBinding Binding = static_cast<ENBBinding>(i);
-		const FString Key = i == WaitingBinding ? FString(TEXT("press a key..."))
-			: Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding));
-		BindingKeyTexts[i]->SetText(FText::FromString(Key));
-		BindingKeyTexts[i]->SetColorAndOpacity(FSlateColor(i == WaitingBinding ? TitleColor : FLinearColor::White));
+		const bool bWaitingHere = i == WaitingBinding;
+		Show(BindingKeyTexts[i], bWaitingHere && !bWaitingPad,
+			Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding)), TEXT("press a key..."));
+		Show(PadKeyTexts.IsValidIndex(i) ? PadKeyTexts[i].Get() : nullptr, bWaitingHere && bWaitingPad,
+			Controls ? Controls->GetPadKeyLabel(Binding) : UNBControlSettings::GetPadKeyLabel(UNBControlSettings::GetDefaultPadKey(Binding)), TEXT("press..."));
 	}
 }
 
-void UNBLobbyMenu::BeginRebind(int32 BindingIndex)
+void UNBLobbyMenu::BeginRebind(int32 BindingIndex, bool bPad)
 {
 	WaitingBinding = BindingIndex;
+	bWaitingPad = bPad;
 	if (BindingNote)
 	{
-		BindingNote->SetText(FText::FromString(TEXT("Press a key or click a mouse button. Esc cancels.")));
+		BindingNote->SetText(FText::FromString(bPad
+			? TEXT("Press a gamepad button. Start, Esc or a mouse click cancels.")
+			: TEXT("Press a key or click a mouse button. Esc cancels.")));
 	}
 	RefreshKeyTexts();
 }
@@ -286,19 +341,43 @@ bool UNBLobbyMenu::TryFinishRebind(const FKey& Key)
 		return false;
 	}
 	const ENBBinding Binding = static_cast<ENBBinding>(WaitingBinding);
+	UNBControlSettings* Controls = UNBControlSettings::Get(this);
 	FString Note;
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right)
+	if (bWaitingPad)
+	{
+		if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right || Key.IsMouseButton())
+		{
+			Note = TEXT("Cancelled.");
+		}
+		else if (!UNBControlSettings::IsPadBindable(Key))
+		{
+			// Wait for another button: Start, LB (the ping shift), the D-pad (pings) and the sticks are fixed.
+			BindingNote->SetText(FText::FromString(FString::Printf(TEXT("%s can't be used (Start, LB, the D-pad and the sticks are fixed). Try another button."),
+				*UNBControlSettings::GetPadKeyLabel(Key))));
+			return true;
+		}
+		else if (Controls)
+		{
+			const ENBBinding Swapped = Controls->SetPadKey(Binding, Key);
+			Note = Swapped == ENBBinding::Count
+				? FString::Printf(TEXT("%s is now %s on the gamepad."), UNBControlSettings::GetBindingLabel(Binding), *UNBControlSettings::GetPadKeyLabel(Key))
+				: FString::Printf(TEXT("%s is now %s on the gamepad; %s took %s."), UNBControlSettings::GetBindingLabel(Binding),
+					*UNBControlSettings::GetPadKeyLabel(Key), UNBControlSettings::GetBindingLabel(Swapped), *Controls->GetPadKeyLabel(Swapped));
+		}
+	}
+	else if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right)
 	{
 		Note = TEXT("Cancelled.");
 	}
 	else if (!UNBControlSettings::IsBindable(Key))
 	{
-		// Wait for another key: Tab, 1-8 and gamepad buttons are fixed.
-		BindingNote->SetText(FText::FromString(FString::Printf(TEXT("%s can't be used (Esc, Tab, 1-8 and gamepad buttons are fixed). Try another key."),
-			*UNBControlSettings::GetKeyLabel(Key))));
+		// Wait for another key: Tab and 1-8 are fixed, and gamepad buttons go in the Gamepad column.
+		BindingNote->SetText(FText::FromString(Key.IsGamepadKey()
+			? FString(TEXT("That's a gamepad button: click the action's Gamepad box for that. Press a key, or Esc to cancel."))
+			: FString::Printf(TEXT("%s can't be used (Esc, Tab and 1-8 are fixed). Try another key."), *UNBControlSettings::GetKeyLabel(Key))));
 		return true;
 	}
-	else if (UNBControlSettings* Controls = UNBControlSettings::Get(this))
+	else if (Controls)
 	{
 		const ENBBinding Swapped = Controls->SetKey(Binding, Key);
 		Note = Swapped == ENBBinding::Count
@@ -506,7 +585,9 @@ void UNBLobbyMenu::HandleLookSensitivity(float Value)
 FString UNBLobbyMenu::GetPushToTalkKeyLabel() const
 {
 	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
-	return Controls ? Controls->GetKeyLabel(ENBBinding::PushToTalk) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(ENBBinding::PushToTalk));
+	const FString Key = Controls ? Controls->GetKeyLabel(ENBBinding::PushToTalk) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(ENBBinding::PushToTalk));
+	const FString Pad = Controls ? Controls->GetPadKeyLabel(ENBBinding::PushToTalk) : UNBControlSettings::GetPadKeyLabel(UNBControlSettings::GetDefaultPadKey(ENBBinding::PushToTalk));
+	return FString::Printf(TEXT("%s, gamepad %s"), *Key, *Pad);
 }
 
 void UNBLobbyMenu::HandlePushToTalk(bool bChecked)

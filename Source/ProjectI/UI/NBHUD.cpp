@@ -101,7 +101,7 @@ void ANBHUD::UpdateInputDevice()
 	static const FKey PadButtons[] = {EKeys::Gamepad_FaceButton_Bottom, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_FaceButton_Left,
 		EKeys::Gamepad_FaceButton_Top, EKeys::Gamepad_Special_Right, EKeys::Gamepad_Special_Left, EKeys::Gamepad_LeftShoulder,
 		EKeys::Gamepad_RightShoulder, EKeys::Gamepad_LeftTrigger, EKeys::Gamepad_RightTrigger, EKeys::Gamepad_DPad_Up,
-		EKeys::Gamepad_DPad_Down, EKeys::Gamepad_DPad_Left, EKeys::Gamepad_DPad_Right};
+		EKeys::Gamepad_DPad_Down, EKeys::Gamepad_DPad_Left, EKeys::Gamepad_DPad_Right, EKeys::Gamepad_LeftThumbstick, EKeys::Gamepad_RightThumbstick};
 	static const FKey PadSticks[] = {EKeys::Gamepad_LeftX, EKeys::Gamepad_LeftY, EKeys::Gamepad_RightX, EKeys::Gamepad_RightY};
 	static const FKey KeyboardKeys[] = {EKeys::W, EKeys::A, EKeys::S, EKeys::D, EKeys::E, EKeys::SpaceBar, EKeys::H, EKeys::Escape,
 		EKeys::LeftMouseButton, EKeys::RightMouseButton, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four};
@@ -163,13 +163,17 @@ UTexture2D* ANBHUD::PromptIcon(ENBPrompt Prompt) const
 	{
 		return nullptr;
 	}
-	if (bUsingGamepad)
-	{
-		return PadIcons[Index].Get();
-	}
-	// The key icons show the default keys; a rebound key falls back to its name.
+	// The icons show the default keys and buttons; a rebound one falls back to its name.
 	const ENBBinding Binding = PromptBinding(Prompt);
 	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	if (bUsingGamepad)
+	{
+		if (Binding != ENBBinding::Count && Controls && Controls->GetPadKey(Binding) != UNBControlSettings::GetDefaultPadKey(Binding))
+		{
+			return nullptr;
+		}
+		return PadIcons[Index].Get();
+	}
 	if (Binding != ENBBinding::Count && Controls && Controls->GetKey(Binding) != UNBControlSettings::GetDefaultKey(Binding))
 	{
 		return nullptr;
@@ -179,18 +183,17 @@ UTexture2D* ANBHUD::PromptIcon(ENBPrompt Prompt) const
 
 FString ANBHUD::PromptName(ENBPrompt Prompt) const
 {
-	static const TCHAR* const PadNames[] = {TEXT("X"), TEXT("A"), TEXT("B"), TEXT("Y"), TEXT("Menu")};
 	const int32 Index = static_cast<int32>(Prompt);
 	if (Index >= 5)
 	{
 		return TEXT("?");
 	}
-	if (bUsingGamepad)
-	{
-		return PadNames[Index];
-	}
 	if (Prompt == ENBPrompt::Menu)
 	{
+		if (bUsingGamepad)
+		{
+			return TEXT("Menu");
+		}
 		// In the editor Esc stops Play In Editor, so point at Tab there.
 		return GetWorld() && GetWorld()->IsPlayInEditor() ? TEXT("Tab") : TEXT("Esc");
 	}
@@ -200,6 +203,10 @@ FString ANBHUD::PromptName(ENBPrompt Prompt) const
 FString ANBHUD::KeyLabel(ENBBinding Binding) const
 {
 	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	if (bUsingGamepad && UNBControlSettings::HasPadButton(Binding))
+	{
+		return Controls ? Controls->GetPadKeyLabel(Binding) : UNBControlSettings::GetPadKeyLabel(UNBControlSettings::GetDefaultPadKey(Binding));
+	}
 	return Controls ? Controls->GetKeyLabel(Binding) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(Binding));
 }
 
@@ -672,7 +679,7 @@ void ANBHUD::DrawCarReset(const ANBSquirrel& Squirrel)
 		StuckSeconds = 0.f;
 		return;
 	}
-	const FString Key = bUsingGamepad ? FString(TEXT("View")) : KeyLabel(ENBBinding::ResetCar);
+	const FString Key = KeyLabel(ENBBinding::ResetCar);
 	const float Now = GetWorld()->GetTimeSeconds();
 
 	// After a reset.
@@ -906,7 +913,7 @@ void ANBHUD::DrawRoles()
 				break;
 			default:
 			{
-				const FString Handbrake = bUsingGamepad ? FString(TEXT("hold RB handbrake")) : FString::Printf(TEXT("hold %s handbrake"), *KeyLabel(ENBBinding::Handbrake));
+				const FString Handbrake = FString::Printf(TEXT("hold %s handbrake"), *KeyLabel(ENBBinding::Handbrake));
 				const FString Shift = !Car.IsManualGears() ? FString()
 					: bUsingGamepad ? FString(TEXT("stick up / down shift, "))
 					: FString::Printf(TEXT("%s / %s shift, "), *KeyLabel(ENBBinding::Forward), *KeyLabel(ENBBinding::Back));
@@ -1029,8 +1036,7 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 		Text = TEXT("You're on the GEARS. The WHEEL squirrel steers!");
 		break;
 	case ENBSeatHint::GearsAutomatic:
-		Text = bUsingGamepad ? FString(TEXT("Gears are automatic this run: hold RB for the handbrake"))
-			: FString::Printf(TEXT("Gears are automatic this run: hold %s for the handbrake"), *KeyLabel(ENBBinding::Handbrake));
+		Text = FString::Printf(TEXT("Gears are automatic this run: hold %s for the handbrake"), *KeyLabel(ENBBinding::Handbrake));
 		break;
 	case ENBSeatHint::HandbrakeNotHere:
 		Text = TEXT("The handbrake is the GEARS squirrel's job (beside the wheel)");
@@ -1047,7 +1053,7 @@ void ANBHUD::DrawSoundHint()
 	// Above the route bar, clear of the centre where falls and countdowns stack up.
 	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
 	const FString Talk = Audio && Audio->IsPushToTalk()
-		? FString::Printf(TEXT("Hold %s to talk.  "), bUsingGamepad ? TEXT("L3") : *KeyLabel(ENBBinding::PushToTalk))
+		? FString::Printf(TEXT("Hold %s to talk.  "), *KeyLabel(ENBBinding::PushToTalk))
 		: FString();
 	DrawShoutText(FString::Printf(TEXT("%sCan't hear your crew?  %s: Options"), *Talk, *PromptName(ENBPrompt::Menu)),
 		Canvas->ClipX * 0.5f, Canvas->ClipY - 140.f, FLinearColor(0.85f, 0.95f, 1.f), 0.6f);

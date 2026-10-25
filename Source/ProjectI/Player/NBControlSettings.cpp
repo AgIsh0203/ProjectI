@@ -11,6 +11,7 @@ void UNBControlSettings::Initialize(FSubsystemCollectionBase& Collection)
 	LookSensitivity = FMath::Clamp(LookSensitivity, MinLookSensitivity, MaxLookSensitivity);
 	CameraShake = FMath::Clamp(CameraShake, 0.f, 1.f);
 	KeyBindings.SetNum(static_cast<int32>(ENBBinding::Count));
+	PadBindings.SetNum(static_cast<int32>(ENBBinding::Count));
 }
 
 UNBControlSettings* UNBControlSettings::Get(const UObject* WorldContext)
@@ -147,6 +148,108 @@ void UNBControlSettings::ResetKeys()
 {
 	KeyBindings.Reset();
 	KeyBindings.SetNum(static_cast<int32>(ENBBinding::Count));
+	PadBindings.Reset();
+	PadBindings.SetNum(static_cast<int32>(ENBBinding::Count));
 	++BindingsRevision;
 	SaveConfig();
+}
+
+FKey UNBControlSettings::GetDefaultPadKey(ENBBinding Binding)
+{
+	switch (Binding)
+	{
+	case ENBBinding::Jump: return EKeys::Gamepad_FaceButton_Bottom;
+	case ENBBinding::Interact: return EKeys::Gamepad_FaceButton_Left;
+	case ENBBinding::Work: return EKeys::Gamepad_FaceButton_Right;
+	case ENBBinding::Horn: return EKeys::Gamepad_FaceButton_Top;
+	case ENBBinding::ResetCar: return EKeys::Gamepad_Special_Left;
+	case ENBBinding::Handbrake: return EKeys::Gamepad_RightShoulder;
+	case ENBBinding::PushToTalk: return EKeys::Gamepad_LeftThumbstick;
+	default: return EKeys::Invalid;
+	}
+}
+
+namespace
+{
+	struct FNBPadName
+	{
+		FKey Key;
+		const TCHAR* Name;
+	};
+
+	/** Every bindable gamepad button and its on-screen name. */
+	const TArray<FNBPadName>& PadNames()
+	{
+		static const TArray<FNBPadName> Names = {
+			{EKeys::Gamepad_FaceButton_Bottom, TEXT("A")},
+			{EKeys::Gamepad_FaceButton_Right, TEXT("B")},
+			{EKeys::Gamepad_FaceButton_Left, TEXT("X")},
+			{EKeys::Gamepad_FaceButton_Top, TEXT("Y")},
+			{EKeys::Gamepad_RightShoulder, TEXT("RB")},
+			{EKeys::Gamepad_LeftTrigger, TEXT("LT")},
+			{EKeys::Gamepad_RightTrigger, TEXT("RT")},
+			{EKeys::Gamepad_LeftThumbstick, TEXT("L3")},
+			{EKeys::Gamepad_RightThumbstick, TEXT("R3")},
+			{EKeys::Gamepad_Special_Left, TEXT("View")},
+		};
+		return Names;
+	}
+}
+
+bool UNBControlSettings::IsPadBindable(const FKey& Key)
+{
+	return PadNames().ContainsByPredicate([&Key](const FNBPadName& Each) { return Each.Key == Key; });
+}
+
+FString UNBControlSettings::GetPadKeyLabel(const FKey& Key)
+{
+	if (const FNBPadName* Found = PadNames().FindByPredicate([&Key](const FNBPadName& Each) { return Each.Key == Key; }))
+	{
+		return Found->Name;
+	}
+	if (Key == EKeys::Gamepad_LeftShoulder) { return TEXT("LB"); }
+	if (Key == EKeys::Gamepad_Special_Right) { return TEXT("Menu"); }
+	return Key.IsValid() ? Key.GetDisplayName(/*bLongDisplayName=*/false).ToString() : FString(TEXT("-"));
+}
+
+FKey UNBControlSettings::GetPadKey(ENBBinding Binding) const
+{
+	if (!HasPadButton(Binding))
+	{
+		return EKeys::Invalid;
+	}
+	const int32 Index = static_cast<int32>(Binding);
+	if (PadBindings.IsValidIndex(Index) && !PadBindings[Index].IsEmpty())
+	{
+		const FKey Key(*PadBindings[Index]);
+		if (IsPadBindable(Key))
+		{
+			return Key;
+		}
+	}
+	return GetDefaultPadKey(Binding);
+}
+
+ENBBinding UNBControlSettings::SetPadKey(ENBBinding Binding, const FKey& Key)
+{
+	if (!IsPadBindable(Key) || !HasPadButton(Binding))
+	{
+		return ENBBinding::Count;
+	}
+	PadBindings.SetNum(static_cast<int32>(ENBBinding::Count));
+	const FKey Previous = GetPadKey(Binding);
+	ENBBinding Swapped = ENBBinding::Count;
+	for (int32 i = 0; i < static_cast<int32>(ENBBinding::Count); ++i)
+	{
+		const ENBBinding Other = static_cast<ENBBinding>(i);
+		if (Other != Binding && GetPadKey(Other) == Key)
+		{
+			PadBindings[i] = Previous.ToString();
+			Swapped = Other;
+		}
+	}
+	PadBindings[static_cast<int32>(Binding)] = Key.ToString();
+	++BindingsRevision;
+	SaveConfig();
+	return Swapped;
 }

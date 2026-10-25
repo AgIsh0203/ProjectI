@@ -31,7 +31,7 @@ public:
 	float GetVoiceVolume() const { return VoiceVolume; }
 	float GetMicBoost() const { return MicBoost; }
 	const FString& GetOutputDeviceId() const { return OutputDeviceId; }
-	/** Push to talk: the mic only sends while ENBBinding::PushToTalk (or the gamepad's left stick click) is held. Off = open mic. */
+	/** Push to talk: the mic only sends while ENBBinding::PushToTalk (or its gamepad button) is held. Off = open mic. */
 	bool IsPushToTalk() const { return bPushToTalk; }
 
 	void SetGameVolume(float Value);

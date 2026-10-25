@@ -27,6 +27,9 @@ public:
 
 	int32 Index = 0;
 
+	/** The Gamepad column rather than the keyboard one. */
+	bool bPad = false;
+
 	UFUNCTION()
 	void HandleClicked();
 };
@@ -46,8 +49,8 @@ public:
 	/** Give keyboard/gamepad focus to the first button that is showing. */
 	void FocusFirstButton();
 
-	/** Options > Controls: wait for the next key or mouse button for this ENBBinding. */
-	void BeginRebind(int32 BindingIndex);
+	/** Options > Controls: wait for the next key or mouse button (bPad: gamepad button) for this ENBBinding. */
+	void BeginRebind(int32 BindingIndex, bool bPad);
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -174,8 +177,15 @@ private:
 	/** ENBBinding being rebound, or INDEX_NONE. */
 	int32 WaitingBinding = INDEX_NONE;
 
+	/** WaitingBinding wants a gamepad button. */
+	bool bWaitingPad = false;
+
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> BindingKeyTexts;
+
+	/** The Gamepad column per ENBBinding; null for the moves (the left stick). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PadKeyTexts;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNBBindingButtonProxy>> BindingProxies;

@@ -78,7 +78,7 @@ private:
 	UTexture2D* PromptIcon(ENBPrompt Prompt) const;
 	/** For text-only places: "LMB" or "B"; follows the player's key bindings. */
 	FString PromptName(ENBPrompt Prompt) const;
-	/** The key bound to a rebindable action, e.g. "W" or "LMB". */
+	/** The key bound to a rebindable action, e.g. "W" or "LMB"; its gamepad button ("A", "RB") while on a gamepad. */
 	FString KeyLabel(ENBBinding Binding) const;
 	/** A centred row of [icon] label pairs. */
 	void DrawPromptRow(const TArray<TPair<ENBPrompt, FString>>& Items, float Y, float Scale, const FLinearColor& Color, float CenterX = -1.f);
