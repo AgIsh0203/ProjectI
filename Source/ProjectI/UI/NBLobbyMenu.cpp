@@ -165,6 +165,8 @@ void UNBLobbyMenu::BuildSoundPage(UVerticalBox* Page)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleVoiceVolume);
 	AddSliderRow(Page, TEXT("Mic boost"), 0.f, UNBAudioSettings::MaxMicBoost, 0.05f, Audio ? Audio->GetMicBoost() : 1.f, MicBoostText)
 		->OnValueChanged.AddDynamic(this, &UNBLobbyMenu::HandleMicBoost);
+	AddCheckRow(Page, FString::Printf(TEXT("Push to talk (hold %s, gamepad L3)"), *GetPushToTalkKeyLabel()), Audio && Audio->IsPushToTalk())
+		->OnCheckStateChanged.AddDynamic(this, &UNBLobbyMenu::HandlePushToTalk);
 
 	OutputDeviceCombo = AddComboRow(Page, TEXT("Speakers / headphones"), TEXT("OutputDevice"));
 	OutputDeviceCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleOutputDevice);
@@ -499,6 +501,20 @@ void UNBLobbyMenu::HandleLookSensitivity(float Value)
 		Controls->SetLookSensitivity(Value);
 	}
 	RefreshSliderTexts();
+}
+
+FString UNBLobbyMenu::GetPushToTalkKeyLabel() const
+{
+	const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+	return Controls ? Controls->GetKeyLabel(ENBBinding::PushToTalk) : UNBControlSettings::GetKeyLabel(UNBControlSettings::GetDefaultKey(ENBBinding::PushToTalk));
+}
+
+void UNBLobbyMenu::HandlePushToTalk(bool bChecked)
+{
+	if (UNBAudioSettings* Audio = UNBAudioSettings::Get(this))
+	{
+		Audio->SetPushToTalk(bChecked);
+	}
 }
 
 void UNBLobbyMenu::HandleInvertLook(bool bChecked)

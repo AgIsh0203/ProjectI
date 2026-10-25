@@ -171,6 +171,9 @@ public:
 	/** Local: 0..1 while the reset key is held, 0 otherwise. */
 	float GetResetHoldProgress() const;
 
+	/** Local player: the mic is sending right now (open mic, or push to talk held), and not Acorn in Mouth. */
+	bool IsVoiceSending() const { return VoiceSendState == 1; }
+
 	/** Hold the reset key (R / gamepad View) this long to put the car back on the trail. */
 	UPROPERTY(EditAnywhere, Category = "Squirrel")
 	float ResetHoldSeconds = 1.5f;
@@ -635,7 +638,7 @@ private:
 	UFUNCTION(Server, Reliable)
 	void Server_Ping(int32 Index);
 
-	/** Local player only: mic off while Acorn in Mouth, back on afterwards. */
+	/** Local player only: the mic sends when open mic or push to talk is held, never while Acorn in Mouth. */
 	void UpdateVoiceMute();
 
 	UPROPERTY(Transient)
@@ -644,7 +647,9 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UInputAction>> PadPingActions;
 
-	bool bVoiceMuted = false;
+	/** What UpdateVoiceMute last told the voice engine: -1 not yet (a new controller), 0 off, 1 sending. */
+	int8 VoiceSendState = -1;
+	TWeakObjectPtr<APlayerController> VoiceController;
 
 	void RegisterVoiceTalker();
 	void ActionReleased();

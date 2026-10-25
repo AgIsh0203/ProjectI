@@ -139,6 +139,12 @@ private:
 	void HandleInvertLook(bool bChecked);
 
 	UFUNCTION()
+	void HandlePushToTalk(bool bChecked);
+
+	/** The push-to-talk key's short name, for the Sound tab's check box. */
+	FString GetPushToTalkKeyLabel() const;
+
+	UFUNCTION()
 	void HandleCameraShake(float Value);
 
 	UFUNCTION()

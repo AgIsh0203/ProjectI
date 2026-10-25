@@ -34,6 +34,7 @@ Nobody has used the lobby menu by hand yet. Restart can only be tested in a pack
 
 ## Voice
 - [ ] Proximity voice: full volume within ~8 m, fading to silence about 25 m further.
+- [ ] Push to talk (25 Oct, not in any build yet): Options > Sound > Push to talk on one PC. The other PC hears nothing until V (or L3) is held, "MIC ON" shows while held, and opening the menu while holding V doesn't leave the mic on. The other player on open mic is still heard. Rebind the talk key in Controls and check it follows.
 - [ ] Acorn in Mouth (every 75–105 s while driving, for 20 s): the muted squirrel's mic really cuts out, it still hears everyone, and its banner and ping legend show.
 - [ ] Keys 1–8 send pings, and they show on the other PC for 4 s.
 - [ ] Restart while talking (fix `e47ca84`, 23 Oct; not in the 20 Oct builds): talk through the end screen so the restart travels with voice playing. The host must not crash (friend test 1 crashed it twice in `FAudioDevice::StopSoundsUsingResource`), the host log shows `NBVoice: releasing ...`, and voice works again in the next run.

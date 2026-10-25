@@ -51,6 +51,7 @@ FKey UNBControlSettings::GetDefaultKey(ENBBinding Binding)
 	case ENBBinding::Horn: return EKeys::H;
 	case ENBBinding::ResetCar: return EKeys::R;
 	case ENBBinding::Handbrake: return EKeys::LeftShift;
+	case ENBBinding::PushToTalk: return EKeys::V;
 	default: return EKeys::Invalid;
 	}
 }
@@ -69,6 +70,7 @@ const TCHAR* UNBControlSettings::GetBindingLabel(ENBBinding Binding)
 	case ENBBinding::Horn: return TEXT("Horn");
 	case ENBBinding::ResetCar: return TEXT("Reset the car (hold)");
 	case ENBBinding::Handbrake: return TEXT("Handbrake (Gears seat, hold)");
+	case ENBBinding::PushToTalk: return TEXT("Talk (push to talk, hold)");
 	default: return TEXT("?");
 	}
 }

@@ -2,6 +2,7 @@
 
 #include "UI/NBHUD.h"
 
+#include "Audio/NBAudioSettings.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -1044,7 +1045,11 @@ void ANBHUD::DrawSeatHint(const ANBSquirrel& Squirrel)
 void ANBHUD::DrawSoundHint()
 {
 	// Above the route bar, clear of the centre where falls and countdowns stack up.
-	DrawShoutText(FString::Printf(TEXT("Can't hear your crew?  %s: Options"), *PromptName(ENBPrompt::Menu)),
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	const FString Talk = Audio && Audio->IsPushToTalk()
+		? FString::Printf(TEXT("Hold %s to talk.  "), bUsingGamepad ? TEXT("L3") : *KeyLabel(ENBBinding::PushToTalk))
+		: FString();
+	DrawShoutText(FString::Printf(TEXT("%sCan't hear your crew?  %s: Options"), *Talk, *PromptName(ENBPrompt::Menu)),
 		Canvas->ClipX * 0.5f, Canvas->ClipY - 140.f, FLinearColor(0.85f, 0.95f, 1.f), 0.6f);
 }
 
@@ -1316,6 +1321,14 @@ void ANBHUD::DrawVoiceStatus()
 			}
 			DrawCenteredText(Legend, Canvas->ClipY - 70.f, FLinearColor::White, 1.1f);
 		}
+	}
+
+	// Push to talk: show when the mic is live, above the ping list.
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	const ANBSquirrel* Squirrel = PlayerOwner ? Cast<ANBSquirrel>(PlayerOwner->GetPawn()) : nullptr;
+	if (Audio && Audio->IsPushToTalk() && Squirrel && Squirrel->IsVoiceSending())
+	{
+		DrawText(TEXT("MIC ON"), GoodColor, 24.f, Canvas->ClipY * 0.5f - 100.f, Font, 1.4f);
 	}
 }
 

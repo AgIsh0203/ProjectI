@@ -20,6 +20,7 @@ enum class ENBBinding : uint8
 	Horn,
 	ResetCar,
 	Handbrake,
+	PushToTalk,
 	Count
 };
 

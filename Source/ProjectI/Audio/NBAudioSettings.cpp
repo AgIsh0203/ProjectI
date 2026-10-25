@@ -94,6 +94,13 @@ void UNBAudioSettings::SetMicBoost(float Value)
 	Save();
 }
 
+void UNBAudioSettings::SetPushToTalk(bool bOn)
+{
+	// ANBSquirrel::UpdateVoiceMute reads it every frame.
+	bPushToTalk = bOn;
+	Save();
+}
+
 void UNBAudioSettings::SetOutputDevice(const FString& DeviceId)
 {
 	OutputDeviceId = DeviceId;

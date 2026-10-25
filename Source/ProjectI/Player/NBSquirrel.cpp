@@ -39,6 +39,7 @@
 #include "InputModifiers.h"
 #include "Net/UnrealNetwork.h"
 #include "UI/NBHUD.h"
+#include "Audio/NBAudioSettings.h"
 #include "Audio/NBVoiceTalker.h"
 #include "Net/VoiceConfig.h"
 #include "Sound/SoundAttenuation.h"
@@ -1501,12 +1502,25 @@ void ANBSquirrel::UpdateVoiceMute()
 	{
 		return;
 	}
-	const bool bMuted = Stats->IsMuted();
-	if (bMuted != bVoiceMuted)
+	bool bSend = !Stats->IsMuted();
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	if (bSend && Audio && Audio->IsPushToTalk())
 	{
-		bVoiceMuted = bMuted;
-		// Open mic: stop sending voice while the acorn is in, resume after.
-		PC->ToggleSpeaking(!bMuted);
+		// Polled rather than bound: opening the menu flushes the keys, so a held key can't stick on.
+		const UNBControlSettings* Controls = UNBControlSettings::Get(this);
+		bSend = PC->IsInputKeyDown(Controls ? Controls->GetKey(ENBBinding::PushToTalk) : UNBControlSettings::GetDefaultKey(ENBBinding::PushToTalk))
+			|| PC->IsInputKeyDown(EKeys::Gamepad_LeftThumbstick);
+	}
+	if (VoiceController != PC)
+	{
+		// The engine turns voice on at login (ClientEnableNetworkVoice): apply ours again for a new controller.
+		VoiceController = PC;
+		VoiceSendState = -1;
+	}
+	if (VoiceSendState != static_cast<int8>(bSend))
+	{
+		VoiceSendState = static_cast<int8>(bSend);
+		PC->ToggleSpeaking(bSend);
 	}
 }
 
