@@ -31,7 +31,7 @@ CC-BY lines must also appear on the itch page and in the game's credits.
 - `Soda can` by mason (https://poly.pizza/m/0SIErfJvsXy), **CC-BY 3.0**. Used for: the junk jeep's exhaust. Must be credited on the itch page and in game.
 - `Sponge`, `Tape`, `Bottlecap` and `AA battery` by Poly by Google (https://poly.pizza/m/9BIIMAjPXOJ, https://poly.pizza/m/fu49rGO7Ukc, https://poly.pizza/m/7HsR9BPZpi6, https://poly.pizza/m/2TKK0wpiWPw), **CC-BY 3.0**. Used for: the junk jeep's brake, tape patches, headlights and roll-bar batteries. Must be credited on the itch page and in game.
 - `Crushed Soda Can` by Thermo_DynAmics (https://poly.pizza/m/F9RZE7EnWl), **CC-BY 3.0**. Used for: junk jeep decor. Must be credited on the itch page and in game.
-- `Twig` and `Cardboard Box Open` by Kenney (https://poly.pizza/m/xApCbtFYP8, https://poly.pizza/m/i1lr4yJFY0), CC0. Used for: the junk jeep's brake lever and windscreen twigs, its cardboard door and acorn crate.
+- `Twig`, `Cardboard Box Open` and `Box` by Kenney (https://poly.pizza/m/xApCbtFYP8, https://poly.pizza/m/i1lr4yJFY0, https://poly.pizza/m/HvjissDrdr), CC0. Used for: the junk jeep's brake lever and windscreen twigs, its acorn crate and its cardboard door.
 - `Input Prompts` by Kenney (https://kenney.nl/assets/input-prompts), CC0. Used for: the HUD's key and Xbox button icons (10 of them).
 - `Nature Kit` and `City Kit (Roads)` by Kenney (https://kenney.nl), CC0. Used for: trees, bushes, rocks, flowers, fences, street lamps, cones and road-works along the route.
 
