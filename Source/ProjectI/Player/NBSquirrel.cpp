@@ -1010,8 +1010,10 @@ void ANBSquirrel::HopToNextSeat()
 	UNBSeatComponent* NewSeat = Car ? Car->FindNextFreeSeat(CurrentSeat) : nullptr;
 	if (!NewSeat)
 	{
+		UE_LOG(LogTemp, Log, TEXT("NBSeat: %s can't hop: %s"), *GetName(), Car ? TEXT("no free seat (or the car is flipped)") : TEXT("no car"));
 		return;
 	}
+	UE_LOG(LogTemp, Log, TEXT("NBSeat: %s hops %s -> %s"), *GetName(), *CurrentSeat->GetName(), *NewSeat->GetName());
 
 	Car->ClearSeatInput(CurrentSeat->Role);
 	Car->NoteSeatHop();
