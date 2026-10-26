@@ -85,6 +85,9 @@ public:
 	/** 0..1 on the RPM gauge where over-revving starts wearing the engine (the gauge's red zone). */
 	float GetOverRevAlpha() const { return OverRevStart; }
 
+	/** 0..1: how hard the engine is lugging (manual gears, too high a gear for the speed, gas down). The HUD says SHIFT DOWN. */
+	float GetLugLevel() const { return HasAuthority() ? LugLevel : RepLug / 255.f; }
+
 	/** Closest unoccupied seat within MaxDistance of Location, or nullptr. */
 	UNBSeatComponent* FindNearestFreeSeat(const FVector& Location, float MaxDistance) const;
 
@@ -457,6 +460,27 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Car|Wear", meta = (ClampMin = "0"))
 	float TopGearOverRevScale = 2.f;
 
+	// --- Lugging (27 Oct, the user: "I can put it in 5th and it picks up very fast"). Chaos keeps the engine at idle
+	// with full torque however tall the gear, so manual gears cut the torque themselves when the gear is too high. ---
+
+	/** Manual gears, 2nd and up: below this engine speed (worked out from road speed and the gear) the engine lugs... */
+	UPROPERTY(EditAnywhere, Category = "Car|Gears", meta = (ClampMin = "0"))
+	float LugRPMStart = 2400.f;
+
+	/** ...fully at or below this... */
+	UPROPERTY(EditAnywhere, Category = "Car|Gears", meta = (ClampMin = "0"))
+	float LugRPMFull = 1200.f;
+
+	/** ...where its torque drops to this to the power of (gear - 1): 2nd 70 %, 3rd 49 %, 4th 34 %, 5th 24 % (0.55 left
+	 *  5th dead still in PIE). 1st never lugs. */
+	UPROPERTY(EditAnywhere, Category = "Car|Gears", meta = (ClampMin = "0", ClampMax = "1"))
+	float LugGearFactor = 0.7f;
+
+	/** Engine wear per second lugging fully with the gas down: it overheats (past 0.6 wear it can break early; 0.12 broke
+	 *  it in seconds in PIE). */
+	UPROPERTY(EditAnywhere, Category = "Car|Wear", meta = (ClampMin = "0"))
+	float LugWearRate = 0.04f;
+
 	// --- Steering at speed (18 Oct, the user: "at top speed you can take the turns easily"). ---
 
 	/** Full steering up to this speed (cm/s)... */
@@ -712,6 +736,19 @@ private:
 
 	UPROPERTY(Replicated)
 	uint8 RepOffroad = 0;
+
+	/** Server: the engine power the engine part leaves (1 = healthy), before lugging. */
+	float PartEnginePower = 1.f;
+
+	/** Server: lugging, 0..1 (with the gas down), and the torque scale it leaves. */
+	float LugLevel = 0.f;
+	float LugTorqueScale = 1.f;
+
+	UPROPERTY(Replicated)
+	uint8 RepLug = 0;
+
+	/** Server, every tick: lugging from the current gear and road speed; sets the engine torque with PartEnginePower. */
+	void UpdateLugging(float Throttle);
 
 	/** Server: tracks airtime in CheckSpill; returns true while a clean landing's grace is running. */
 	bool UpdateJump(double Now);

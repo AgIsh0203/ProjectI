@@ -1216,7 +1216,13 @@ void ANBHUD::DrawGearGauge(const ANBCar& Car)
 	const FString GearText = Gear < 0 ? FString(TEXT("R")) : Gear == 0 ? FString(TEXT("N")) : FString::FromInt(Gear);
 	DrawShoutText(GearText, Center.X, Center.Y + 24.f, bRed ? BadColor : FLinearColor::White, 1.4f);
 	DrawShoutText(bManual ? TEXT("MANUAL") : TEXT("AUTO"), Center.X, Center.Y + 58.f, FLinearColor(1.f, 1.f, 1.f, 0.7f), 0.55f);
-	if (bManual && bRed)
+	if (bManual && Car.GetLugLevel() > 0.3f)
+	{
+		// Too tall a gear for the speed: the engine bogs and overheats.
+		DrawShoutText(TEXT("BOGGING! SHIFT DOWN"), Center.X + 30.f, Center.Y - Radius - 22.f,
+			FLinearColor(BadColor.R, BadColor.G, BadColor.B, Flash), 0.8f);
+	}
+	else if (bManual && bRed)
 	{
 		// In top gear there's nothing to shift to: easing off is the only way out of the red (and it overheats faster).
 		const bool bTopGear = Gear >= Car.GetNumForwardGears();

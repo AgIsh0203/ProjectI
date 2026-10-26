@@ -337,6 +337,8 @@ void ANBCar::UpdateWear(float DeltaSeconds)
 		const float OverRev = FMath::Clamp((GetEngineRPMAlpha() - OverRevStart) / (1.f - OverRevStart), 0.f, 1.f);
 		const float TopGear = ManualGear >= GetNumForwardGears() ? TopGearOverRevScale : 1.f;
 		EnginePart->AddWear(OverRevWearRate * TopGear * OverRev * DeltaSeconds);
+		// ...or bogging a tall gear at low revs with the gas down: the engine overheats.
+		EnginePart->AddWear(LugWearRate * LugLevel * DeltaSeconds);
 	}
 	TireBL->AddWear(RearTireWearRate * Fast * DeltaSeconds);
 	TireBR->AddWear(RearTireWearRate * Fast * DeltaSeconds);
@@ -539,6 +541,7 @@ void ANBCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePr
 	DOREPLIFETIME(ANBCar, Acorns);
 	DOREPLIFETIME(ANBCar, LastJumpPoints);
 	DOREPLIFETIME(ANBCar, RepOffroad);
+	DOREPLIFETIME(ANBCar, RepLug);
 	DOREPLIFETIME(ANBCar, ResetReadyTime);
 	DOREPLIFETIME(ANBCar, ResetCount);
 	DOREPLIFETIME(ANBCar, JumpCount);
@@ -654,6 +657,7 @@ void ANBCar::ApplyInputsToVehicle()
 		FVector2f(1.f, SteerAtSpeed), FMath::Abs(GetForwardSpeed()));
 	float Steer = SteerInput * SteerFade;
 	float Throttle = FMath::Max(ThrottleInput, 0.f);
+	UpdateLugging(Throttle);
 	if (FlatWheels != 0)
 	{
 		// Each flat drags its side and shakes the wheel; past the top speed the engine gives up.
@@ -1010,7 +1014,30 @@ float ANBCar::GetForwardSpeed() const
 
 void ANBCar::SetEnginePowerScale(float Scale)
 {
-	GetChaosVehicleMovement()->SetMaxEngineTorque(BaseMaxEngineTorque * FMath::Max(Scale, 0.f));
+	// Applied with the lugging scale every tick (UpdateLugging).
+	PartEnginePower = FMath::Max(Scale, 0.f);
+}
+
+void ANBCar::UpdateLugging(float Throttle)
+{
+	UChaosWheeledVehicleMovementComponent* Movement = GetChaosVehicleMovement();
+	const int32 Gear = Movement->GetCurrentGear();
+	float Lug = 0.f;
+	float MinScale = 1.f;
+	if (bManualGears && Gear >= 2 && Movement->TransmissionSetup.ForwardGearRatios.IsValidIndex(Gear - 1)
+		&& Movement->Wheels.Num() > 0 && Movement->Wheels[0])
+	{
+		// The engine speed this gear would turn at this road speed; Chaos itself never lets it fall below idle.
+		const float Ratio = Movement->TransmissionSetup.ForwardGearRatios[Gear - 1] * Movement->TransmissionSetup.FinalRatio;
+		const float WheelRadius = FMath::Max(Movement->Wheels[0]->WheelRadius, 1.f);
+		const float GearRPM = FMath::Abs(GetForwardSpeed()) / WheelRadius * Ratio * 60.f / UE_TWO_PI;
+		Lug = FMath::GetMappedRangeValueClamped(FVector2f(LugRPMFull, FMath::Max(LugRPMStart, LugRPMFull + 1.f)), FVector2f(1.f, 0.f), GearRPM);
+		MinScale = FMath::Pow(LugGearFactor, Gear - 1);
+	}
+	LugTorqueScale = FMath::Lerp(1.f, MinScale, Lug);
+	LugLevel = Lug * FMath::Clamp(Throttle * 2.f, 0.f, 1.f);
+	RepLug = static_cast<uint8>(FMath::RoundToInt(LugLevel * 255.f));
+	Movement->SetMaxEngineTorque(BaseMaxEngineTorque * PartEnginePower * LugTorqueScale);
 }
 
 void ANBCar::SetBrakePowerScale(float Scale)
