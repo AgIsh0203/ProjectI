@@ -886,7 +886,7 @@ void ANBHUD::DrawRoles()
 	if (ANBRunGameMode::IsSoloDrive(GetWorld()))
 	{
 		// Dev solo drive: one squirrel is every seat, so the empty ones aren't news.
-		DrawLeftShout(TEXT("SOLO DRIVE (dev): WASD drive, Shift handbrake, E / Q or mouse wheel shift (switches to manual)"), Y, ProgressColor);
+		DrawLeftShout(TEXT("SOLO DRIVE (dev): WASD drive, Shift handbrake, F / Q or mouse wheel shift (switches to manual), E hops seats"), Y, ProgressColor);
 		return;
 	}
 	for (const ENBSeatRole SeatRole : {ENBSeatRole::Wheel, ENBSeatRole::Pedals, ENBSeatRole::Gears})
