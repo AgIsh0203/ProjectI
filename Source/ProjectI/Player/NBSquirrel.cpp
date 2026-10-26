@@ -330,10 +330,9 @@ void ANBSquirrel::MapKeys()
 	InputContext->MapKey(ResetAction, PadKeyFor(ENBBinding::ResetCar));
 	InputContext->MapKey(HandbrakeAction, KeyFor(ENBBinding::Handbrake));
 	InputContext->MapKey(HandbrakeAction, PadKeyFor(ENBBinding::Handbrake));
-	// Dev solo drive only (the handlers check it).
+	// Dev solo drive only (the handlers check it). E shifts up through Interact.
 	InputContext->MapKey(SoloShiftUpAction, EKeys::MouseScrollUp);
 	InputContext->MapKey(SoloShiftDownAction, EKeys::MouseScrollDown);
-	InputContext->MapKey(SoloShiftUpAction, EKeys::E);
 	InputContext->MapKey(SoloShiftDownAction, EKeys::Q);
 }
 
@@ -486,9 +485,11 @@ void ANBSquirrel::JumpPressed()
 
 void ANBSquirrel::Interact()
 {
-	// Solo drive: E shifts up instead of hopping seats.
+	// Solo drive: E shifts up instead of hopping seats. (E isn't mapped to the shift action itself: two
+	// actions on one key in the same context let the dev mapping eat the seat hop, 26 Oct.)
 	if (CurrentSeat && ANBRunGameMode::IsSoloDrive(GetWorld()))
 	{
+		SoloShiftUp();
 		return;
 	}
 	Server_Interact();
