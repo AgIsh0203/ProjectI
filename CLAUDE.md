@@ -212,7 +212,7 @@
 - **Engine:** source fork `C:\ERODEX` (UE 5.7.1, origin `ishant4iZard/ERODEX`, upstream push disabled).
   - Build: `C:\ERODEX\Engine\Build\BatchFiles\Build.bat ProjectIEditor Win64 Development -Project="D:\Games-Unreal\ProjectI\ProjectI.uproject" -WaitMutex -MaxParallelActions=8`
   - Ignore the "banned MSVC 14.39" note; a newer toolchain is picked.
-  - **Close the editor before a full build.** `.cpp`-only edits can use the `live_compile` MCP tool. Header/UFUNCTION changes need close → build → relaunch.
+  - **Close the editor before a full build**, then relaunch. **Don't use `live_compile`** (26 Oct): the unity build puts `NBRunGameMode.cpp` in the patch, whose copy of the static `nb.SoloDrive` console variable never registers, and the next `IsSoloDrive` call in PIE crashed the editor (null read).
 - **MCP:** `mcp-unreal` (Go binary at `C:\Users\ishan\tools\mcp-unreal\mcp-unreal.exe`, registered in `.mcp.json`; plugin in `Plugins/MCPUnreal`, port 8090).
   - Call `status` first. The editor must be running for the editor tools.
   - `execute_script` returns success even when the Python fails: read the results with `get_output_log` (use a unique tag + `pattern`).
