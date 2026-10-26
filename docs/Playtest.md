@@ -185,6 +185,16 @@ Passed, read from each client's world: seats and their occupants replicate; ever
 - **Fixed:** a server teleport of the car (reset, flip-up, `NBWarp`) glided on clients for ~3 s, through whatever lay between. Now `ANBCar::TeleportCar` cuts on every machine.
 - **Seen, not changed:** a client's ragdoll can fly a different path from the server's when it hits something (each machine simulates it; here an eject into the upside-down car: 14 m on the client, 3 m on the server), and it snaps to the server's spot when it gets up.
 
+## Junk jeep (26 Oct): check by hand
+Checked in 1-player PIE (the server spawns `BP_JunkJeep`, seats and parts where planned, acorns in the crate) and by the autopilot in a `-game` window: THE PARK and SQUIRREL CREEK in the same times as the buggy, then all three cars tried (buggy, the dropped wagon, the jeep) stop on the COBBLE LANE pinch point at 557 m (G6 rocks the autopilot can't steer round).
+- [ ] From the chase camera, do the parts read in under 2 s: the battery on the hood is the engine (and its fire), the sponge behind the rear-right tyre is the brakes, the cardboard flap is the door?
+- [ ] Each seat reaches its own job only: the hood seat the battery, the back seat the sponge, the Gears seat the door; Wheel and Pedals reach nothing.
+- [ ] The cardboard door flaps open outward on the left (it's the first door on the left side) and throws out the passenger.
+- [ ] Acorns: the pile shows in the crate from the chase camera, and spills pop out of it.
+- [ ] The car collides like before: the collision is now a box round the jeep's tub (the buggy's was a hull round its body). Rocks, the wrecking ball, roadblocks, flips: anything odd? Does it tip over more?
+- [ ] Clients see the same car (the body comes from the class, so it should).
+- [ ] `?Car=Buggy` in the host URL still brings back the buggy.
+
 ## Roadblocks and the wrecking ball (20 Oct): check by hand
 - [ ] PINE PASS (broken-down car), THE HAIRPIN (fallen tree), ROCKY ROAD (rockslide): they read as obstacles from the Wheel seat in time to slow down, and the 3.5 m gap along the drop is passable slowly. Too tight, or too easy?
 - [ ] The three pinch points (COBBLE LANE, WIGGLY ROAD, HOME STRETCH) make the drop side feel risky.

@@ -15,6 +15,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "Car/NBAcorn.h"
+#include "Car/NBCarBody.h"
 #include "Car/NBSeatComponent.h"
 #include "Game/NBRoute.h"
 #include "Interaction/NBInteractableComponent.h"
@@ -153,6 +154,70 @@ ANBCar::ANBCar()
 	EngineAudio->SetupAttachment(GetMesh());
 	EngineAudio->SetRelativeLocation(FVector(-100.f, 0.f, 120.f));
 	EngineAudio->bAutoActivate = false;
+
+	// Filled by a car body (ApplyBody); empty on the buggy.
+	EngineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EngineMesh"));
+	EngineMesh->SetupAttachment(GetMesh());
+	EngineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EngineMesh->SetCanEverAffectNavigation(false);
+}
+
+void ANBCar::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	ApplyBody();
+}
+
+void ANBCar::ApplyBody()
+{
+	if (!CarBody)
+	{
+		return;
+	}
+	// The template's own meshes are private: find them by name (TP_VehicleAdvOffroadCar's constructor).
+	TInlineComponentArray<UStaticMeshComponent*> Meshes(this);
+	for (UStaticMeshComponent* Part : Meshes)
+	{
+		const FString Name = Part->GetName();
+		if (Name == TEXT("Chassis") && CarBody->BodyMesh)
+		{
+			Part->SetStaticMesh(CarBody->BodyMesh);
+		}
+		else if (Name.StartsWith(TEXT("Tire ")) && CarBody->WheelMesh)
+		{
+			Part->SetStaticMesh(CarBody->WheelMesh);
+		}
+	}
+	if (CarBody->DoorMesh)
+	{
+		DoorPanel->SetStaticMesh(CarBody->DoorMesh);
+		DoorPanel->EmptyOverrideMaterials();
+		DoorPanel->SetRelativeTransform(FTransform::Identity);
+	}
+	EngineMesh->SetStaticMesh(CarBody->EngineMesh);
+	EngineMesh->SetRelativeTransform(CarBody->EngineTransform);
+
+	TInlineComponentArray<USceneComponent*> Components(this);
+	for (USceneComponent* Component : Components)
+	{
+		if (const FVector* Location = CarBody->Locations.Find(Component->GetFName()))
+		{
+			Component->SetRelativeLocation(*Location);
+		}
+		if (const float* Range = CarBody->Ranges.Find(Component->GetFName()))
+		{
+			if (UNBInteractableComponent* Interactable = Cast<UNBInteractableComponent>(Component))
+			{
+				Interactable->Range = *Range;
+			}
+		}
+	}
+}
+
+FVector ANBCar::GetAcornPileCorner() const
+{
+	// The buggy's pile sits on its engine deck.
+	return CarBody ? CarBody->AcornPileCorner : FVector(-125.f, -42.f, 156.f);
 }
 
 UNBTirePart* ANBCar::CreateTire(FName Name, FName WheelBone, const FVector& Location, const FText& PartName)
@@ -188,8 +253,9 @@ void ANBCar::BeginPlay()
 		Acorns = MaxAcorns;
 	}
 
-	// Layers of 5 x 4 on the engine deck (top ~z 148 over x -60..-110), each layer nudged
-	// half a step so it nests in the one below. Fixed seed: every machine builds the same pile.
+	// Layers of 5 x 4 (on the buggy's engine deck, top ~z 148 over x -60..-110; a body moves the corner),
+	// each layer nudged half a step so it nests in the one below. Fixed seed: every machine builds the same pile.
+	const FVector Corner = GetAcornPileCorner();
 	AcornPileSlots.Reset();
 	FRandomStream Jitter(4242);
 	constexpr int32 Columns = 5;
@@ -201,9 +267,9 @@ void ANBCar::BeginPlay()
 		const int32 Row = (i / Columns) % Rows;
 		const float Nudge = (Layer % 2) * 0.5f;
 		const FVector Location(
-			-125.f + (Column + Nudge) * 18.f + Jitter.FRandRange(-3.f, 3.f),
-			-42.f + (Row + Nudge) * 26.f + Jitter.FRandRange(-3.f, 3.f),
-			156.f + Layer * 11.f);
+			Corner.X + (Column + Nudge) * 18.f + Jitter.FRandRange(-3.f, 3.f),
+			Corner.Y + (Row + Nudge) * 26.f + Jitter.FRandRange(-3.f, 3.f),
+			Corner.Z + Layer * 11.f);
 		const FRotator Tumble(Jitter.FRandRange(-30.f, 30.f), Jitter.FRandRange(0.f, 360.f), Jitter.FRandRange(-30.f, 30.f));
 		AcornPileSlots.Add(FTransform(Tumble, Location, FVector(0.14f)));
 	}
@@ -648,10 +714,11 @@ int32 ANBCar::SpillAcorns(int32 Count)
 	check(HasAuthority());
 	Count = FMath::Clamp(Count, 0, Acorns);
 	const FTransform Body = GetMesh()->GetComponentTransform();
+	const FVector Corner = GetAcornPileCorner();
 	for (int32 i = 0; i < Count; ++i)
 	{
-		// The bed is the open space behind the seats; acorns pop up and out over the sides.
-		const FVector Local(FMath::FRandRange(-130.f, -40.f), FMath::FRandRange(-60.f, 60.f), 200.f);
+		// Acorns pop up off the pile and out over the sides.
+		const FVector Local(FMath::FRandRange(Corner.X - 5.f, Corner.X + 85.f), FMath::FRandRange(-60.f, 60.f), Corner.Z + 47.f);
 		const FVector Side = Body.GetUnitAxis(EAxis::Y) * (FMath::RandBool() ? 1.f : -1.f) * FMath::FRandRange(150.f, 450.f);
 		const FVector Velocity = GetVelocity() * 0.7f + Side + FVector(0.f, 0.f, FMath::FRandRange(250.f, 550.f));
 		ANBAcorn::SpawnSpilled(GetWorld(), Body.TransformPosition(Local), Velocity);

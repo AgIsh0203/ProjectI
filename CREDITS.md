@@ -26,6 +26,12 @@ CC-BY lines must also appear on the itch page and in the game's credits.
 - `Recorder Jam` by Of Far Different Nature (https://opengameart.org/content/recorder-jam), CC0. Used for: the run music.
 - `Squirrel` by Poly by Google (https://poly.pizza/m/64Yw0UoayhC), **CC-BY 3.0**. Used for: the squirrel body (re-centred, stood upright, rigged and animated in Blender, and tinted per player). Must be credited on the itch page and in game.
 - `Acorn` by Poly by Google (https://poly.pizza/m/cBjPyNgvJ3Q), **CC-BY 3.0**. Used for: the acorn pile and spilled acorns (re-centred). Must be credited on the itch page and in game.
+- `Jeep` by Zsky (https://poly.pizza/m/AcSdGGrgYP), **CC-BY 3.0**. Used for: the junk jeep, the car (rescaled onto the template's skeleton, spare tyre removed). Must be credited on the itch page and in game.
+- `Car Battery` by J-Toastie (https://poly.pizza/m/hLVNyFYOOX), **CC-BY 3.0**. Used for: the junk jeep's engine. Must be credited on the itch page and in game.
+- `Soda can` by mason (https://poly.pizza/m/0SIErfJvsXy), **CC-BY 3.0**. Used for: the junk jeep's exhaust. Must be credited on the itch page and in game.
+- `Sponge`, `Tape`, `Bottlecap` and `AA battery` by Poly by Google (https://poly.pizza/m/9BIIMAjPXOJ, https://poly.pizza/m/fu49rGO7Ukc, https://poly.pizza/m/7HsR9BPZpi6, https://poly.pizza/m/2TKK0wpiWPw), **CC-BY 3.0**. Used for: the junk jeep's brake, tape patches, headlights and roll-bar batteries. Must be credited on the itch page and in game.
+- `Crushed Soda Can` by Thermo_DynAmics (https://poly.pizza/m/F9RZE7EnWl), **CC-BY 3.0**. Used for: junk jeep decor. Must be credited on the itch page and in game.
+- `Twig` and `Cardboard Box Open` by Kenney (https://poly.pizza/m/xApCbtFYP8, https://poly.pizza/m/i1lr4yJFY0), CC0. Used for: the junk jeep's brake lever and windscreen twigs, its cardboard door and acorn crate.
 - `Input Prompts` by Kenney (https://kenney.nl/assets/input-prompts), CC0. Used for: the HUD's key and Xbox button icons (10 of them).
 - `Nature Kit` and `City Kit (Roads)` by Kenney (https://kenney.nl), CC0. Used for: trees, bushes, rocks, flowers, fences, street lamps, cones and road-works along the route.
 

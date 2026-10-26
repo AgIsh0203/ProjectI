@@ -9,6 +9,7 @@
 #include "NBCar.generated.h"
 
 class UNBBrakePart;
+class UNBCarBody;
 class UNBCarPartComponent;
 class UNBDoorPart;
 class UNBEnginePart;
@@ -217,8 +218,29 @@ public:
 	/** Failed brakes seizing: forces this much brake (0..1) over whatever the pedals say. */
 	void SetBrakeGrab(float Strength);
 
+	/** The body this car was built with (null = the template buggy). */
+	const UNBCarBody* GetCarBody() const { return CarBody; }
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	/**
+	 * Look and layout (meshes, seat and part positions) on top of the buggy's skeleton and physics.
+	 * Null keeps the template buggy. Set on the Blueprint (BP_JunkJeep uses DA_JunkJeepBody).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Car|Body")
+	TObjectPtr<UNBCarBody> CarBody;
+
+	/** The body's visible engine; empty without one. */
+	UPROPERTY(VisibleAnywhere, Category = "Car|Body")
+	TObjectPtr<UStaticMeshComponent> EngineMesh;
+
+	/** Puts CarBody's meshes and positions on the components. Every machine, from OnConstruction. */
+	void ApplyBody();
+
+	/** The acorn pile's first slot (mesh space): the body's, or the buggy's engine deck. */
+	FVector GetAcornPileCorner() const;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Car")
 	TObjectPtr<UNBSeatComponent> WheelSeat;

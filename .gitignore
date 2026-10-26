@@ -35,3 +35,8 @@ Content/ThirdParty_Private/
 # Blender backups
 *.blend1
 __pycache__/
+
+# Blender previews (build_junkjeep.py writes them on every run)
+SourceArt/**/preview_*.png
+SourceArt/**/pie_*.png
+SourceArt/**/*.blend1

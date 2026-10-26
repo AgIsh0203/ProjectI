@@ -42,9 +42,12 @@ ANBRunGameMode::ANBRunGameMode()
 	// making clients reconnect. With no transition map set, the engine uses an empty one.
 	bUseSeamlessTravel = true;
 
-	// The Blueprint child carries the mesh, tire sockets and torque/steering curves.
+	// The Blueprint child carries the mesh, tire sockets and torque/steering curves. The junk jeep (A2) is
+	// its child with a car body on top; ?Car=Buggy in the URL brings back the template buggy.
 	static ConstructorHelpers::FClassFinder<ANBCar> CarBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_OffroadCar_Pawn"));
-	CarClass = CarBP.Succeeded() ? CarBP.Class : TSubclassOf<ANBCar>(ANBCar::StaticClass());
+	static ConstructorHelpers::FClassFinder<ANBCar> JeepBP(TEXT("/Game/VehicleTemplate/Blueprints/OffroadCar/BP_JunkJeep"));
+	BuggyClass = CarBP.Succeeded() ? CarBP.Class : TSubclassOf<ANBCar>(ANBCar::StaticClass());
+	CarClass = JeepBP.Succeeded() ? JeepBP.Class : BuggyClass;
 
 	// The squirrel's sound/VFX slots are filled in its Blueprint child (always cooked, see DefaultGame.ini).
 	static ConstructorHelpers::FClassFinder<ANBSquirrel> SquirrelBP(TEXT("/Game/Blueprints/BP_Squirrel"));
@@ -209,7 +212,8 @@ void ANBRunGameMode::FindOrSpawnCar()
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	Car = GetWorld()->SpawnActor<ANBCar>(CarClass, SpawnTransform, Params);
+	const bool bBuggy = UGameplayStatics::ParseOption(OptionsString, TEXT("Car")).Equals(TEXT("Buggy"), ESearchCase::IgnoreCase);
+	Car = GetWorld()->SpawnActor<ANBCar>(bBuggy && BuggyClass ? BuggyClass : CarClass, SpawnTransform, Params);
 }
 
 void ANBRunGameMode::FindOrSpawnFinishZone()

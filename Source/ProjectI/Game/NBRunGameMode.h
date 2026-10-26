@@ -101,6 +101,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	TSubclassOf<ANBCar> CarClass;
 
+	/** The template buggy, for ?Car=Buggy (the car before A2). */
+	UPROPERTY(EditDefaultsOnly, Category = "Run")
+	TSubclassOf<ANBCar> BuggyClass;
+
 	/** Where the fallback car spawns, relative to the first player start. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	FVector CarSpawnOffset = FVector(600.f, 0.f, 120.f);

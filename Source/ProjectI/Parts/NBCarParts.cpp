@@ -180,8 +180,10 @@ void UNBDoorPart::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (Hinge && IsFailed())
 	{
-		// Flap around the open position so it reads as "loose" from a distance.
+		// Flap around the open position so it reads as "loose" from a distance. OpenYaw swings a door on the
+		// car's right outward; a door on the left (the junk jeep's) swings the other way.
+		const float Side = Hinge->GetRelativeLocation().Y < 0.f ? -1.f : 1.f;
 		const float Flap = FMath::Sin(GetWorld()->GetTimeSeconds() * 7.f) * 12.f;
-		Hinge->SetRelativeRotation(FRotator(0.f, OpenYaw + Flap, 0.f));
+		Hinge->SetRelativeRotation(FRotator(0.f, (OpenYaw + Flap) * Side, 0.f));
 	}
 }

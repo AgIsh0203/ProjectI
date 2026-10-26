@@ -1,0 +1,150 @@
+{
+  "src_dir": "SourceArt/JunkJeep/src",
+  "jeep": "jeep_zsky_AcSdGGrgYP.glb",
+  "wheel_radius": 50,
+  "wheels": [
+    [168.2, -124.1, 51.1],
+    [168.2, 124.1, 51.1],
+    [-135.2, -139.8, 50.8],
+    [-135.2, 139.8, 50.8]
+  ],
+  "fit": {
+    "wheel_verts": 80,
+    "width_scale": 1.3,
+    "drop_spare": true
+  },
+  "props": [
+    {
+      "note": "engine: a car battery strapped on the hood",
+      "model": "carbattery_jtoastie_hLVNyFYOOX.glb",
+      "size": 70,
+      "at": [165, 10, 160],
+      "rot": [0, 0, 90],
+      "into": "engine"
+    },
+    {
+      "note": "engine exhaust: a soda can",
+      "model": "sodacan_mason_0SIErfJvsXy.glb",
+      "size": 38,
+      "at": [150, 70, 162],
+      "into": "engine"
+    },
+    {
+      "note": "tape round the battery",
+      "model": "tape_google_fu49rGO7Ukc.glb",
+      "size": 40,
+      "at": [205, -35, 160],
+      "rot": [0, 0, 0],
+      "into": "engine"
+    },
+    {
+      "note": "brakes: a sponge jammed behind the rear-right tyre",
+      "model": "sponge_google_9BIIMAjPXOJ.glb",
+      "size": 60,
+      "at": [-192, 130, 40],
+      "rot": [0, -75, 90]
+    },
+    {
+      "note": "brake lever: a twig up from the sponge",
+      "model": "twig_kenney_xApCbtFYP8.glb",
+      "size": 110,
+      "at": [-205, 122, 58],
+      "rot": [0, -70, 0]
+    },
+    {
+      "note": "door: a cardboard flap",
+      "model": "cardboardopen_kenney_i1lr4yJFY0.glb",
+      "size": 95,
+      "stretch": [1.0, 0.15, 1.0],
+      "at": [-72, -135, 68],
+      "rot": [0, 0, 0],
+      "into": "door"
+    },
+    {
+      "note": "door hinge: tape",
+      "model": "tape_google_fu49rGO7Ukc.glb",
+      "size": 22,
+      "at": [-26, -140, 100],
+      "rot": [90, 0, 0],
+      "into": "door"
+    },
+    {
+      "note": "acorn crate: a cardboard box strapped across the back",
+      "model": "cardboardopen_kenney_i1lr4yJFY0.glb",
+      "size": 115,
+      "stretch": [1.0, 2.2, 0.3],
+      "at": [-185, 0, 140]
+    },
+    {
+      "note": "twigs lashed over the cracked windscreen",
+      "model": "twig_kenney_xApCbtFYP8.glb",
+      "size": 80,
+      "at": [60, 0, 198],
+      "rot": [60, 0, 90]
+    },
+    {
+      "note": "twig",
+      "model": "twig_kenney_xApCbtFYP8.glb",
+      "size": 80,
+      "at": [64, 0, 202],
+      "rot": [-55, 0, 90]
+    },
+    {
+      "note": "bottle-cap headlight",
+      "model": "bottlecap_google_7HsR9BPZpi6.glb",
+      "size": 24,
+      "at": [230, -64, 124],
+      "rot": [0, -90, 0]
+    },
+    {
+      "note": "bottle-cap headlight",
+      "model": "bottlecap_google_7HsR9BPZpi6.glb",
+      "size": 24,
+      "at": [230, 64, 124],
+      "rot": [0, -90, 0]
+    },
+    {
+      "note": "tape patch, front left fender",
+      "model": "tape_google_fu49rGO7Ukc.glb",
+      "size": 42,
+      "at": [168, -115, 143]
+    },
+    {
+      "note": "tape patch, front right fender",
+      "model": "tape_google_fu49rGO7Ukc.glb",
+      "size": 42,
+      "at": [168, 110, 143]
+    },
+    {
+      "note": "crushed can on the rear fender",
+      "model": "crushedcan_thermo_F9RZE7EnWl.glb",
+      "size": 30,
+      "at": [-210, -120, 143]
+    },
+    {
+      "note": "AA batteries taped to the roll bar",
+      "model": "aabattery_google_2TKK0wpiWPw.glb",
+      "size": 40,
+      "at": [-116, 70, 225],
+      "rot": [90, 0, 0]
+    }
+  ],
+  "door": {
+    "hinge": [-26, -135, 110]
+  },
+  "engine": {
+    "origin": [165, 10, 160]
+  },
+  "collision": {
+    "min": [-245, -125, 63],
+    "max": [230, 118, 166]
+  },
+  "preview_door_open": 0,
+  "seats": {
+    "Wheel": [23, 57, 202],
+    "Pedals": [55, 57, 95],
+    "Gears": [-60, -47, 132],
+    "Hood": [110, -60, 188],
+    "Deck": [-150, 95, 188]
+  }
+}

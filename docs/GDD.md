@@ -105,7 +105,8 @@ Built for screenshots.
 
 ## Presentation
 - **Camera — Built:** third-person chase camera, pulled wide while seated; it swings behind the car while driving.
-- **Art:** Kenney and Quaternius CC0 low-poly (flat colour) to dress the route and the depot. The Epic offroad buggy stays. It's M3a work and the first thing cut.
+- **Art:** Kenney and Quaternius CC0 low-poly (flat colour) to dress the route and the depot.
+- **The junk jeep — Built 26 Oct (A2):** the car is a broken toy jeep the squirrels patched with trash, and every part that breaks is a piece of trash you can see: the **engine** is a car battery strapped on the hood (soda-can exhaust), the **brakes** a sponge jammed behind the rear-right tyre on a twig lever, the **door** a cardboard flap taped on the passenger side (it's right-hand drive, so the door is on the left), tape on the fenders, bottle-cap headlights, twigs over the cracked windscreen, and the acorns ride in a cardboard crate across the back. Jobs: the hood seat fixes the battery, the back seat the sponge, the Gears (passenger) seat the door. It drives exactly like the buggy (same skeleton, wheels and physics). `?Car=Buggy` brings the old buggy back. Checked in 1-player PIE and an autopilot drive; nobody has played it.
 - **Lighting:** a sky light and sun with regular shadow maps. Lumen, ray tracing and virtual shadow maps go if the Mon 12 look check agrees: they cost download size and frame rate, and flat-colour art doesn't need bounce light.
 - **Audio:** one cheap, rattly engine loop pitched by RPM (a lawnmower or moped beats a real car); impacts, clangs, fire crackle, repair dings, acorn pops. Music is CC0 / CC-BY with no Content ID, so streams stay unmuted.
 - **UI:** a chunky rounded font (Lilita One, in for the shout text; the rest of the HUD still uses the engine font) and Kenney input prompts.
@@ -119,7 +120,7 @@ Built for screenshots.
 Twitch chat integration (chat breaks a part or sends a pothole), hats and cosmetics from awards, more parts (the horn breaks, the steering wheel falls off, seat springs launch you), route variety, a kill-cam / instant replay, key rebinding. Order and notes: [Roadmap.md](Roadmap.md#tier-3-after-the-demo).
 
 ## Tech
-- **Car:** the UE Vehicle template's offroad buggy on Chaos Vehicles (`ANBCar`). Nobody possesses it: the server drives Chaos from the two driving seats' inputs, and clients follow its replicated physics state.
+- **Car:** the UE Vehicle template's offroad buggy on Chaos Vehicles (`ANBCar`), wearing the junk jeep body (`UNBCarBody`). Nobody possesses it: the server drives Chaos from the two driving seats' inputs, and clients follow its replicated physics state.
 - **Seats** are attachment points on the car (`UNBSeatComponent`), so there's no free walking inside the car.
 - **Repairs, the door and the flip-up** share one server-authoritative interaction component with four modes: Hold, Mash, TimingRing and Push2.
 - **Online:** Steam OSS over SteamSockets, AppID 480 in dev. PIE falls back to IP.
