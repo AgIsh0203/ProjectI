@@ -52,11 +52,11 @@
       "rot": [0, -70, 0]
     },
     {
-      "note": "door: a cardboard flap",
-      "model": "cardboardopen_kenney_i1lr4yJFY0.glb",
+      "note": "door: a flat sheet of cardboard",
+      "model": "box_kenney_HvjissDrdr.glb",
       "size": 95,
-      "stretch": [1.0, 0.15, 1.0],
-      "at": [-72, -135, 68],
+      "stretch": [1.0, 0.08, 1.0],
+      "at": [-72, -135, 70],
       "rot": [0, 0, 0],
       "into": "door"
     },
@@ -69,11 +69,11 @@
       "into": "door"
     },
     {
-      "note": "acorn crate: a cardboard box strapped across the back",
+      "note": "acorn crate: a cardboard box between the roll bar's rear braces",
       "model": "cardboardopen_kenney_i1lr4yJFY0.glb",
       "size": 115,
-      "stretch": [1.0, 2.2, 0.3],
-      "at": [-185, 0, 140]
+      "stretch": [0.95, 1.9, 0.3],
+      "at": [-187, 0, 140]
     },
     {
       "note": "twigs lashed over the cracked windscreen",

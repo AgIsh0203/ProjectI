@@ -11,7 +11,7 @@ import os
 import unreal
 
 TAG = "NBJEEP"
-REIMPORT = True
+REIMPORT = False
 project = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 src = os.path.join(project, "SourceArt/JunkJeep")
 dest = "/Game/ThirdParty/PolyPizza/JunkJeep"
@@ -84,6 +84,60 @@ setup.set_editor_property("agg_geom", agg)
 setup.set_editor_property("collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_SIMPLE_AS_COMPLEX)
 meshes["SM_JunkJeep_Body"].modify()
 eal.save_loaded_asset(meshes["SM_JunkJeep_Body"])
+# Materials (the user, 26 Oct: "the shadow sides go completely black"): the FBX import makes legacy Phong
+# instances, and the jeep's own colours are near black (its dark green is 0.006, 0.037, 0.004 linear). Every
+# slot moves to the project's BasicShapeMaterial (lit like the route props) as MI_JunkJeep_<slot>, with the
+# colour lifted by a square root so the darks read in shade (dark green -> ~0.08, 0.19, 0.06).
+mel = unreal.MaterialEditingLibrary
+shape = unreal.load_asset("/Engine/BasicShapes/BasicShapeMaterial")
+made = {}
+for n in MESHES:
+    sm = meshes[n]
+    for i, slot in enumerate(sm.get_editor_property("static_materials")):
+        name = str(slot.get_editor_property("material_slot_name"))
+        src_mi = slot.get_editor_property("material_interface")
+        if name.startswith("Windows_Jeep"):
+            continue
+        if name not in made:
+            path = f"{dest}/MI_JunkJeep_{name}"
+            mi = unreal.load_asset(path) if eal.does_asset_exist(path) else None
+            if not mi:
+                mi = tools.create_asset(f"MI_JunkJeep_{name}", dest, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+                mi.set_editor_property("parent", shape)
+            if isinstance(src_mi, unreal.MaterialInstanceConstant) and src_mi.get_base_material() != shape.get_base_material():
+                c = mel.get_material_instance_vector_parameter_value(src_mi, "DiffuseColor")
+                mel.set_material_instance_vector_parameter_value(mi, "Color", unreal.LinearColor(c.r ** 0.5, c.g ** 0.5, c.b ** 0.5, 1))
+                mel.update_material_instance(mi)
+                eal.save_loaded_asset(mi, False)
+            made[name] = mi
+        sm.set_material(i, made[name])
+    eal.save_loaded_asset(sm, False)
+unreal.log(f"{TAG} {len(made)} slot materials on BasicShapeMaterial")
+
+# The windscreen: the jeep's opaque "Windows_Jeep" slot gets a see-through glass (the user, 26 Oct).
+glass_path = f"{dest}/M_JunkJeepGlass"
+glass = unreal.load_asset(glass_path) if eal.does_asset_exist(glass_path) else None
+if not glass:
+    glass = tools.create_asset("M_JunkJeepGlass", dest, unreal.Material, unreal.MaterialFactoryNew())
+    glass.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    glass.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE)
+    glass.set_editor_property("two_sided", True)
+    tint = mel.create_material_expression(glass, unreal.MaterialExpressionConstant3Vector, -400, 0)
+    tint.set_editor_property("constant", unreal.LinearColor(0.75, 0.9, 1.0, 1.0))
+    mel.connect_material_property(tint, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    opacity = mel.create_material_expression(glass, unreal.MaterialExpressionConstant, -400, 200)
+    opacity.set_editor_property("r", 0.18)
+    mel.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY)
+    rough = mel.create_material_expression(glass, unreal.MaterialExpressionConstant, -400, 300)
+    rough.set_editor_property("r", 0.1)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(glass)
+    eal.save_loaded_asset(glass)
+body_mesh = meshes["SM_JunkJeep_Body"]
+body_mesh.set_material(body_mesh.get_material_index("Windows_Jeep"), glass)
+eal.save_loaded_asset(body_mesh, False)
+unreal.log(f"{TAG} windscreen = {body_mesh.get_material(body_mesh.get_material_index('Windows_Jeep')).get_name()}")
+
 for n, m in meshes.items():
     if not m:
         unreal.log_error(f"{TAG} missing {n}")
