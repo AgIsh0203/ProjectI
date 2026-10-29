@@ -7,7 +7,7 @@ Thanks for trying this! Below are a few sample lines, so you can get a feel for 
 
 **The squirrels never talk.** Everything you hear comes from a **CB radio** they salvaged from the crashed truck, crackling on the jeep's dashboard. Players hear you while they're panicking, so short, punchy lines that are easy to understand over chaos work best.
 
-**You play everyone on the radio**, in your own voice; no old-lady voice needed. Play with pace, attitude and accent rather than pitch. Each character should be recognisable from a single line.
+**You play everyone on the radio**, in your own voice. Play with pace, attitude and accent rather than pitch. Each character should be recognisable from a single line.
 
 ## The characters and lines
 
@@ -48,3 +48,5 @@ The Dispatcher, quiet, almost warm for once:
 - Leave a second of silence before and after each take.
 - Any decent mic is fine (a headset or phone in a quiet room works for a sample); any format.
 - **Improvising is very welcome.** The best lines in games like this are often ad-libs. If a character suggests a better joke to you, record it.
+- Have fun! You can add your own lines or characters too, and I can evolve the story around them.
+

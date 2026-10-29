@@ -24,18 +24,19 @@ The 24 Oct demo is dropped. Friend test 3 on **Sat 28 Nov** checks whether the r
 **Out of scope this month:** #9 (pedal-seat blind camera), #11 (pick acorns back up), more route length (wait for the 7 Nov run's time), Tier 3.
 
 ## Story demo (after friend test 3)
-Decided 29 Oct ([Story.md](Story.md)). **Friend test 3's scope does not change**: none of this starts before 28 Nov. If friend test 3 passes, the public demo becomes **Chapter 1, The Crash Site**, and the ~12 Dec date may slip for it (the user's call). Build order:
+Decided and expanded 29 Oct ([Story.md](Story.md): the bible, with the Chapter 1 beat sheet and a checklist of what it needs built). **Friend test 3's scope does not change**: none of this starts before 28 Nov. If friend test 3 passes, the public demo becomes **Chapter 1, The Crash Site**, and the ~12 Dec date may slip for it (the user's call). Build order:
 
 | # | Item | Effort | Note |
 |---|---|---|---|
 | S1 | Stopwatch and par medals instead of the deadline; new score (acorns × 10 + par bonus − respawns) | M | `ANBRunGameMode`, `ANBRunGameState`, the HUD clock and end screen. Changes a locked decision (done in CLAUDE.md). |
 | S2 | Checkpoints (section starts + camp) and the wreck rewind (+30 s); host Continue from a save | L | Snapshot the car, acorns, parts and stopwatch; reuse `ANBCar::TeleportCar`. The camp waits for the jeep and every squirrel. |
-| S3 | CB radio line system (event triggers, variants, cooldown, subtitles) + the VA brief | M | Sample for the VA: [VA_Sample.md](VA_Sample.md). Placeholder text lines until the recordings arrive. |
-| S4 | Re-theme THE PARK as the crash site and junkyard (crashed truck, spilled crates) | M | Keeps the control boards as the tutorial. |
-| S5 | The excavator (Tracks / Boom / Bucket seats, 1–2 parts), a jeep parking bay, a destructible ranger station, and the fork: the long road with an acorn cache | L | The biggest item. Needs a CC0/CC-BY excavator model ([Assets.md](Assets.md)). |
+| S3 | CB radio line system: triggers, priorities, variants, subtitles; every Chapter 1 line shows as a subtitle until the recordings arrive | M | The lines and the rules: [story/RadioScript.md](story/RadioScript.md) (114 for Chapter 1). The voice actor reads the script now and records once this works. |
+| S4 | THE JUNKYARD: re-theme THE PARK (the crashed Acornucopia truck, spilled crates, TINY's kennel, the deer); the jeep starts in pieces and building it is the tutorial; the intro card; the three section renames; Buck & Sons dressing on THE BRIDGE | L | Keeps the control boards as the tutorial. The renames (THE PARK → THE JUNKYARD, HOME STRETCH → THE DESCENT, THE DEPOT → THE CAMPGROUND) go in `ANBRoute`'s segment list and, by hand, in L_Route's baked signs: a re-bake would lose hand edits. |
+| S5 | The fork at the top of WIGGLY ROAD: BUCK'S CUT (a new road; check the 18 % grade limit) with the excavator (Tracks / Boom / Bucket seats, a hydraulic-hose part), a jeep parking bay and a destructible ranger station; an Acornucopia picnic hamper (the acorn cache) on WIGGLY ROAD | L | The biggest item. Needs a CC0/CC-BY excavator model ([Assets.md](Assets.md)). |
 | S6 | Golden acorns (tint or a new model; maybe more than 40) | S | |
 | S7 | Snow creep when behind par | M | Cosmetic. |
-| S8 | Demo ending: radio cliffhanger, a teaser card of the 4 coming vehicles, "Follow on itch.io" | S | |
+| S8 | Demo ending: the honk test (count the horn after Dispatch's line; five outcomes), a teaser card of the 4 coming machines, "Follow on itch.io" | S | The counting rules: [RadioScript.md](story/RadioScript.md#the-honk-test-end-of-chapter-1). |
+| S9 | TINY re-staged: chained in THE JUNKYARD; at the start, a chase out of it that can't bite; then the ambush from COBBLE CURVE down THE DESCENT, stopping at THE WASH | S | `ANBDog`, `ANBRoute::SpawnDog` (`DogSection`). |
 
 ## History: where we were (2026-10-12)
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
@@ -265,4 +266,4 @@ The review is in [Playtest.md](Playtest.md#luigis-extra-review-discord-18-oct-sa
 | **Final title** | By friend test 3 (28 Nov): ask the testers | Shortlist from the tests so far: Squarrel, Go Nuts, Roll Deez Nuts, Nuts and Bolts, Rodent Racing |
 | **Public demo date** | After friend test 3 | ~Sat 12 Dec, if the scores are good |
 | **Side tasks** design | After 7 Nov | A design session before any code |
-| **Story** | Decided 29 Oct | Golden acorn heist, 6 chapters, the demo is Chapter 1 with the excavator fork ([Story.md](Story.md)) |
+| **Story** | Decided and expanded 29 Oct | Golden acorn heist over 6 days; the demo is Chapter 1, with the excavator fork and the honk test ([Story.md](Story.md)). The voice actor has the Chapter 1 script to read through. |

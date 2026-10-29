@@ -4,7 +4,10 @@
 
 ## Docs
 - `docs/Roadmap.md` — **before picking up new work or packaging**: the schedule to the 24 Oct demo, the ranked backlog (items are cited as #N), the package-size budget and how to meet it, and the decisions waiting on the user.
-- `docs/Story.md` — **the story and full-game structure** (decided 29 Oct, built only after friend test 3): the golden acorn heist, 6 chapters joined by camps, forks that merge back, helper vehicles (the excavator first), checkpoints, the stopwatch, the CB radio cast. The demo is Chapter 1. `docs/VA_Sample.md` is the sample script sent to the voice actor.
+- `docs/Story.md` — **the story bible** (decided and expanded 29 Oct, built only after friend test 3): the golden acorn heist over 6 chapters (one day each) joined by camps, forks that merge back, Foreman Buck's helper vehicles (the excavator first), checkpoints, the stopwatch, the CB radio cast, and the Chapter 1 beat sheet (the demo, ending on the honk test) with what it needs built. `docs/story/` holds:
+  - `RadioScript.md`: every radio line with its ID and trigger. Edit lines only there.
+  - The HTML sources of the proofreading and voice-actor PDFs. `Tools/Docs/MakePdf.ps1` builds both into Downloads, and fills the voice script from RadioScript.md.
+  - `VA_Sample.md`: the first sample sent to the voice actor.
 - `docs/GDD.md` — **design questions**: what each feature is, its status (Built / Friend test / Demo / Later), and the tuning table where playtested values get recorded.
 - `docs/Assets.md` — **before importing, assigning or committing any asset**: licence rules, folders, the slot map, sources.
 - `docs/Terrain.md` — **the mountain trail in L_Route** (built 18 Oct, "RV There Yet?" style): the height model, rivers, the bake and snap tools, the autopilot, and what still needs a hands-on check.
@@ -38,7 +41,7 @@
 - **Players and camera:** 2-player minimum, no bots. Third-person chase camera, wider while seated. Arcade feel. Repair juggling is the heart of the game.
 - **Score:** acorns delivered (they spill from the open bed) + time bonus. With the story (29 Oct, after friend test 3): golden acorns × 10 + a bonus for beating per-chapter par.
 - **Bad endings:** the deadline runs out, or a total wreck (3+ parts failed for 10 s). With the story: no deadline, a stopwatch instead; a total wreck rewinds to the last checkpoint (+30 s).
-- **Story** (29 Oct, `docs/Story.md`): squirrels steal golden acorns from a gourmet truck, crash at a junkyard, build the junk jeep, race home before the first snow. The jeep stays the one hero car; the crew may swap into helper vehicles (excavator, sand pickup, bus, crane/tow truck, snowplow) for an obstacle, and may split up. The cargo is always "acorns", never "nuts". Squirrels never talk; a CB radio voices the story.
+- **Story** (29 Oct, `docs/Story.md`): squirrels steal golden acorns from a gourmet truck, crash at a junkyard, build the junk jeep, race home before the first snow. The jeep stays the one hero car; the crew may swap into Foreman Buck's helper vehicles (excavator, sand pickup, school bus, crane truck, snowplow) for an obstacle, and may split up. The cargo is always "acorns", never "nuts". Squirrels never talk; a CB radio voices the story: Dispatch (the voice actor's part), Foreman Buck, Gravy Train and Night Owl. In lines and notes, only Dispatch is "she"; squirrels and the other callers are never "he" or "she".
 - **Acorn in Mouth:** every 75–105 s, weighted toward the Wheel seat or a squirrel at a failing part. Muted for 20 s, can still hear, has an 8-ping chat wheel.
 - **Code quality:** foundation-quality C++ for systems (car, parts, seats, sessions, voice). Throwaway Blueprints/data for content.
 - **Online:** Steam OSS, listen server, AppID 480 in dev. Proximity voice via VOIPTalker.

@@ -64,11 +64,13 @@ Heights below are the trail's range in each section, and the grade is the steepe
 | 16 | THE WASH *(18 Oct)* | 180 m | 36–59 m, 18 % | The second ford, at the bottom of the valley. |
 | 17 | THE DEPOT | 120 m | 59–62 m, ≤ 2 % | The drop-off gate, then the depot shed. |
 
+With the story (Demo), THE PARK, HOME STRETCH and THE DEPOT become THE JUNKYARD, THE DESCENT and THE CAMPGROUND, and a fork at the top of WIGGLY ROAD adds BUCK'S CUT ([Story.md](Story.md#chapter-1-the-crash-site-the-demo)).
+
 The autopilot (`NBAuto`, no breakdowns, 16 m/s) drove the whole trail in 7:52 with the template car and in 6:40 at 435 Nm (`-game` window). With the 80 Nm car (18 Oct, slower pickup) it gets stuck on the rubble of the 18 % climbs, so there is no full timing; the sections it drove took ~25 % longer than at 435 Nm, which suggests ~8:20 with no breakdowns. **The 9:00 deadline (`DeadlineSeconds`) probably needs raising**: decide after a hand-driven run.
 
 ## Events
 - **Acorn in Mouth — Built.** Every 75–105 s while driving (never in the last 20 s), weighted toward the WHEEL seat and squirrels next to a failed part. That squirrel is muted for 20 s, still hears everyone, and keeps 8 pings on keys 1–8: LEFT!, RIGHT!, GAS!, BRAKE!, HELP!, FIX IT!, JUMP OUT!, NICE! On a gamepad (20 Oct, #14) the D-pad sends the first four (left, right, up, down) and LB + D-pad the other four. Anyone can ping, muted or not.
-- **One hazard with a face — Built 20 Oct (#13), greybox:** a big brown dog sleeps by its kennel 30 m into WIGGLY ROAD. During a run, while the car is on its stretch (from 50 m before WIGGLY ROAD to COBBLE CURVE), it chases at 1450 cm/s (a car flat out escapes): it hangs off the nearest tyre for 2.5 s (wear 0.15/s, a 35 % chance of a flat when it lets go, then 5 s before the next bite), or grabs a squirrel on foot within 9 m and flings it ("THE DOG GOT YOU!"). A honk within 25 m scares it off for 10 s. WOOF! / CHOMP! / YIPE! over it, and "THE DOG'S GOT A TYRE!  HONK!" as a callout. Checked by script in PIE only.
+- **One hazard with a face — Built 20 Oct (#13), greybox:** a big brown dog sleeps by its kennel 30 m into WIGGLY ROAD. During a run, while the car is on its stretch (from 50 m before WIGGLY ROAD to COBBLE CURVE), it chases at 1450 cm/s (a car flat out escapes): it hangs off the nearest tyre for 2.5 s (wear 0.15/s, a 35 % chance of a flat when it lets go, then 5 s before the next bite), or grabs a squirrel on foot within 9 m and flings it ("THE DOG GOT YOU!"). A honk within 25 m scares it off for 10 s. WOOF! / CHOMP! / YIPE! over it, and "THE DOG'S GOT A TYRE!  HONK!" as a callout. Checked by script in PIE only. With the story (Demo) it becomes TINY: chained in THE JUNKYARD, then a chase out of it that can't bite, then this ambush from COBBLE CURVE down THE DESCENT ([Story.md](Story.md#cobble-curve-and-the-descent-tinys-ambush)).
 - **Roadblocks and a wrecking ball — Built 20 Oct (G6), placed in L_Route:** a broken-down sports car across PINE PASS (1445 m, 26 m drop beside it), a fallen pine across THE HAIRPIN (1550 m, 56 m drop), a rockslide on ROCKY ROAD (2465 m), and three pinch points of rocks and logs at the biggest drops elsewhere (COBBLE LANE 560 m, WIGGLY ROAD 3660 m, HOME STRETCH 4700 m). Each covers the trail from the wall side and leaves 3.5 m (pinch points 4.5 m) open along the drop: slow and careful gets through, rushing clips the block (crash damage) or goes over the edge (Hold R, −3 acorns). On THE BRIDGE (1850 m, the 8 m deck has no rails) a wrecking ball swings across the deck every 4.5 s: it shoves the car (in PIE it knocked the autopilot's car off the bridge into the gorge) and knocks out any squirrel it touches ("WRECKING BALL!"). Checked by script in PIE; nobody has driven through them.
 - **Bird steals a squirrel; pothole frenzy — Later (#22).**
 
@@ -127,13 +129,15 @@ Design in [Story.md](Story.md); build order in [Roadmap.md](Roadmap.md#story-dem
 | Stopwatch and par medals replace the deadline | Demo |
 | Checkpoints at each section start and camp; a wreck rewinds to the last one (+30 s); host Continue | Demo |
 | A camp that waits for the jeep and every squirrel ("WAITING FOR <name>") | Demo |
-| CB radio lines (Dispatcher, Beaver foreman, Trucker, Conspiracy guy), subtitled, event-triggered | Demo |
-| THE PARK re-themed as the crash site and junkyard | Demo |
-| Road fork: the excavator (Tracks / Boom / Bucket) smashes a ranger station, or the long road with an acorn cache | Demo |
+| CB radio lines (Dispatch, Foreman Buck, Gravy Train, Night Owl), subtitled, event-triggered: 114 for Chapter 1 in [story/RadioScript.md](story/RadioScript.md) | Demo |
+| THE PARK becomes THE JUNKYARD (the crashed Acornucopia truck, TINY chained up, the deer); the jeep starts in pieces and building it is the tutorial; an intro card on the loading screen | Demo |
+| Section renames: THE PARK → THE JUNKYARD, HOME STRETCH → THE DESCENT, THE DEPOT → THE CAMPGROUND | Demo |
+| Road fork at the top of WIGGLY ROAD: BUCK'S CUT, where the excavator (Tracks / Boom / Bucket) knocks down a ranger station, or WIGGLY ROAD with an Acornucopia picnic hamper (the acorn cache) | Demo |
+| TINY (the dog) re-staged: chained in THE JUNKYARD, a chase out of it at the start that can't bite, then the ambush from COBBLE CURVE down THE DESCENT | Demo |
 | Golden acorns (the cargo re-themed; count may rise from 40) | Demo |
 | Snow creeping in when behind par | Demo |
-| Demo ending: a cliffhanger, a teaser of the coming vehicles, "Follow on itch.io" | Demo |
-| Chapters 2–6, seamless travel between chapter maps, the sand pickup, bus, crane / tow truck and snowplow, the ending cut | Later |
+| Demo ending: the honk test (Dispatch asks the crew to honk, and answers the count), a teaser of the coming machines, "Follow on itch.io" | Demo |
+| Chapters 2–6 (one day each), seamless travel between chapter maps, the sand pickup, school bus, crane truck and snowplow, the endings | Later |
 
 ## Later (after the demo)
 Twitch chat integration (chat breaks a part or sends a pothole), hats and cosmetics from awards, more parts (the horn breaks, the steering wheel falls off, seat springs launch you), route variety, a kill-cam / instant replay, key rebinding. Order and notes: [Roadmap.md](Roadmap.md#tier-3-after-the-demo).

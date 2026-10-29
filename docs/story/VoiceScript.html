@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Squirrel Wheels - Voice Script</title>
+<!-- Template for the voice actor's script. Tools/Docs/MakePdf.ps1 replaces each LINES:X marker comment with voice X's
+     lines from docs/story/RadioScript.md, fills {{COUNT:X}}, {{TOTAL}} and {{DATE}}, and prints
+     "Squirrel Wheels - Voice Script.pdf". Edit lines in RadioScript.md, not here.
+     Never call Buck, Gravy Train, Night Owl or Unit Seven "he" or "she". -->
+<style>
+@page { size: A4; margin: 16mm 18mm; }
+body { font-family: "Segoe UI", Arial, sans-serif; color: #2b2118; font-size: 11pt; line-height: 1.45; }
+h1 { font-size: 26pt; margin: 0 0 2px; color: #7a4a12; }
+.sub { color: #8a7560; margin: 0 0 14px; font-size: 11pt; }
+h2 { font-size: 15pt; color: #7a4a12; border-bottom: 2px solid #e8c27a; padding-bottom: 3px; margin: 18px 0 8px; page-break-after: avoid; }
+h2 .count { float: right; font-size: 11pt; font-weight: normal; color: #8a7560; margin-top: 5px; }
+p { margin: 6px 0; }
+ul { margin: 6px 0; padding-left: 20px; } li { margin: 3px 0; }
+.box { background: #fff3cd; border: 1px solid #e8c27a; padding: 9px 14px; border-radius: 4px; margin: 10px 0; page-break-inside: avoid; }
+table.parts { border-collapse: collapse; margin: 6px 0 8px; }
+table.parts td, table.parts th { border-bottom: 1px solid #ecdcc0; padding: 4px 14px 4px 0; text-align: left; }
+table.parts th { color: #7a4a12; }
+.part { page-break-before: always; }
+.card { border-left: 5px solid #e8a33d; background: #fdf6ea; padding: 6px 14px; border-radius: 4px; margin: 6px 0 14px; page-break-inside: avoid; }
+.card .sample { font-size: 12pt; margin-top: 8px; }
+.moment { margin: 9px 0 11px; page-break-inside: avoid; }
+.when { margin: 0 0 3px; color: #5d4a38; font-size: 10pt; }
+.scene { display: inline-block; font-size: 7.5pt; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: #b08a5a; border-radius: 3px; padding: 0 5px; margin-right: 6px; vertical-align: 1px; }
+.take { display: grid; grid-template-columns: 15mm 1fr; column-gap: 3mm; margin: 3px 0; }
+.take .id { font-weight: 700; color: #7a4a12; font-family: Consolas, "Courier New", monospace; font-size: 10.5pt; padding-top: 2px; }
+.take .q { font-size: 12pt; }
+.take .dir { grid-column: 2; color: #9a6a2a; font-style: italic; font-size: 9.5pt; }
+.thanks { text-align: center; color: #8a7560; margin-top: 18px; }
+</style></head><body>
+
+<h1>Squirrel Wheels</h1>
+<p class="sub">Voice script &middot; the opening and Chapter 1 &middot; working title &middot; read-through draft &middot; {{DATE}}</p>
+
+<p>Thanks again for the voice sample! This is the real script for the first part of the game: every line the radio says in the opening and Chapter 1, which will be the free demo. It's {{TOTAL}} lines, but most of them are one short sentence.</p>
+
+<div class="box"><b>For now, please just read it. Don't record yet.</b> Read it through (out loud, if you like) and send me notes: lines that are awkward to say, jokes that don't land, characters that don't feel right, better lines you think of. We'll record once the game's radio is built, after 28 November, because lines will change while it's being built.</div>
+
+<h2>The story so far</h2>
+<p>A crew of squirrels from the Old Oak, a huge tree in a city park, got bored of plain acorns. They snuck onto a delivery truck from Acornucopia (&ldquo;fine glazed acorns since 1962&rdquo;) for a taste of its famous golden acorns. The truck didn't stop for three days. Then it swerved for a deer and crashed into a mountain junkyard. The squirrels build a jeep out of a toy and junk, load up the golden acorns, and set off home: six days of road, racing the first snow.</p>
+<p>The radio in their jeep is the truck's own radio. In the crash its talk button got stuck, so it broadcasts everything around the jeep: the engine, the crashes, the horn. That's how Dispatch hears the jeep without seeing it, and every crate has a GPS tag, so she always knows where her cargo is. All day she thinks she's talking to the truck's driver, Unit Seven. At the end of Chapter 1, she starts to suspect she isn't.</p>
+<p>A huge junkyard dog called TINY chases them. A beaver called Foreman Buck keeps losing machines to them. A trucker called Gravy Train watches it all, and a conspiracy caller called Night Owl is sure it's all part of a plan.</p>
+
+<h2>How the radio works in the game</h2>
+<ul>
+<li><b>The squirrels never talk.</b> Everything players hear comes from you, over the radio.</li>
+<li><b>Each line plays on its own</b> when something happens in the game, in any order, so every line has to make sense by itself.</li>
+<li><b>Players hear you mid-chaos.</b> Short and punchy beats slow and subtle, and clear words matter more than accents.</li>
+<li><b>Lines marked a, b (c, d...)</b> are different ways to say the same moment, so the game doesn't repeat itself. Record all of them.</li>
+<li><b>Subtitles are always on,</b> so feel free to play with timing and pauses.</li>
+</ul>
+
+<h2>How to read the script</h2>
+<ul>
+<li>Lines are <b>grouped by character</b>, so you can stay in one voice. Each one has an <b>ID</b> (like D-12), <b>what's happening</b> in the game (small grey text), <b>the line</b>, and a <i>direction note</i>.</li>
+<li><b>...</b> is a beat or a pause. <b>CAPITALS</b> are louder. A dash at the end (&mdash;) means you get cut off mid-word. <i>kssht</i> is radio static that gets added later: don't say it.</li>
+<li><b>The honk test</b> (D-20 to D-25): at the end of the chapter Dispatch asks the players to honk the jeep's horn, and her next line depends on what they do. Record all of them.</li>
+</ul>
+
+<h2>The parts</h2>
+<table class="parts">
+<tr><th>Part</th><th>Who plays it</th><th>Lines</th></tr>
+<tr><td>Dispatch</td><td>you</td><td>{{COUNT:D}}</td></tr>
+<tr><td>Foreman Buck</td><td>you, or a friend</td><td>{{COUNT:B}}</td></tr>
+<tr><td>Gravy Train</td><td>you, or a friend</td><td>{{COUNT:G}}</td></tr>
+<tr><td>Night Owl</td><td>you, or a friend</td><td>{{COUNT:N}}</td></tr>
+<tr><td>Unit Seven</td><td>anyone</td><td>one line at the very end of the game; it comes later</td></tr>
+</table>
+<p>Every part except Dispatch is open: play it yourself, or hand it to a friend. A clearly different voice for each caller helps players tell them apart over the static. Each part starts on a new page, so you can give a friend just their pages.</p>
+
+<h2>When we record (after 28 November)</h2>
+<ul>
+<li>Say the line's ID before each take: <b>&ldquo;D-12, take one&rdquo;</b>, then the line.</li>
+<li>Record in long files. There's no need to cut or name anything: I'll cut them up.</li>
+<li>Two or three takes of each line: one as written, one bigger, and one your own way.</li>
+<li>Leave a second of silence between takes.</li>
+<li>Find a quiet room with soft things around (a wardrobe full of clothes is a classic). Any decent mic works; a phone is fine to start with.</li>
+<li>Record it clean: the radio crackle gets added in the game.</li>
+<li><b>Ad-libs are very welcome.</b> If a line could be funnier, record your version too.</li>
+</ul>
+
+<section class="part">
+<h2>Dispatch <span class="count">{{COUNT:D}} lines &middot; your part</span></h2>
+<div class="card">
+<p><b>Who:</b> Acornucopia's radio dispatcher. She tracks every truck by GPS and has said &ldquo;Unit Seven, this is Dispatch&rdquo; ten thousand times. All week she calls the driver on a radio that's now bolted into a squirrel jeep.</p>
+<p><b>How she sounds:</b> your own voice, dry and deadpan. Very professional about very stupid things. Her pauses (...) are where the comedy lives: she's reading her screen and slowly understanding.</p>
+<p><b>Her week:</b> by the book in Chapter 1, until the honk test at the end shakes her. Over the next chapters she becomes the crew's biggest fan, and at the end she covers for them.</p>
+<p class="sample">&ldquo;Unit Seven, this is Dispatch. Be advised: your cargo has left the truck. ...Your cargo is driving. Over.&rdquo;</p>
+</div>
+<!--LINES:D-->
+</section>
+
+<section class="part">
+<h2>Foreman Buck <span class="count">{{COUNT:B}} lines</span></h2>
+<div class="card">
+<p><b>Who:</b> a beaver who runs a construction company, Buck &amp; Sons. Buck's crew is working on the road the squirrels drive, and Buck keeps losing machines to them, starting with the digger in Chapter 1.</p>
+<p><b>How Buck sounds:</b> jittery and fast, talking over everything, panicking, deeply protective of every machine.</p>
+<p><b>Buck's week:</b> furious, then confused, then resigned, then grateful, because the squirrels keep doing the jobs on Buck's to-do list by accident. In the last chapter Buck drives the snowplow for them.</p>
+<p class="sample">&ldquo;No-no-no-no, don't touch the&mdash; that's my digger, that's a WORK digger&mdash; ...oh, they're touching it.&rdquo;</p>
+</div>
+<!--LINES:B-->
+</section>
+
+<section class="part">
+<h2>Gravy Train <span class="count">{{COUNT:G}} lines</span></h2>
+<div class="card">
+<p><b>Who:</b> a trucker (Gravy Train is the radio nickname) on the same roads all week. Gravy Train sees what Dispatch can only hear: the fires, the squirrels falling out, the dog, and calls out the squirrels by fur colour (orange, blue, pink, lime).</p>
+<p><b>How Gravy Train sounds:</b> big, warm, a slow drawl. A natural gossip who loves the radio and laughs easily.</p>
+<p><b>Gravy Train's week:</b> the first to spot the jeep, then its biggest fan. There's a fan club by Chapter 3.</p>
+<p class="sample">&ldquo;Breaker breaker, this is Gravy Train. Just got passed by a jeep with squirrels in it. And one of 'em was steerin' with its whole body.&rdquo;</p>
+</div>
+<!--LINES:G-->
+</section>
+
+<section class="part">
+<h2>Night Owl <span class="count">{{COUNT:N}} lines</span></h2>
+<div class="card">
+<p><b>Who:</b> a conspiracy caller who listens to the radio all night, and now all day too. Absolutely sure the squirrels are organising. Right about everything; nobody believes a word.</p>
+<p><b>How Night Owl sounds:</b> whispery, close to the mic, paranoid and completely certain, with sudden bursts of CAPITALS.</p>
+<p><b>Night Owl's week:</b> the theories grow every chapter, from &ldquo;they're organised&rdquo; to &ldquo;they're going home, under OUR parks&rdquo;. Night Owl gets the very last line of the game.</p>
+<p class="sample">&ldquo;They're organised now. First the bird feeders, now the vehicles. Next? The infrastructure.&rdquo;</p>
+</div>
+<!--LINES:N-->
+</section>
+
+<p class="thanks">Questions, ideas, a better joke? Send them any time. Thank you!</p>
+</body></html>
