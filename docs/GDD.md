@@ -9,6 +9,8 @@ Schedule and ranked backlog: [Roadmap.md](Roadmap.md). Asset sources and licence
 ## Pitch
 2–4 tiny squirrels drive one human-sized, open-top, falling-apart car from the park to the depot. One holds the WHEEL, one jumps on the PEDALS, and everyone else (plus anyone who bails from a seat) keeps the car alive.
 
+**Story (decided 29 Oct, Later: after friend test 3):** the squirrels steal **golden acorns** from a gourmet delivery truck, are carried far from home, build the junk jeep at the junkyard where the truck crashes, and race home before the first snow. It brings a stopwatch instead of the deadline, checkpoints, chapters joined by camps, road forks, helper vehicles (an excavator first) and a CB-radio voice. Everything is in [Story.md](Story.md). The sections below describe the game as built today.
+
 ## Core loop (6–10 min run, 8:00 deadline) — Built
 - Both seats must be filled to drive. Squirrels hop between stations constantly.
 - Breakdowns come faster as the run goes on. Each repair has its own readable action:
@@ -25,6 +27,7 @@ Schedule and ranked backlog: [Roadmap.md](Roadmap.md). Asset sources and licence
 - Flipped car: 2 squirrels push at once to right it.
 - **Score:** acorns still in the open bed at the depot (10 each), plus 2 per second left, minus 25 per respawn. The 40 acorns spill on bumps, hard braking and crashes; a flip dumps a quarter of them.
 - **Bad endings:** the deadline runs out, or a total wreck (3+ parts failed for 10 s). Both score 0. Every run ends on the stats screen.
+- **With the story (Later, [Story.md](Story.md)):** the deadline becomes a stopwatch with per-chapter par times (Golden Acorn / Acorn / Late medals). Score = acorns × 10 + a bonus for beating par − respawns. Running out of time no longer loses: you just get the late ending. A total wreck rewinds to the last checkpoint with +30 s instead of ending the run.
 
 ## Route — Built
 The park-to-depot trail: about 5.4 km in 17 named sections, each announced by a roadside sign and a HUD banner. The deadline is 9:00. It was 3.5 km / 8:00 until friend test 1 (17 Oct), where run 1 finished with half the deadline left and everyone called it too short; the sections added then are marked *new*.
@@ -115,6 +118,22 @@ Built for screenshots.
 ## Online
 - **Built:** Steam, listen server, up to 4 squirrels; host / invite / join / start / restart / leave from the lobby menu; AppID 480 in dev.
 - **Open question:** AppID 480 for the public itch build ([Roadmap.md](Roadmap.md#decisions-waiting-on-you)).
+
+## Story mode — Demo (Chapter 1, after friend test 3) / Later (Ch2–6)
+Design in [Story.md](Story.md); build order in [Roadmap.md](Roadmap.md#story-demo-after-friend-test-3).
+
+| Feature | Status |
+|---|---|
+| Stopwatch and par medals replace the deadline | Demo |
+| Checkpoints at each section start and camp; a wreck rewinds to the last one (+30 s); host Continue | Demo |
+| A camp that waits for the jeep and every squirrel ("WAITING FOR <name>") | Demo |
+| CB radio lines (Dispatcher, Beaver foreman, Trucker, Conspiracy guy), subtitled, event-triggered | Demo |
+| THE PARK re-themed as the crash site and junkyard | Demo |
+| Road fork: the excavator (Tracks / Boom / Bucket) smashes a ranger station, or the long road with an acorn cache | Demo |
+| Golden acorns (the cargo re-themed; count may rise from 40) | Demo |
+| Snow creeping in when behind par | Demo |
+| Demo ending: a cliffhanger, a teaser of the coming vehicles, "Follow on itch.io" | Demo |
+| Chapters 2–6, seamless travel between chapter maps, the sand pickup, bus, crane / tow truck and snowplow, the ending cut | Later |
 
 ## Later (after the demo)
 Twitch chat integration (chat breaks a part or sends a pothole), hats and cosmetics from awards, more parts (the horn breaks, the steering wheel falls off, seat springs launch you), route variety, a kill-cam / instant replay, key rebinding. Order and notes: [Roadmap.md](Roadmap.md#tier-3-after-the-demo).

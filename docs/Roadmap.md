@@ -23,6 +23,20 @@ The 24 Oct demo is dropped. Friend test 3 on **Sat 28 Nov** checks whether the r
 
 **Out of scope this month:** #9 (pedal-seat blind camera), #11 (pick acorns back up), more route length (wait for the 7 Nov run's time), Tier 3.
 
+## Story demo (after friend test 3)
+Decided 29 Oct ([Story.md](Story.md)). **Friend test 3's scope does not change**: none of this starts before 28 Nov. If friend test 3 passes, the public demo becomes **Chapter 1, The Crash Site**, and the ~12 Dec date may slip for it (the user's call). Build order:
+
+| # | Item | Effort | Note |
+|---|---|---|---|
+| S1 | Stopwatch and par medals instead of the deadline; new score (acorns × 10 + par bonus − respawns) | M | `ANBRunGameMode`, `ANBRunGameState`, the HUD clock and end screen. Changes a locked decision (done in CLAUDE.md). |
+| S2 | Checkpoints (section starts + camp) and the wreck rewind (+30 s); host Continue from a save | L | Snapshot the car, acorns, parts and stopwatch; reuse `ANBCar::TeleportCar`. The camp waits for the jeep and every squirrel. |
+| S3 | CB radio line system (event triggers, variants, cooldown, subtitles) + the VA brief | M | Sample for the VA: [VA_Sample.md](VA_Sample.md). Placeholder text lines until the recordings arrive. |
+| S4 | Re-theme THE PARK as the crash site and junkyard (crashed truck, spilled crates) | M | Keeps the control boards as the tutorial. |
+| S5 | The excavator (Tracks / Boom / Bucket seats, 1–2 parts), a jeep parking bay, a destructible ranger station, and the fork: the long road with an acorn cache | L | The biggest item. Needs a CC0/CC-BY excavator model ([Assets.md](Assets.md)). |
+| S6 | Golden acorns (tint or a new model; maybe more than 40) | S | |
+| S7 | Snow creep when behind par | M | Cosmetic. |
+| S8 | Demo ending: radio cliffhanger, a teaser card of the 4 coming vehicles, "Follow on itch.io" | S | |
+
 ## History: where we were (2026-10-12)
 - M0, M1 and M2 are code-complete. M2 finished on 9 Oct, three days early. The end-screen stats (planned for M3a) and the sound/VFX slots are done too.
 - All of it is verified only by Python scripts in PIE. Nobody has played a run by hand, and the only packaged build (6 Oct) predates M1 and M2.
@@ -251,3 +265,4 @@ The review is in [Playtest.md](Playtest.md#luigis-extra-review-discord-18-oct-sa
 | **Final title** | By friend test 3 (28 Nov): ask the testers | Shortlist from the tests so far: Squarrel, Go Nuts, Roll Deez Nuts, Nuts and Bolts, Rodent Racing |
 | **Public demo date** | After friend test 3 | ~Sat 12 Dec, if the scores are good |
 | **Side tasks** design | After 7 Nov | A design session before any code |
+| **Story** | Decided 29 Oct | Golden acorn heist, 6 chapters, the demo is Chapter 1 with the excavator fork ([Story.md](Story.md)) |
