@@ -114,6 +114,8 @@ private:
 	/** A check box with a label beside it. */
 	UCheckBox* AddCheckRow(UVerticalBox* Box, const FString& Label, bool bChecked);
 	void RefreshSliderTexts();
+	/** Lists the mics again (Options opened) and selects the saved one. */
+	void RefreshMicDevices();
 	void ShowTab(EOptionsTab Tab);
 	/** Fill the display combos from the current UGameUserSettings. */
 	void RefreshDisplayOptions();
@@ -208,6 +210,12 @@ private:
 	UFUNCTION()
 	void HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& Devices);
 
+	UFUNCTION()
+	void HandleMicDevice(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	/** The first entry of both device lists ("" = the system default). Not "Windows default": there's a Linux build. */
+	inline static const FString SystemDefaultEntry = TEXT("System default");
+
 	bool bShowSettings = false;
 	EOptionsTab CurrentTab = EOptionsTab::Sound;
 
@@ -266,6 +274,10 @@ private:
 
 	/** Combo entry -> device id ("" = the system default). */
 	TMap<FString, FString> DeviceIds;
+
+	/** Entries are the mics' names; SystemDefaultEntry = "". */
+	UPROPERTY(Transient)
+	TObjectPtr<UComboBoxString> MicDeviceCombo;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ModeText;

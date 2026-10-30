@@ -174,10 +174,14 @@ void UNBLobbyMenu::BuildSoundPage(UVerticalBox* Page)
 	OnDevices.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UNBLobbyMenu, HandleDevicesObtained));
 	UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(this, OnDevices);
 
+	MicDeviceCombo = AddComboRow(Page, TEXT("Microphone"), TEXT("MicDevice"));
+	MicDeviceCombo->OnSelectionChanged.AddDynamic(this, &UNBLobbyMenu::HandleMicDevice);
+	RefreshMicDevices();
+
 	UTextBlock* MicNote = AddText(Page, 13, DimColor);
 	MicNote->SetAutoWrapText(true);
-	MicNote->SetText(FText::FromString(TEXT("The mic is Windows' default input device: pick it in Windows Sound settings (Input). "
-		"Others too quiet? Raise Voices. They can't hear you? Raise Mic boost.")));
+	MicNote->SetText(FText::FromString(TEXT("Nobody hears you? Pick your mic above, then raise Mic boost. "
+		"Others too quiet? Raise Voices.")));
 	TabFirstControls.Add(GameVolumeSlider);
 }
 
@@ -548,6 +552,8 @@ void UNBLobbyMenu::ShowTab(EOptionsTab Tab)
 void UNBLobbyMenu::HandleSettings()
 {
 	bShowSettings = true;
+	// So a mic plugged in after launch shows up.
+	RefreshMicDevices();
 	Refresh();
 	ShowTab(CurrentTab);
 }
@@ -773,6 +779,48 @@ void UNBLobbyMenu::HandleOutputDevice(FString SelectedItem, ESelectInfo::Type Se
 	}
 }
 
+void UNBLobbyMenu::RefreshMicDevices()
+{
+	if (!MicDeviceCombo)
+	{
+		return;
+	}
+	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	const FString Current = Audio && !Audio->GetMicDevice().IsEmpty() ? Audio->GetMicDevice() : SystemDefaultEntry;
+	TArray<FString> Wanted = UNBAudioSettings::GetMicDevices();
+	Wanted.Insert(SystemDefaultEntry, 0);
+	// A saved mic that isn't plugged in stays chosen: voice uses the default until it's back.
+	Wanted.AddUnique(Current);
+	// Updated in place, not cleared: ClearOptions keeps the old selection's name, so selecting it
+	// again afterwards does nothing and the box shows blank.
+	for (int32 Index = MicDeviceCombo->GetOptionCount() - 1; Index >= 0; --Index)
+	{
+		const FString Option = MicDeviceCombo->GetOptionAtIndex(Index);
+		if (!Wanted.Contains(Option))
+		{
+			MicDeviceCombo->RemoveOption(Option);
+		}
+	}
+	for (const FString& Mic : Wanted)
+	{
+		if (MicDeviceCombo->FindOptionIndex(Mic) == INDEX_NONE)
+		{
+			MicDeviceCombo->AddOption(Mic);
+		}
+	}
+	MicDeviceCombo->SetSelectedOption(Current);
+}
+
+void UNBLobbyMenu::HandleMicDevice(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	// Direct is our own SetSelectedOption while filling the list.
+	UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
+	if (Audio && SelectionType != ESelectInfo::Direct)
+	{
+		Audio->SetMicDevice(SelectedItem == SystemDefaultEntry ? FString() : SelectedItem);
+	}
+}
+
 void UNBLobbyMenu::HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& Devices)
 {
 	if (!OutputDeviceCombo)
@@ -781,12 +829,11 @@ void UNBLobbyMenu::HandleDevicesObtained(const TArray<FAudioOutputDeviceInfo>& D
 	}
 	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
 	const FString Current = Audio ? Audio->GetOutputDeviceId() : FString();
-	static const FString DefaultEntry(TEXT("Windows default"));
 	OutputDeviceCombo->ClearOptions();
 	DeviceIds.Reset();
-	OutputDeviceCombo->AddOption(DefaultEntry);
-	DeviceIds.Add(DefaultEntry, FString());
-	FString Selected = DefaultEntry;
+	OutputDeviceCombo->AddOption(SystemDefaultEntry);
+	DeviceIds.Add(SystemDefaultEntry, FString());
+	FString Selected = SystemDefaultEntry;
 	for (const FAudioOutputDeviceInfo& Device : Devices)
 	{
 		FString Entry = Device.Name;

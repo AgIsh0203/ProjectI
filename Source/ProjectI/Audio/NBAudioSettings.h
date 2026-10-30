@@ -12,9 +12,8 @@ struct FAudioOutputDeviceInfo;
 /**
  * The player's sound and voice settings, saved per user (GameUserSettings.ini) and applied
  * on start. Game volume scales everything; voice volume scales the other squirrels' voices
- * on top of it; mic boost amplifies what this player sends. The mic itself is Windows'
- * default input: UE's Steam voice capture opens the default device and has no public way to
- * pick another.
+ * on top of it; mic boost amplifies what this player sends. The mic is picked by name through
+ * the engine fork's voice.CaptureDevice (ERODEX; stock UE only opens the system default).
  */
 UCLASS(config = GameUserSettings)
 class PROJECTI_API UNBAudioSettings : public UGameInstanceSubsystem
@@ -31,6 +30,10 @@ public:
 	float GetVoiceVolume() const { return VoiceVolume; }
 	float GetMicBoost() const { return MicBoost; }
 	const FString& GetOutputDeviceId() const { return OutputDeviceId; }
+	/** The mic voice chat sends from, by name; empty = the system default. */
+	const FString& GetMicDevice() const { return MicDevice; }
+	/** The mics this machine has, listed fresh (Windows and Linux; empty elsewhere). */
+	static TArray<FString> GetMicDevices();
 	/** Push to talk: the mic only sends while ENBBinding::PushToTalk (or its gamepad button) is held. Off = open mic. */
 	bool IsPushToTalk() const { return bPushToTalk; }
 
@@ -40,6 +43,8 @@ public:
 	void SetPushToTalk(bool bOn);
 	/** Empty = the system default. */
 	void SetOutputDevice(const FString& DeviceId);
+	/** Empty = the system default. The voice engine switches on its next tick, mid-talk too. */
+	void SetMicDevice(const FString& DeviceName);
 
 	/** A remote squirrel started talking: keep its voice at VoiceVolume, now and on later changes. */
 	void AddVoiceComponent(UAudioComponent* Voice);
@@ -51,6 +56,7 @@ public:
 private:
 	void ApplyGameVolume() const;
 	void ApplyMicBoost() const;
+	void ApplyMicDevice() const;
 	void ApplyVoiceVolume();
 	/** What each voice component's volume is set to: VoiceVolume, independent of GameVolume. */
 	float GetVoiceMultiplier() const;
@@ -81,6 +87,10 @@ private:
 
 	UPROPERTY(config)
 	FString OutputDeviceId;
+
+	/** Friend review 30 Oct: an external mic didn't work (on Linux, where the default input is often the built-in one). */
+	UPROPERTY(config)
+	FString MicDevice;
 
 	UPROPERTY(config)
 	bool bPushToTalk = false;

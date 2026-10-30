@@ -12,6 +12,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/UObjectIterator.h"
+#include "VoiceCaptureDevices.h"
 
 void UNBAudioSettings::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -21,6 +22,9 @@ void UNBAudioSettings::Initialize(FSubsystemCollectionBase& Collection)
 	MicBoost = FMath::Clamp(MicBoost, 0.f, MaxMicBoost);
 	ApplyGameVolume();
 	ApplyMicBoost();
+	ApplyMicDevice();
+	// In every log, so a tester's "nobody hears me" can be read from it.
+	UE_LOG(LogTemp, Log, TEXT("NBVoice: mic '%s' (empty = default); mics here: %s"), *MicDevice, *FString::Join(GetMicDevices(), TEXT(" | ")));
 	if (!OutputDeviceId.IsEmpty())
 	{
 		SetOutputDevice(OutputDeviceId);
@@ -109,6 +113,19 @@ void UNBAudioSettings::SetOutputDevice(const FString& DeviceId)
 	UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(GetGameInstance(), DeviceId, FOnCompletedDeviceSwap());
 }
 
+TArray<FString> UNBAudioSettings::GetMicDevices()
+{
+	return VoiceCaptureDevices::GetNames();
+}
+
+void UNBAudioSettings::SetMicDevice(const FString& DeviceName)
+{
+	MicDevice = DeviceName;
+	UE_LOG(LogTemp, Log, TEXT("NBVoice: mic set to '%s' (empty = default)"), *MicDevice);
+	ApplyMicDevice();
+	Save();
+}
+
 void UNBAudioSettings::AddVoiceComponent(UAudioComponent* Voice)
 {
 	if (!Voice)
@@ -136,6 +153,16 @@ void UNBAudioSettings::ApplyMicBoost() const
 	if (IConsoleVariable* Gain = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicInputGain")))
 	{
 		Gain->Set(MicBoost, ECVF_SetByGameSetting);
+	}
+}
+
+void UNBAudioSettings::ApplyMicDevice() const
+{
+	// The voice engine reads it when it opens the mic and switches when it changes. A mic that
+	// isn't there any more falls back to the default there.
+	if (IConsoleVariable* Device = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.CaptureDevice")))
+	{
+		Device->Set(*MicDevice, ECVF_SetByGameSetting);
 	}
 }
 

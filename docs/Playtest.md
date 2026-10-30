@@ -135,6 +135,21 @@ Written after the form above, so it's about the flat route before F1–F9 and th
 - **Setting:** nothing ties the game to the players being squirrels. Suggests squirrels getting home over dangerous tree branches and rivers, using the environment, with reasons to get out of the vehicle, e.g. finding spare parts for a makeshift (Flintstones-style) car.
 - Where each point went: [Roadmap.md](Roadmap.md#luigis-review-18-oct-where-it-went).
 
+## Friend review (30 Oct)
+One friend played on 30 Oct and wrote it up for the user (which build, and on which OS, still to ask: the mic note suggests the 20 Oct Linux build).
+- **External mic not working**, maybe Linux only. UE's voice capture opens the system default input device (`UNBAudioSettings` can't pick a mic), so on Linux the default PulseAudio/PipeWire source must be the external mic. Never checked: no Linux PC here.
+- **The door is too fragile.** In the code: every seat hop adds `DoorWearPerHop` 0.15 of door wear (`ANBCar::NoteSeatHop`), and wear heals only `WearRecoveryRate` 0.006/s (25 s per hop). Two hops make the door ~4× likelier than a fresh part to be the director's next pick (`FreshWeight` 0.3 + `WearBias` 10 × wear²), and four quick hops pass `WearHazardStart` 0.6, where it can break by itself. Crashes on the door's side wear it too.
+- **"Show me what damages each part"**, e.g. if I knew what makes the door fly open I'd try to avoid it. Nothing in the game says that hopping seats loosens the door, rough ground eats tyres, etc.; the damage meter shows how worn a part is, not why.
+- **E cycles to the next seat;** suggests holding E for a seat wheel and picking where to jump.
+- **Suggestions:** collect acorns; tyres wear out and need replacing by at least 2 squirrels; checkpoints far apart instead of a time attack, saved only there ("RV There Yet?"); fuel.
+- Where each point went: [Roadmap.md](Roadmap.md#friend-review-30-oct-where-it-went).
+
+## Mic picker (30 Oct): check by hand
+Esc > Options > Sound > Microphone. Checked on Windows by log only (`-game -nosteam` with a Null session): the list, opening a mic by name, switching mid-session, a missing mic falling back to the default. Needs a new build (the engine changed too).
+- [ ] Windows: pick another mic mid-run; the crew still hears you, now on that mic.
+- [ ] **Linux** (the friend from 30 Oct): the external mic is in the list, picking it makes them heard. Never run: no Linux PC here. If not, their log's `NBVoice: mic ... mics here:` line and any `LogVoiceCapture` lines say why.
+- [ ] Unplug the chosen mic and relaunch: the list still shows it chosen, voice uses the default.
+
 ## Next test: check the friend-test fixes
 - [ ] The restart works on Steam: the end screen, then the next run, with every client still in and in voice.
 - [ ] Voice is loud enough without Discord. Esc → Options → Sound: the Voices and Mic boost sliders change it live, the Speakers / headphones list switches device, and the values are still there after a relaunch.

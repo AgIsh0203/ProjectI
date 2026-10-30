@@ -200,6 +200,18 @@ The review is in [Playtest.md](Playtest.md#luigis-extra-review-discord-18-oct-sa
 - **"RV There Yet?":** the 18 Oct terrain was built in that style; keep it in mind for the side-tasks design session.
 - **The squirrel setting (tree branches, home, makeshift car, spare parts):** A2 and the side-tasks session for now. A route over giant tree branches is a bigger idea for after the public demo ([Tier 3](#tier-3-after-the-demo)).
 
+### Friend review (30 Oct): where it went
+The review is in [Playtest.md](Playtest.md#friend-review-30-oct). Proposed items (from the ~25 h kept for what testers find; none started, waiting on the user):
+
+| # | Item | Why | Effort | Touches |
+|---|---|---|---|---|
+| H1 | **A sturdier door:** less wear per seat hop (0.15 → ~0.06) or only hops that pass the door's seat, and faster healing for the door | "Door is too fragile"; seat hops are the cheapest action in the game and each one loosens it | S + feel check | `ANBCar::DoorWearPerHop`, `NoteSeatHop`; per-part recovery in `UpdateWear` |
+| H2 | **What breaks what:** a line under each part on the damage meter naming its live cause while wear rises (DOOR: "seat hops", TYRES: "rough ground", ENGINE: "over-revving"), plus a "what breaks what" card on the PARK boards and the Options page | "If I know what makes the door fly open, I'll try to avoid it." Turns wear into a cause players can play around | S–M | `ANBHUD::DrawDamageMeter`; each wear source in `ANBCar::UpdateWear` / `ApplyCrashDamage` / `NoteSeatHop` stamps a replicated last-cause byte per part |
+| H3 | **Hold E: a seat wheel.** Tap E still hops to the next free seat; hold it (~0.25 s) to show the 5 seats round the car (taken ones greyed) and pick with the mouse / stick, release to jump there | Cycling past the seat you want costs a hop each time (and door wear) | M | `ANBSquirrel` (hold timer, `Server_HopToSeat(Seat)`, reusing `HopToNextSeat`'s checks), `ANBHUD` (the wheel), gamepad X held |
+| H4 | **Pick the mic** (the user, 30 Oct: "just make it so we can choose which mic we use") | Voice is a never-cut feature | M | **Done 30 Oct** (an engine patch, see CLAUDE.md): Options > Sound > Microphone. Checked on Windows in `-game` runs with a Null session: the list, opening by name, switching live, a missing mic falling back to the default. Linux only compiles: nobody has run it (Playtest.md) |
+
+The suggestions: **collect acorns** is #11 (out of scope this month) and the story's golden acorns (S6); **checkpoints instead of time attack** is already decided for the story demo (S1, S2); **tyres that wear out and need 2 squirrels to replace** and **fuel** go to the side-tasks design session (fuel could be a jerrycan to fetch on foot, a reason to leave the car).
+
 ### Tier 1: before the friend test
 | # | Item | Why it's fun | Effort | Touches |
 |---|---|---|---|---|
