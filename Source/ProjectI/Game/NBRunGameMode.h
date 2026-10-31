@@ -167,7 +167,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
 	int32 RespawnPenalty = 25;
 
-	/** Acorn in Mouth: someone gets muted every MuteMinInterval..MuteMaxInterval seconds, for MuteSeconds. */
+	/** Acorn in Mouth: someone's voice is muffled every MuteMinInterval..MuteMaxInterval seconds, for MuteSeconds. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Acorn")
 	float MuteMinInterval = 75.f;
 

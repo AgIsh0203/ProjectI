@@ -1297,7 +1297,7 @@ void ANBHUD::DrawVoiceStatus()
 		{
 			const bool bMe = Stats == Local;
 			const FString Line = bMe
-				? FString::Printf(TEXT("ACORN IN MOUTH!  Muted for %d s  -  use the chat wheel (%s)"), FMath::CeilToInt(Stats->GetMuteSecondsLeft()),
+				? FString::Printf(TEXT("ACORN IN MOUTH!  Your voice is muffled for %d s  -  the chat wheel is clear (%s)"), FMath::CeilToInt(Stats->GetMuteSecondsLeft()),
 					bUsingGamepad ? TEXT("D-pad, LB + D-pad") : TEXT("1-8"))
 				: FString::Printf(TEXT("%s has an acorn in their mouth!  (%d s)"), *Stats->GetPlayerName(), FMath::CeilToInt(Stats->GetMuteSecondsLeft()));
 			DrawCenteredText(Line, Canvas->ClipY * 0.12f + (bMe ? 0.f : 28.f), bMe ? BadColor : ProgressColor, bMe ? 1.5f : 1.1f);

@@ -92,9 +92,9 @@ public:
 	 */
 	float GetHelpfulness() const;
 
-	// --- Acorn in Mouth: muted for a while, but the chat wheel still works. ---
+	// --- Acorn in Mouth: the voice is muffled for a while (muted until 31 Oct); the chat wheel still works. ---
 
-	/** Server world time the mute ends; 0 or in the past = not muted. */
+	/** True while this squirrel has the acorn: every listener muffles its voice (UNBVoiceTalker). */
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	bool IsMuted() const;
 

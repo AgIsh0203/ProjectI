@@ -155,6 +155,15 @@ Another review, plus a 30 s clip (`Desktop 2026.10.30 - 20.10.27.02.DVR.mp4`) of
 - **The clip:** a squirrel on foot mashes the door beside the slowly moving jeep; the jeep rises onto two wheels on that side, then is thrown into the air, rolls and spills everything. The user: standing right over a wheel makes the jeep sink. Cause: UE's character defaults are a 100 kg human (`Mass`, the weight it presses into the floor) pushing with 750 kN (`PushForceFactor`) into any moving physics body it walks into, and the capsule was a kinematic (infinitely heavy) body to Chaos.
 - Where each point went: [Roadmap.md](Roadmap.md#second-review-31-oct-where-it-went).
 
+## Luigi's chat (31 Oct): voice and Acorn in Mouth
+VOIP was better and nothing crashed, but Acorn in Mouth felt like an annoyance, not a challenge: nobody needs to talk, because every seat knows the same things. The whole chat, and questions for a design session, are in [Review_2026-10-31_VoiceAndAcornInMouth.md](Review_2026-10-31_VoiceAndAcornInMouth.md). Tried for the next test: a muffled voice instead of a muted one (below).
+
+## Muffled voice (31 Oct): check by hand
+Acorn in Mouth now muffles the squirrel's voice (a 450 Hz low-pass on every listener's machine, `UNBVoiceTalker`) instead of cutting its mic. Checked in PIE only: the run gives an acorn as before and every squirrel carries an `NBVoiceTalker`. Before this, BP_Squirrel still held the plain engine talker saved on 14 Oct, so **the Voice volume slider never reached anyone's voice** in any build since 17 Oct; it should now.
+- [ ] 2 PCs: when your friend gets the acorn, their voice turns muffled (still understandable?) for 20 s, then clears. Funny, or just annoying?
+- [ ] With the acorn, your banner says your voice is muffled; the pings still work.
+- [ ] Options > Sound > Voice volume now changes how loud your friend is.
+
 ## Squirrel weight and no timer (31 Oct): check by hand
 Checked in 1-player PIE by script: a squirrel standing over each wheel and the middle of the stopped jeep doesn't move it (body height unchanged to 0.1 cm); a squirrel dropped in front of the jeep at 900 cm/s is driven past and the car stays upright; the run counts up past par with no end.
 - [ ] 2 players: one drives slowly, the other mashes the door on foot, walking into the jeep. It shouldn't lift.

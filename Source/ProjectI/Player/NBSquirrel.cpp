@@ -1518,9 +1518,10 @@ void ANBSquirrel::UpdateVoiceMute()
 	{
 		return;
 	}
-	bool bSend = !Stats->IsMuted();
+	// Acorn in Mouth no longer cuts the mic: listeners muffle the voice instead (UNBVoiceTalker).
+	bool bSend = true;
 	const UNBAudioSettings* Audio = UNBAudioSettings::Get(this);
-	if (bSend && Audio && Audio->IsPushToTalk())
+	if (Audio && Audio->IsPushToTalk())
 	{
 		// Polled rather than bound: opening the menu flushes the keys, so a held key can't stick on.
 		const UNBControlSettings* Controls = UNBControlSettings::Get(this);
