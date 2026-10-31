@@ -87,7 +87,7 @@ public:
 	/** Server: the drop-off gate at the end of the road (spawned in BeginPlay). */
 	ANBFinishZone* GetFinishZone() const { return FinishZone; }
 
-	float GetDeadlineSeconds() const { return DeadlineSeconds; }
+	float GetParSeconds() const { return ParSeconds; }
 
 	/** Bake tool (Tools/Route/BakeRoute.py): builds the road, features, signs and props now, in whatever
 	 *  world this is (the editor's), so the script can copy them into level actors. */
@@ -207,9 +207,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Route")
 	TArray<FNBRouteSegment> Segments;
 
-	/** Time to reach the drop-off along this route. The game mode uses it as the run deadline. */
+	/** Par time to the drop-off: delivered runs score per second under it, and the failure director ramps over it. No deadline since 31 Oct. */
 	UPROPERTY(EditAnywhere, Category = "Route")
-	float DeadlineSeconds = 540.f;
+	float ParSeconds = 540.f;
 
 	UPROPERTY(EditAnywhere, Category = "Route")
 	float RoadWidth = 1400.f;

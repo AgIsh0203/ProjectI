@@ -48,6 +48,8 @@
 ANBSquirrel::ANBSquirrel()
 {
 	GetCapsuleComponent()->InitCapsuleSize(16.f, 22.f);
+	// Query only, as RefreshAttachedState keeps it: see there.
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	bUseControllerRotationYaw = false;
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -56,6 +58,14 @@ ANBSquirrel::ANBSquirrel()
 	Movement->MaxWalkSpeed = 650.f;
 	Movement->JumpZVelocity = 520.f;
 	Movement->AirControl = 0.5f;
+	// A squirrel, not the 100 kg human the defaults assume (31 Oct review: standing over a
+	// wheel sank the jeep, and a squirrel walking into its side at the door launched it).
+	// Mass is the weight pressed into whatever it stands on. Walking into a moving body pushes
+	// with PushForceFactor newtons every frame (default 750000, enough to throw the car), into
+	// a resting one with an impulse of InitialPushForceFactor: now a nudge for cones and acorns.
+	Movement->Mass = SquirrelMass;
+	Movement->PushForceFactor = 400.f;
+	Movement->InitialPushForceFactor = 10.f;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -846,7 +856,6 @@ void ANBSquirrel::Server_DevEnd_Implementation(const FString& Result)
 		return;
 	}
 	const ENBRunResult Parsed = Result.Equals(TEXT("Wrecked"), ESearchCase::IgnoreCase) ? ENBRunResult::Wrecked
-		: Result.Equals(TEXT("TimeUp"), ESearchCase::IgnoreCase) ? ENBRunResult::TimeUp
 		: ENBRunResult::Delivered;
 	Mode->DevEndRun(Parsed);
 }
@@ -1071,7 +1080,10 @@ void ANBSquirrel::RefreshAttachedState()
 	const bool bFree = !bRiding && !bLocalRagdoll;
 
 	// Only the capsule: actor-level collision off would also switch off the tumbling body.
-	GetCapsuleComponent()->SetCollisionEnabled(bFree ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+	// Query only: with physics on, Chaos treats the capsule as a kinematic, infinitely heavy
+	// post, so the car driving into a squirrel on foot climbed it and flipped (31 Oct review
+	// video). Movement still sweeps against the car; the car just doesn't feel the squirrel.
+	GetCapsuleComponent()->SetCollisionEnabled(bFree ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	if (bFree)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -1430,6 +1442,8 @@ void ANBSquirrel::StartLocalRagdoll()
 	BodyVisual->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	// It leaves a fast car at driving speed; a body this small can skip through the floor.
 	BodyVisual->BodyInstance.bUseCCD = true;
+	// A flying squirrel bounces off the car without shoving it (the shape alone weighs ~20 kg).
+	BodyVisual->SetMassOverrideInKg(NAME_None, SquirrelMass, true);
 	BodyVisual->SetSimulatePhysics(true);
 	BodyVisual->SetPhysicsLinearVelocity(Ragdoll.Velocity);
 	BodyVisual->SetPhysicsAngularVelocityInDegrees(FVector(720.f, 540.f, 360.f));

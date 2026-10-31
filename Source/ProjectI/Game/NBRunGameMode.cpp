@@ -601,8 +601,9 @@ void ANBRunGameMode::BeginCountdown()
 
 void ANBRunGameMode::BeginDriving()
 {
-	const float Deadline = Route ? Route->GetDeadlineSeconds() : RunSeconds;
-	GetRunState()->SetPhase(ENBRunPhase::Driving, Now() + Deadline);
+	// No deadline (31 Oct, the user: "the timer SUCKS"): a stopwatch, and a bonus for beating par.
+	const float Par = Route ? Route->GetParSeconds() : ParSeconds;
+	GetRunState()->StartDriving(Par);
 	WreckTimer = 0.f;
 	NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	Car->SetRunLocked(false);
@@ -614,7 +615,7 @@ void ANBRunGameMode::BeginDriving()
 	}
 	if (Auto.Speed <= 0.f && !bSolo)
 	{
-		Director->Begin(Car, Deadline);
+		Director->Begin(Car, Par);
 	}
 }
 
@@ -627,12 +628,6 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 		EndRun(ENBRunResult::Delivered);
 		return;
 	}
-	if (State->GetSecondsLeft() <= 0.f)
-	{
-		EndRun(ENBRunResult::TimeUp);
-		return;
-	}
-
 	// Seconds at the controls count toward the MVP pick.
 	for (const ENBSeatRole SeatRole : { ENBSeatRole::Wheel, ENBSeatRole::Pedals, ENBSeatRole::Gears })
 	{
@@ -645,10 +640,7 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 
 	if (Now() >= NextMuteTime)
 	{
-		if (State->GetSecondsLeft() > MuteSeconds)
-		{
-			GiveAcornInMouth();
-		}
+		GiveAcornInMouth();
 		NextMuteTime = Now() + FMath::FRandRange(MuteMinInterval, MuteMaxInterval);
 	}
 
@@ -673,7 +665,7 @@ void ANBRunGameMode::TickDriving(float DeltaSeconds)
 void ANBRunGameMode::EndRun(ENBRunResult Result)
 {
 	ANBRunGameState* State = GetRunState();
-	const float SecondsLeft = State->GetSecondsLeft();
+	const float UnderPar = State->GetParSeconds() - State->GetRunSeconds();
 
 	if (Auto.Speed > 0.f && Auto.Section != INDEX_NONE)
 	{
@@ -694,7 +686,7 @@ void ANBRunGameMode::EndRun(ENBRunResult Result)
 	if (Result == ENBRunResult::Delivered)
 	{
 		Delivered = Car->GetAcorns();
-		TimeBonus = FMath::FloorToInt(SecondsLeft) * PointsPerSecondLeft;
+		TimeBonus = FMath::Max(0, FMath::FloorToInt(UnderPar)) * PointsPerSecondUnderPar;
 		AirBonus = Car->GetAirPoints();
 		for (const APlayerState* Player : GameState->PlayerArray)
 		{

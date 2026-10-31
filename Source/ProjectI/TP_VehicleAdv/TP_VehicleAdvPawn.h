@@ -91,7 +91,7 @@ protected:
 	FTimerHandle FlipCheckTimer;
 
 public:
-	ATP_VehicleAdvPawn();
+	ATP_VehicleAdvPawn(const FObjectInitializer& ObjectInitializer);
 
 	// Begin Pawn interface
 

@@ -10,7 +10,8 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
-ATP_VehicleAdvOffroadCar::ATP_VehicleAdvOffroadCar()
+ATP_VehicleAdvOffroadCar::ATP_VehicleAdvOffroadCar(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// construct the mesh components
 	Chassis = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Chassis"));

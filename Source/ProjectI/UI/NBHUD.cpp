@@ -1102,11 +1102,12 @@ void ANBHUD::DrawRunStatus()
 		break;
 	case ENBRunPhase::Driving:
 	{
-		const int32 Total = FMath::CeilToInt(SecondsLeft);
-		const bool bLow = SecondsLeft < 20.f;
-		const float Blink = bLow ? 0.65f + 0.35f * FMath::Sin(GetWorld()->GetTimeSeconds() * 10.f) : 1.f;
-		const FLinearColor TimeColor = bLow ? FLinearColor(BadColor.R, BadColor.G * Blink, BadColor.B * Blink) : FLinearColor::White;
+		// The stopwatch counts up; past par it dims (no bonus left), never a fail.
+		const int32 Total = FMath::FloorToInt(State->GetRunSeconds());
+		const int32 Par = FMath::RoundToInt(State->GetParSeconds());
+		const FLinearColor TimeColor = Total < Par ? FLinearColor::White : FLinearColor(1.f, 1.f, 1.f, 0.6f);
 		DrawRight(FString::Printf(TEXT("%d:%02d"), Total / 60, Total % 60), 14.f, TimeColor, 2.2f);
+		DrawRight(FString::Printf(TEXT("par %d:%02d"), Par / 60, Par % 60), 50.f, FLinearColor(1.f, 1.f, 1.f, 0.6f), 1.f);
 
 		if (State->GetWreckSeconds() > 0.f)
 		{
@@ -1364,7 +1365,6 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 	switch (State.GetResult())
 	{
 	case ENBRunResult::Delivered: Title = TEXT("ACORNS DELIVERED!"); break;
-	case ENBRunResult::TimeUp:    Title = TEXT("TIME'S UP"); TitleColor = BadColor; break;
 	case ENBRunResult::Wrecked:   Title = TEXT("TOTAL WRECK"); TitleColor = BadColor; break;
 	default: break;
 	}
@@ -1375,7 +1375,9 @@ void ANBHUD::DrawEndScreen(const ANBRunGameState& State)
 	if (State.GetResult() == ENBRunResult::Delivered)
 	{
 		DrawCenteredText(FString::Printf(TEXT("Acorns delivered: %d"), State.GetAcornsDelivered()), Y, FLinearColor::White, 1.3f);
-		DrawCenteredText(FString::Printf(TEXT("Time bonus: +%d"), State.GetTimeBonus()), Y + 30.f, FLinearColor::White, 1.3f);
+		const int32 RunTime = FMath::FloorToInt(State.GetRunSeconds());
+		const int32 Par = FMath::RoundToInt(State.GetParSeconds());
+		DrawCenteredText(FString::Printf(TEXT("Time %d:%02d (par %d:%02d): +%d"), RunTime / 60, RunTime % 60, Par / 60, Par % 60, State.GetTimeBonus()), Y + 30.f, FLinearColor::White, 1.3f);
 		DrawCenteredText(FString::Printf(TEXT("Air bonus: +%d"), State.GetAirBonus()), Y + 60.f, FLinearColor::White, 1.3f);
 		DrawCenteredText(FString::Printf(TEXT("Respawn penalty: -%d"), State.GetRespawnPenalty()), Y + 90.f, FLinearColor::White, 1.3f);
 		if (State.IsManualGears())

@@ -36,5 +36,5 @@ class ATP_VehicleAdvOffroadCar : public ATP_VehicleAdvPawn
 
 public:
 
-	ATP_VehicleAdvOffroadCar();
+	ATP_VehicleAdvOffroadCar(const FObjectInitializer& ObjectInitializer);
 };

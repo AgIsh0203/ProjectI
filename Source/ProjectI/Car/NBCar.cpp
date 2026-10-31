@@ -2,6 +2,8 @@
 
 #include "Car/NBCar.h"
 
+#include "Car/NBVehicleMovement.h"
+
 #include "ChaosVehicleWheel.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/AudioComponent.h"
@@ -29,7 +31,9 @@
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
-ANBCar::ANBCar()
+ANBCar::ANBCar(const FObjectInitializer& ObjectInitializer)
+	// Our movement component: its suspension traces skip hits from above (NBVehicleMovement.h).
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNBVehicleMovementComponent>(AWheeledVehiclePawn::VehicleMovementComponentName))
 {
 	bReplicates = true;
 	SetReplicatingMovement(true);

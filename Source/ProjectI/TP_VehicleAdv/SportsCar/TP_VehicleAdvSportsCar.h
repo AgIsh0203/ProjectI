@@ -16,5 +16,5 @@ class ATP_VehicleAdvSportsCar : public ATP_VehicleAdvPawn
 	
 public:
 
-	ATP_VehicleAdvSportsCar();
+	ATP_VehicleAdvSportsCar(const FObjectInitializer& ObjectInitializer);
 };

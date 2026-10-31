@@ -28,7 +28,7 @@ Decided and expanded 29 Oct ([Story.md](Story.md): the bible, with the Chapter 1
 
 | # | Item | Effort | Note |
 |---|---|---|---|
-| S1 | Stopwatch and par medals instead of the deadline; new score (acorns × 10 + par bonus − respawns) | M | `ANBRunGameMode`, `ANBRunGameState`, the HUD clock and end screen. Changes a locked decision (done in CLAUDE.md). |
+| S1 | Stopwatch and par medals instead of the deadline (stopwatch + par bonus done 31 Oct, R1; medals left); new score (acorns × 10 + par bonus − respawns) | M | `ANBRunGameMode`, `ANBRunGameState`, the HUD clock and end screen. Changes a locked decision (done in CLAUDE.md). |
 | S2 | Checkpoints (section starts + camp) and the wreck rewind (+30 s); host Continue from a save | L | Snapshot the car, acorns, parts and stopwatch; reuse `ANBCar::TeleportCar`. The camp waits for the jeep and every squirrel. |
 | S3 | CB radio line system: triggers, priorities, variants, subtitles; every Chapter 1 line shows as a subtitle until the recordings arrive | M | The lines and the rules: [story/RadioScript.md](story/RadioScript.md) (114 for Chapter 1). The voice actor reads the script now and records once this works. |
 | S4 | THE JUNKYARD: re-theme THE PARK (the crashed Acornucopia truck, spilled crates, TINY's kennel, the deer); the jeep starts in pieces and building it is the tutorial; the intro card; the three section renames; Buck & Sons dressing on THE BRIDGE | L | Keeps the control boards as the tutorial. The renames (THE PARK → THE JUNKYARD, HOME STRETCH → THE DESCENT, THE DEPOT → THE CAMPGROUND) go in `ANBRoute`'s segment list and, by hand, in L_Route's baked signs: a re-bake would lose hand edits. |
@@ -211,6 +211,16 @@ The review is in [Playtest.md](Playtest.md#friend-review-30-oct). Proposed items
 | H4 | **Pick the mic** (the user, 30 Oct: "just make it so we can choose which mic we use") | Voice is a never-cut feature | M | **Done 30 Oct** (an engine patch, see CLAUDE.md): Options > Sound > Microphone. Checked on Windows in `-game` runs with a Null session: the list, opening by name, switching live, a missing mic falling back to the default. Linux only compiles: nobody has run it (Playtest.md) |
 
 The suggestions: **collect acorns** is #11 (out of scope this month) and the story's golden acorns (S6); **checkpoints instead of time attack** is already decided for the story demo (S1, S2); **tyres that wear out and need 2 squirrels to replace** and **fuel** go to the side-tasks design session (fuel could be a jerrycan to fetch on foot, a reason to leave the car).
+
+### Second review (31 Oct): where it went
+The review is in [Playtest.md](Playtest.md#second-review-31-oct).
+
+| # | Item | Why | Effort | Status |
+|---|---|---|---|---|
+| R1 | **No deadline:** a stopwatch, a bonus per second under par (9:00), TIME'S UP removed | "The timer SUCKS"; the user, 31 Oct: "remove the timer" | S | **Done 31 Oct** (1-player PIE by script). Half of S1: the par medals come with the story |
+| R2 | **Squirrels can't flip or sink the jeep:** 4 kg squirrels, a push of 400 N instead of 750 kN, the on-foot capsule query-only; wheel sweeps skip hits from above (a squirrel on a fender) | The clip: a squirrel at the door threw the jeep; standing over a wheel sank it | S | **Done 31 Oct** (1-player PIE by script; needs the 2-player check in Playtest.md) |
+| R3 | **5 recoverable acorns, launched by careless driving on cobbles** (instead of the door flinging squirrels out): fewer, bigger acorns that fly off with physics and can be fetched on foot and carried back | "Part breaking feels unfair and boring"; the door opening "for no reason" feels lame; saving the acorns is the good part | M–L | Proposed, needs your call: it changes the cargo (40 → 5), the spill rules, the door part and the score |
+| R4 | **More obstacles, fewer plain straights;** straights only where speed is needed (a gap to clear) | Straight-line driving is boring; the sharp turn was the best part | M (route + re-bake) | Proposed: more sharp turns like THE HAIRPIN first |
 
 ### Tier 1: before the friend test
 | # | Item | Why it's fun | Effort | Touches |

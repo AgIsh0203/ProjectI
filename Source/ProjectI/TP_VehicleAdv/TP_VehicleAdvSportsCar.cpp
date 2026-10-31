@@ -6,7 +6,8 @@
 #include "TP_VehicleAdvSportsWheelRear.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 
-ATP_VehicleAdvSportsCar::ATP_VehicleAdvSportsCar()
+ATP_VehicleAdvSportsCar::ATP_VehicleAdvSportsCar(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// Note: for faster iteration times, the vehicle setup can be tweaked in the Blueprint instead
 

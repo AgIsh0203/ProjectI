@@ -27,8 +27,8 @@ struct FNBAutopilot
 
 /**
  * One run: squirrels spawn near the shared car, wait in the lobby until the host starts,
- * count down, then drive the acorns to the drop-off before the deadline while the failure
- * director breaks things. Ends on delivery, time up, or a total wreck, then reloads the map
+ * count down, then drive the acorns to the drop-off against a stopwatch (a bonus under par) while
+ * the failure director breaks things. Ends on delivery or a total wreck, then reloads the map
  * with seamless travel so the crew stays connected, and the next run starts by itself.
  */
 UCLASS()
@@ -123,9 +123,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
 	float CountdownSeconds = 5.f;
 
-	/** Time to reach the drop-off on the test track. On the route, the route's own deadline is used. */
+	/** Par time on the test track. On the route, the route's own par is used. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run")
-	float RunSeconds = 150.f;
+	float ParSeconds = 150.f;
 
 	/**
 	 * Run on the long route (built in code, away from the test track's floor) instead of the
@@ -155,8 +155,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
 	int32 PointsPerAcorn = 10;
 
+	/** Per second under par on a delivered run. */
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")
-	int32 PointsPerSecondLeft = 2;
+	int32 PointsPerSecondUnderPar = 2;
 
 	/** A delivered run with Manual gears on scores this many times as much (bad endings still score 0). */
 	UPROPERTY(EditDefaultsOnly, Category = "Run|Score")

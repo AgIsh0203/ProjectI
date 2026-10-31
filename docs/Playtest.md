@@ -144,6 +144,26 @@ One friend played on 30 Oct and wrote it up for the user (which build, and on wh
 - **Suggestions:** collect acorns; tyres wear out and need replacing by at least 2 squirrels; checkpoints far apart instead of a time attack, saved only there ("RV There Yet?"); fuel.
 - Where each point went: [Roadmap.md](Roadmap.md#friend-review-30-oct-where-it-went).
 
+## Second review (31 Oct)
+Another review, plus a 30 s clip (`Desktop 2026.10.30 - 20.10.27.02.DVR.mp4`) of the crew flipping the jeep and losing every acorn.
+- **Obstacles are better than before.** The **sharp turn** was the one part that felt perilous: they liked it.
+- **"The timer SUCKS, please remove it."** It made the game frustrating, not harder, and the game still feels too easy.
+- **Part breaking still feels unfair and boring.** The door flying open "for no reason" feels lame.
+- **Acorns:** saving them is a good objective, but use ~5 and make them recoverable. Make cobbled roads dangerous instead: careless driving there launches the acorns into the air (physics, so they fly off into the distance).
+- **More obstacles.** Straight-line driving is boring; keep straights for places that need speed (a gap to clear), instead of the timer forcing speed everywhere.
+- **The user, after the first fix:** standing on the fender still sank the jeep. Cause: each wheel's ground sweep starts a wheel radius above the wheel, so a squirrel on the fender began inside it and read as ground at the very top (suspension fully compressed). Fixed with the user's design: hits facing along the sweep are skipped (`NBVehicleMovement`).
+- **The clip:** a squirrel on foot mashes the door beside the slowly moving jeep; the jeep rises onto two wheels on that side, then is thrown into the air, rolls and spills everything. The user: standing right over a wheel makes the jeep sink. Cause: UE's character defaults are a 100 kg human (`Mass`, the weight it presses into the floor) pushing with 750 kN (`PushForceFactor`) into any moving physics body it walks into, and the capsule was a kinematic (infinitely heavy) body to Chaos.
+- Where each point went: [Roadmap.md](Roadmap.md#second-review-31-oct-where-it-went).
+
+## Squirrel weight and no timer (31 Oct): check by hand
+Checked in 1-player PIE by script: a squirrel standing over each wheel and the middle of the stopped jeep doesn't move it (body height unchanged to 0.1 cm); a squirrel dropped in front of the jeep at 900 cm/s is driven past and the car stays upright; the run counts up past par with no end.
+- [ ] 2 players: one drives slowly, the other mashes the door on foot, walking into the jeep. It shouldn't lift.
+- [ ] Stand on the hood and the bed while it drives: you still ride along, the jeep doesn't dip.
+- [ ] Stand on each fender, parked and driving: the jeep stays level (it sank and tipped toward the squirrel before the suspension fix).
+- [ ] Drive over a squirrel on foot: the wheel bumps over it like a rock (never checked: in PIE the body pushed the squirrel out first).
+- [ ] Walk into the parked jeep: it doesn't budge. Kick a traffic cone: it still moves (a little).
+- [ ] The clock counts up from 0:00 with "par 9:00" under it, dims past par; the end screen says "Time M:SS (par 9:00): +N".
+
 ## Mic picker (30 Oct): check by hand
 Esc > Options > Sound > Microphone. Checked on Windows by log only (`-game -nosteam` with a Null session): the list, opening a mic by name, switching mid-session, a missing mic falling back to the default. Needs a new build (the engine changed too).
 - [ ] Windows: pick another mic mid-run; the crew still hears you, now on that mic.

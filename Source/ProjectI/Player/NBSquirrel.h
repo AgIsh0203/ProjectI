@@ -204,7 +204,7 @@ public:
 	UFUNCTION(Exec)
 	void NBSoundTour();
 
-	/** Dev: end the run now: Delivered, TimeUp or Wrecked (host). */
+	/** Dev: end the run now: Delivered or Wrecked (host). */
 	UFUNCTION(Exec)
 	void NBEnd(const FString& Result);
 
@@ -468,6 +468,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Interaction")
 	float ExitSideOffset = 190.f;
+
+	/** kg, on foot (CharacterMovement's Mass and push forces) and tumbling. Fixed in the constructor. */
+	static constexpr float SquirrelMass = 4.f;
 
 	/** How long a thrown-out squirrel tumbles before getting up. */
 	UPROPERTY(EditAnywhere, Category = "Falling")

@@ -16,7 +16,8 @@
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
-ATP_VehicleAdvPawn::ATP_VehicleAdvPawn()
+ATP_VehicleAdvPawn::ATP_VehicleAdvPawn(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// construct the front camera boom
 	FrontSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("Front Spring Arm"));

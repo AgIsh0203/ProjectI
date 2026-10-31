@@ -44,7 +44,7 @@ class PROJECTI_API ANBCar : public ATP_VehicleAdvOffroadCar
 	GENERATED_BODY()
 
 public:
-	ANBCar();
+	ANBCar(const FObjectInitializer& ObjectInitializer);
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;

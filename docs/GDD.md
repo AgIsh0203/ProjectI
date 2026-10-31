@@ -11,7 +11,7 @@ Schedule and ranked backlog: [Roadmap.md](Roadmap.md). Asset sources and licence
 
 **Story (decided 29 Oct, Later: after friend test 3):** the squirrels steal **golden acorns** from a gourmet delivery truck, are carried far from home, build the junk jeep at the junkyard where the truck crashes, and race home before the first snow. It brings a stopwatch instead of the deadline, checkpoints, chapters joined by camps, road forks, helper vehicles (an excavator first) and a CB-radio voice. Everything is in [Story.md](Story.md). The sections below describe the game as built today.
 
-## Core loop (6–10 min run, 8:00 deadline) — Built
+## Core loop (6–10 min run, 9:00 par) — Built
 - Both seats must be filled to drive. Squirrels hop between stations constantly.
 - Breakdowns come faster as the run goes on. Each repair has its own readable action:
 
@@ -26,11 +26,11 @@ Schedule and ranked backlog: [Roadmap.md](Roadmap.md). Asset sources and licence
 - Anyone who falls out ragdolls, gets up 2.5 s later, then chases the car or respawns at it after 8 s with a score penalty.
 - Flipped car: 2 squirrels push at once to right it.
 - **Score:** acorns still in the open bed at the depot (10 each), plus 2 per second left, minus 25 per respawn. The 40 acorns spill on bumps, hard braking and crashes; a flip dumps a quarter of them.
-- **Bad endings:** the deadline runs out, or a total wreck (3+ parts failed for 10 s). Both score 0. Every run ends on the stats screen.
-- **With the story (Later, [Story.md](Story.md)):** the deadline becomes a stopwatch with per-chapter par times (Golden Acorn / Acorn / Late medals). Score = acorns × 10 + a bonus for beating par − respawns. Running out of time no longer loses: you just get the late ending. A total wreck rewinds to the last checkpoint with +30 s instead of ending the run.
+- **Bad ending:** a total wreck (3+ parts failed for 10 s) scores 0. **No deadline since 31 Oct** (a review: "the timer SUCKS", it felt frustrating, not hard): the clock is a stopwatch, and a delivered run scores 2 points per second under par (9:00); past par the clock dims and the bonus is 0, nothing else happens. Every run ends on the stats screen.
+- **With the story (Later, [Story.md](Story.md)):** the stopwatch gets per-chapter par times (Golden Acorn / Acorn / Late medals). Score = acorns × 10 + a bonus for beating par − respawns. Running out of time no longer loses: you just get the late ending. A total wreck rewinds to the last checkpoint with +30 s instead of ending the run.
 
 ## Route — Built
-The park-to-depot trail: about 5.4 km in 17 named sections, each announced by a roadside sign and a HUD banner. The deadline is 9:00. It was 3.5 km / 8:00 until friend test 1 (17 Oct), where run 1 finished with half the deadline left and everyone called it too short; the sections added then are marked *new*.
+The park-to-depot trail: about 5.4 km in 17 named sections, each announced by a roadside sign and a HUD banner. Par is 9:00 (the deadline until 31 Oct). It was 3.5 km / 8:00 until friend test 1 (17 Oct), where run 1 finished with half the deadline left and everyone called it too short; the sections added then are marked *new*.
 
 **Since 18 Oct it's a mountain trail ("RV There Yet?" style, the user's call):**
 - a rough dirt track over a real Landscape, 27–156 m high;
@@ -66,7 +66,7 @@ Heights below are the trail's range in each section, and the grade is the steepe
 
 With the story (Demo), THE PARK, HOME STRETCH and THE DEPOT become THE JUNKYARD, THE DESCENT and THE CAMPGROUND, and a fork at the top of WIGGLY ROAD adds BUCK'S CUT ([Story.md](Story.md#chapter-1-the-crash-site-the-demo)).
 
-The autopilot (`NBAuto`, no breakdowns, 16 m/s) drove the whole trail in 7:52 with the template car and in 6:40 at 435 Nm (`-game` window). With the 80 Nm car (18 Oct, slower pickup) it gets stuck on the rubble of the 18 % climbs, so there is no full timing; the sections it drove took ~25 % longer than at 435 Nm, which suggests ~8:20 with no breakdowns. **The 9:00 deadline (`DeadlineSeconds`) probably needs raising**: decide after a hand-driven run.
+The autopilot (`NBAuto`, no breakdowns, 16 m/s) drove the whole trail in 7:52 with the template car and in 6:40 at 435 Nm (`-game` window). With the 80 Nm car (18 Oct, slower pickup) it gets stuck on the rubble of the 18 % climbs, so there is no full timing; the sections it drove took ~25 % longer than at 435 Nm, which suggests ~8:20 with no breakdowns. Par (`ParSeconds`, 9:00) may need raising: decide after a hand-driven run.
 
 ## Events
 - **Acorn in Mouth — Built.** Every 75–105 s while driving (never in the last 20 s), weighted toward the WHEEL seat and squirrels next to a failed part. That squirrel is muted for 20 s, still hears everyone, and keeps 8 pings on keys 1–8: LEFT!, RIGHT!, GAS!, BRAKE!, HELP!, FIX IT!, JUMP OUT!, NICE! On a gamepad (20 Oct, #14) the D-pad sends the first four (left, right, up, down) and LB + D-pad the other four. Anyone can ping, muted or not.
@@ -126,7 +126,7 @@ Design in [Story.md](Story.md); build order in [Roadmap.md](Roadmap.md#story-dem
 
 | Feature | Status |
 |---|---|
-| Stopwatch and par medals replace the deadline | Demo |
+| Stopwatch and par replace the deadline (medals: Later) | Built 31 Oct |
 | Checkpoints at each section start and camp; a wreck rewinds to the last one (+30 s); host Continue | Demo |
 | A camp that waits for the jeep and every squirrel ("WAITING FOR <name>") | Demo |
 | CB radio lines (Dispatch, Foreman Buck, Gravy Train, Night Owl), subtitled, event-triggered: 114 for Chapter 1 in [story/RadioScript.md](story/RadioScript.md) | Demo |
@@ -155,11 +155,11 @@ The values in the code today. None has been felt by hand yet; when a playtest co
 
 | Area | Values | Where |
 |---|---|---|
-| Run | deadline 540 s on the 5.4 km route (480 s on the old 3.5 km one; 150 s on the test track); countdown 5 s; end screen 12 s | `ANBRoute::DeadlineSeconds`, `ANBRunGameMode` |
+| Run | par 540 s on the 5.4 km route (150 s on the test track), 2 points per second under it; a deadline until 31 Oct (540 s, 480 s on the old 3.5 km route); countdown 5 s; end screen 12 s | `ANBRoute::ParSeconds`, `ANBRunGameMode` |
 | Score | 10 per acorn, 2 per second left, −25 per respawn, ×1.25 with Manual gears; 0 on a bad ending | `ANBRunGameMode` |
 | Audio | engine loop asset volume 0.35 (✓ 14 Oct: the user found 1.0 too loud); music 0.35 | `SW_Engine_Loop` volume, `ANBHUD::MusicVolume` |
 | Total wreck | 3 parts failed for 10 s | `ANBRunGameMode` |
-| Failure director | storms and calms: a 25 s storm (timed failures at 0.7× the interval), then a calm with no timed failures (40 s early in the run, 20 s by the end; only parts worn past 85 % can break), alternating; first failure after 8 s; then every 14 s, easing to 6 s by the deadline; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s; a repair that frees a slot restarts the interval; a failure unfixed for 25 s stops counting against the limit; at least 3 s between failures. Friend test 17 Oct: "too many breakdowns", and fixing one let the next in within 1.5 s (fixed) | `UNBFailureDirector` |
+| Failure director | storms and calms: a 25 s storm (timed failures at 0.7× the interval), then a calm with no timed failures (40 s early in the run, 20 s by the end; only parts worn past 85 % can break), alternating; first failure after 8 s; then every 14 s, easing to 6 s by par; at most 1, rising to players + 1, failed at once; a repaired part can't break again for 8 s; a repair that frees a slot restarts the interval; a failure unfixed for 25 s stops counting against the limit; at least 3 s between failures. Friend test 17 Oct: "too many breakdowns", and fixing one let the next in within 1.5 s (fixed) | `UNBFailureDirector` |
 | Wear | pick weight 0.3 + 10 × wear² (nothing breaks by itself below 300 cm/s); rough ground 0.05/s per tyre (suspension rate 1→4 /s); crash: ≥ 600 cm/s horizontal hit wears the part on that side up to 0.7, ≥ 1200 breaks it (not within 4 s of its repair), 1 s between hits; past 0.6 wear, up to 8 %/s to break early. Per second: engine 0.03 × speed factor (1000→2000 cm/s) × (½ + ½ throttle); rear tires 0.02 × speed factor; front tires 0.035 × steer × (speed / 800 cm/s); brakes 0.08 × brake × (speed / 1500 cm/s), or 0.02 after 30 s above 600 cm/s without braking; door +0.15 per seat hop; all heal 0.006/s. In PIE, flat out (2250 cm/s) the engine reached 0.84 and broke at 40 s | `ANBCar` "Car\|Wear", `UNBFailureDirector` "Director\|Wear" |
 | Engine | power fades to 35 % over 10 s, stalls at 16 s; repair: 14 presses (progress drains 0.2/s) | `UNBEnginePart` |
 | Brakes | drop to 25 %, fading to 0 by 12 s; while failed they also seize (brake 0.8 at full torque for 0.35 s every 2.5–5 s above 300 cm/s: a lurch even if nobody brakes; PIE: −50 to −175 cm/s per grab); repair: 3 ring hits, 1.3 s period, 16 % sweet spot, a miss costs 34 % | `UNBBrakePart` |

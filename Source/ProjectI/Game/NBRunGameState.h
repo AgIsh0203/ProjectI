@@ -24,7 +24,6 @@ enum class ENBRunResult : uint8
 {
 	None,
 	Delivered,
-	TimeUp,
 	Wrecked,
 };
 
@@ -43,9 +42,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	ENBRunResult GetResult() const { return Result; }
 
-	/** Seconds left on whichever clock the phase uses: countdown, deadline or restart. Never negative. */
+	/** Seconds left on the countdown or before the restart. Never negative; 0 while waiting or driving. */
 	UFUNCTION(BlueprintPure, Category = "Run")
 	float GetSecondsLeft() const;
+
+	/** The stopwatch: seconds since the run started driving, frozen when it ends (31 Oct: no deadline). */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	float GetRunSeconds() const;
+
+	/** The route's par time: a delivered run scores a bonus per second under it. */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	float GetParSeconds() const { return ParSeconds; }
 
 	/** Seconds the total-wreck clock has run (0 while fewer than 3 parts are failed). */
 	UFUNCTION(BlueprintPure, Category = "Run")
@@ -84,6 +91,7 @@ public:
 	// --- Server only: written by the game mode. ---
 	void SetManualGears(bool bManual, float ScoreScale) { bManualGears = bManual; ManualGearsScale = ScoreScale; }
 	void SetPhase(ENBRunPhase NewPhase, double NewEndTime);
+	void StartDriving(float NewParSeconds);
 	void SetWreckSeconds(float Seconds) { WreckSeconds = Seconds; }
 	void SetAwards(APlayerState* NewMvp, APlayerState* NewMostUseless) { Mvp = NewMvp; MostUseless = NewMostUseless; }
 	void Finish(ENBRunResult NewResult, int32 Delivered, int32 NewTimeBonus, int32 NewAirBonus, int32 NewPenalty, int32 NewScore, double RestartTime);
@@ -95,9 +103,20 @@ private:
 	UPROPERTY(Replicated)
 	ENBRunResult Result = ENBRunResult::None;
 
-	/** Server world time the current clock hits zero. */
+	/** Server world time the countdown or restart clock hits zero. */
 	UPROPERTY(Replicated)
 	double PhaseEndTime = 0.0;
+
+	/** Server world time the run started driving. */
+	UPROPERTY(Replicated)
+	double DriveStartTime = 0.0;
+
+	/** The stopwatch at the end of the run. */
+	UPROPERTY(Replicated)
+	float FinalRunSeconds = 0.f;
+
+	UPROPERTY(Replicated)
+	float ParSeconds = 0.f;
 
 	UPROPERTY(Replicated)
 	float WreckSeconds = 0.f;
