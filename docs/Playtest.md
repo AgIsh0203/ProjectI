@@ -13,6 +13,7 @@ Everything here has been verified only by Python scripts in PIE, so this is the 
   | 2026-10-17 | `dc7593b` | 258 MB | 498 MB | `ProjectI-2026-10-17-Dev.zip`. First build with Tier 1 (horn, pile, callouts, charm, onboarding), sounds + music, puff VFX, the squirrel/acorn models, route props and input prompts. Content 136 MB. Launches offline with no asset-load errors; Lilita One loads. Played in friend test 1 (results below). |
   | 2026-10-20 (7 Nov test) | `c7326e8` | 270 MB | 511 MB | `ProjectI-2026-10-20-Win64-Dev.zip` in `ProjectI_Builds\2026-10-20\`. Everything up to G6 (awards, fallen cam, pad pings, the dog, roadblocks, wrecking ball, Gears seat, rigged squirrel, mountain trail). Launches offline into L_Route, the dog's kennel spawns, the autopilot drives THE PARK, no asset-load errors. Not played by hand. |
   | 2026-10-23 (slim) | the size-pass commit, on `9fdeccb` | 164 MB | 376 MB | `ProjectI-2026-10-23-slim-Win64-Dev.zip` in `ProjectI_Builds\2026-10-23-slim\`. The size pass (Roadmap Package size D–F): editor-only plugins out of the game (exe 317 → 277 MB), SM5 shaders only (content 141 → 41 MB), unused engine textures and car mesh collision out. DX12 and `-dx11` both start at SM5, no asset-load errors, the autopilot drives THE PARK and SQUIRREL CREEK (it stops at the COBBLE LANE pinch point, as expected). **Look at it by hand:** the lighting at SM5 and the roadblock sports car (now its Nanite fallback mesh). |
+  | 2026-10-27 | `b54cff4` + an uncommitted L_Route save | 168 MB | 381 MB | `ProjectI-2026-10-27-Win64-Dev.zip` in `ProjectI_Builds\2026-10-27\`, with `ProjectI-2026-10-27-Linux-Dev.tar.gz` (175 MB, 355 MB unpacked); both shared on Google Drive. The junk jeep (A2), push to talk, gamepad rebinding, manual-gear lugging. **Played online on 30 Oct** ([below](#30-oct-online-session-the-27-oct-build)). |
   | 2026-10-20 Linux | `c7326e8` + `-Wshadow` fix | 249 MB (`.tar.gz`) | 464 MB | `ProjectI-2026-10-20-Linux-Dev.tar.gz`, same folder. The first Linux build: Vulkan SM6, Vulkan debug layers removed (kept beside it in `VulkanDebugLayers-Linux\`). **Never run**: needs a Linux PC with Vulkan drivers and Steam for Linux. Unpack with `tar -xzf`, run `./ProjectI.sh`. |
   | 2026-10-17 (fix) | `b20dce9` | 258 MB | 498 MB | `ProjectI-2026-10-17-fix-Dev.zip` in `ProjectI_Builds\2026-10-17-fix\`. Fixes the restart crash: two packaged copies on one PC (`?AutoStart`, `-nosteam`, IP) went through 2 restarts with the client connected; the 17 Oct build crashed the client on the first. Adds part wear and the director fixes. Not played by hand. |
 - [ ] Copy the zip to the second PC, the way a friend would get it. Steam runs on both, signed into two different accounts.
@@ -158,6 +159,29 @@ Another review, plus a 30 s clip (`Desktop 2026.10.30 - 20.10.27.02.DVR.mp4`) of
 ## Luigi's chat (31 Oct): voice and Acorn in Mouth
 VOIP was better and nothing crashed, but Acorn in Mouth felt like an annoyance, not a challenge: nobody needs to talk, because every seat knows the same things. The whole chat, and questions for a design session, are in [Review_2026-10-31_VoiceAndAcornInMouth.md](Review_2026-10-31_VoiceAndAcornInMouth.md). Tried for the next test: a muffled voice instead of a muted one (below).
 
+## 30 Oct online session (the 27 Oct build)
+The user and friends played the 27 Oct build over Steam on 30 Oct. From the user's log: the user hosted for a few minutes, then joined a friend's lobby as a client for about 23 minutes and 3 runs. Run 2 almost certainly ran out the old 9:00 deadline: the next restart came exactly 9:18 after the one before (5 s countdown + 9:00 + 12 s end screen + 1 s travel). The second review above and the two notes below came out of it. Where they went: [Roadmap](Roadmap.md#anyas-review-and-the-users-notes-31-oct-where-they-went).
+
+### Anya's review (31 Oct, Discord)
+Anya (friend test 1) on the 30 Oct session, in Hindi and English; translated, with the user's follow-up question folded in:
+- The door still gets damaged too often.
+- A better indication of what each player is doing right now: it's sometimes confusing.
+- While someone repairs a tyre, it sometimes doesn't lock: another squirrel can try fixing it too, or at least sees its panel (not sure it happens every time).
+- A flat barely changes the handling ("still in control"); only several flats do. "I guess that's intended?"
+
+In the code: a tyre takes one squirrel at a time, and a second one near it gets the "NAME IS ON IT" panel (F8) in the spot where a real repair shows, so it reads as shared. The engine, door and brakes don't lock at all: two squirrels can mash or hit the ring together, each seeing its own panel. A front flat adds a steady 30 % steer towards its side (rear 15 %) and a small wobble, and the engine only cuts out above 1400 cm/s, faster than 4th gear's top (~1360), so a single flat costs almost nothing.
+
+### The user's notes (31 Oct)
+- **Par:** 9:00 is too tight, because a tyre fix means stopping. The user's solo drive (PIE, no breakdowns) took ~7 min.
+- **The dog:** once you know to honk, it leaves before it ever bites. In the code a honk within 25 m scares it for 10 s; by then the car is ~100 m on, and at 1450 cm/s it can't catch up before its 660 m stretch ends.
+- **A phantom bite:** "the dog's got a tyre" with no dog anywhere near. The user was a client, and the dog logs only on the host's PC, so the event isn't in any log here. What the code allows:
+  - it has no collision and runs straight at the nearest tyre, so on WIGGLY ROAD's bends it can switch to a tyre on the far side, through the jeep, and bite out of the chase camera's view;
+  - at the WIGGLY ROAD pinch point (3660 m, 20 m from its kennel), a bite beside the rocks puts its feet on their collision boxes, ~1 m up (checked in the editor);
+  - the callout reaches every screen, including a squirrel that was thrown out or is looking elsewhere.
+
+  Elsewhere on its stretch the ground within 9 m of the trail is flat (±35 cm), so it can't sink into a bank.
+- **The autopilot** gets stuck on the rubble and on everything placed since G6.
+
 ## Muffled voice (31 Oct): check by hand
 Acorn in Mouth now muffles the squirrel's voice (a 450 Hz low-pass on every listener's machine, `UNBVoiceTalker`) instead of cutting its mic. Checked in PIE only: the run gives an acorn as before and every squirrel carries an `NBVoiceTalker`. Before this, BP_Squirrel still held the plain engine talker saved on 14 Oct, so **the Voice volume slider never reached anyone's voice** in any build since 17 Oct; it should now.
 - [ ] 2 PCs: when your friend gets the acorn, their voice turns muffled (still understandable?) for 20 s, then clears. Funny, or just annoying?
@@ -245,6 +269,7 @@ Checked in 1-player PIE (the server spawns `BP_JunkJeep`, seats and parts where 
 - [ ] THE BRIDGE: the wrecking ball can be timed by waiting; a hit shoves the car (off the bridge?) and knocks squirrels out with "WRECKING BALL!". Is a knock off the bridge too harsh? A client sees it swing in step.
 
 ## The dog (20 Oct): check by hand
+Played on 30 Oct ([above](#30-oct-online-session-the-27-oct-build)): a crew that knows honks it away before any bite, and one bite showed with no dog in sight. Changes coming: Roadmap J10–J12 (it also moves to COBBLE CURVE).
 - [ ] On WIGGLY ROAD the dog wakes and chases; it reads as a dog (greybox) and its trot looks alive. CHOMP! / WOOF! / YIPE! show over it, and "THE DOG'S GOT A TYRE!  HONK!" when it bites.
 - [ ] Honking scares it off; does the crew learn that without being told?
 - [ ] Too much or too little? (Bites per run, flats, how easily a fast car escapes.) A client sees it move smoothly.
@@ -252,7 +277,7 @@ Checked in 1-player PIE (the server spawns `BP_JunkJeep`, seats and parts where 
 
 ## Mountain trail (18 Oct): check by hand
 Only an autopilot has driven it so far (no breakdowns, 16 m/s): 7:52 with the template car, 6:40 at 435 Nm. With the 80 Nm car it gets stuck on the climbs' rubble, so no full timing yet (estimate ~8:20 with no breakdowns).
-- [ ] Drive the whole route by hand (solo drive) and note the time: is 9:00 still enough, with breakdowns on top? If not, raise `DeadlineSeconds` on the route.
+- [x] Drive the whole route by hand (solo drive) and note the time. **31 Oct: ~7 min** (the user, no breakdowns). Par becomes the solo time + 4 min, 11:00 (Roadmap J5), measured again after the re-bake (J1, J2).
 - [ ] THE WASH (18 Oct, autopilot): after the water the car crawled at ~515 cm/s in 1st for ~25 s. Stuck on a pebble, or the autopilot? Check by hand.
 - [ ] Steering fade (40 % at 1500 cm/s) and the sphere wheels: do bends need braking now? Do rocks jolt without feeling random?
 - [ ] The slow-pickup car (80 Nm, 18 Oct): is most of the trail in 3rd–4th, 2nd on the slow parts, and 5th only on long straights? Fun, or sluggish? Can you get round the rocks on PINE PASS and ROCKY ROAD without stalling?

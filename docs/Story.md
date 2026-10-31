@@ -401,12 +401,12 @@ Roadmap items in brackets ([Roadmap.md](Roadmap.md#story-demo-after-friend-test-
   - the jeep in pieces, with building it as the tutorial;
   - the intro card on the loading screen.
 - [ ] **The three renames (S4):** in `ANBRoute`'s segment list and in L_Route's baked sign texts. Edit the signs by hand, because a re-bake would lose the hand edits.
-- [ ] **Buck's Cut (S5):**
+- [ ] **Buck's Cut (S5)** (the road, plain fork signs and the picnic hamper are pulled forward to friend test 3: Roadmap J2 and J13, 31 Oct):
   - the road (grade check), the ranger station (destructible), the excavator and its seats and hose, the parking bay;
   - the fork signs;
   - the picnic hamper on WIGGLY ROAD.
 - [ ] **Golden acorns** (S6) and the **snow creep** (S7).
-- [ ] **TINY re-staged (S9):**
+- [ ] **TINY re-staged (S9)** (the ambush stretch is pulled forward to friend test 3: Roadmap J12, 31 Oct):
   - chained in the junkyard, then the chain-snap chase with no bite;
   - the ambush stretch moved from WIGGLY ROAD to COBBLE CURVE through THE DESCENT;
   - it stops at THE WASH.

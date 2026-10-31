@@ -16,6 +16,7 @@ A Discord chat between the user (4iZard) and Luigi after Luigi played a build on
 
 ## Done since
 - **Muffle instead of mute** (the user, 31 Oct: "lets try muffle for the next test"): built, checked in PIE only. How to check it on 2 PCs is in [Playtest.md](Playtest.md#muffled-voice-31-oct-check-by-hand).
+- **When** (31 Oct): there's no test before friend test 3 (28 Nov), so the muffle gets its first test there, and the design session below comes after it ([Roadmap](Roadmap.md#plan-to-friend-test-3-decided-18-oct-replanned-31-oct)).
 
 ## Questions for the design session
 1. After the next test: keep the muffle, make it rarer, or drop Acorn in Mouth?
